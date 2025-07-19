@@ -40,8 +40,8 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repository-url>
-    cd <repository-directory>
+    git clone https://github.com/methenol/gitautomate.git
+    cd gitautomate
     ```
 
 2.  **Set up environment variables:**
