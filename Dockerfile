@@ -24,7 +24,7 @@ COPY --from=builder /app/next.config.ts .
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 # Conditionally copy the public directory if it exists to prevent build errors
-COPY --from=builder /app/public ./public || true
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/src/ai ./src/ai
 
 # Expose ports for Next.js app and Genkit UI
