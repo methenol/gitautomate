@@ -1,0 +1,120 @@
+'use server';
+
+/**
+ * @fileOverview Researches a single development task and generates detailed implementation notes.
+ *
+ * - researchTask - A function that takes a task title and project context and returns detailed implementation steps.
+ * - ResearchTaskInput - The input type for the researchTask function.
+ * - ResearchTaskOutput - The return type for the researchTask function.
+ */
+
+import {ai} from '@/ai/genkit';
+import {z} from 'genkit';
+
+const ResearchTaskInputSchema = z.object({
+  title: z.string().describe('The title of the development task to research.'),
+  architecture: z.string().describe('The overall architecture of the project.'),
+  specifications: z.string().describe('The specifications of the project.'),
+});
+export type ResearchTaskInput = z.infer<typeof ResearchTaskInputSchema>;
+
+const ResearchTaskOutputSchema = z.object({
+  context: z
+    .string()
+    .describe(
+      'Briefly explain how this task fits into the overall architecture.'
+    ),
+  implementationSteps: z
+    .string()
+    .describe(
+      'Provide a clear, step-by-step guide to implementing the task. Be specific about files to create or modify, functions to write, and components to build. Use markdown for code blocks where appropriate.'
+    ),
+  acceptanceCriteria: z
+    .string()
+    .describe('Define what it means for this task to be considered "done".'),
+});
+export type ResearchTaskOutput = z.infer<typeof ResearchTaskOutputSchema>;
+
+const standardPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan.
+
+You MUST return your response as a valid JSON object that conforms to the output schema.
+
+For the given task, provide a detailed breakdown for each of the following fields:
+- context: Briefly explain how this task fits into the overall architecture.
+- implementationSteps: Provide a clear, step-by-step guide to implementing the task. Be specific about files to create or modify, functions to write, and components to build. Use markdown for code blocks where appropriate.
+- acceptanceCriteria: Define what it means for this task to be considered "done".
+
+Overall Project Architecture:
+{{{architecture}}}
+
+Overall Project Specifications:
+{{{specifications}}}
+
+Now, provide the detailed implementation plan as a JSON object for the following task:
+
+**Task Title: {{{title}}}**
+`;
+
+const tddPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan.
+
+You MUST return your response as a valid JSON object that conforms to the output schema.
+
+For the given task, provide a detailed breakdown for each of the following fields:
+- context: Briefly explain how this task fits into the overall architecture.
+- implementationSteps: Provide a clear, step-by-step guide to implementing the task. Be specific about files to create or modify, functions to write, and components to build. Use markdown for code blocks where appropriate. The implementation plan must strictly follow all phases of Test-Driven Development (Red-Green-Refactor).
+- acceptanceCriteria: Define what it means for this task to be considered "done".
+
+Overall Project Architecture:
+{{{architecture}}}
+
+Overall Project Specifications:
+{{{specifications}}}
+
+Now, provide the detailed implementation plan as a JSON object for the following task:
+
+**Task Title: {{{title}}}**
+`;
+
+export async function researchTask(
+  input: ResearchTaskInput,
+  apiKey?: string,
+  model?: string,
+  useTDD?: boolean
+): Promise<ResearchTaskOutput> {
+  const modelName = model
+    ? `googleai/${model}`
+    : 'googleai/gemini-1.5-pro-latest';
+  
+  const promptTemplate = useTDD ? tddPrompt : standardPrompt;
+  const prompt = promptTemplate
+    .replace('{{{architecture}}}', input.architecture)
+    .replace('{{{specifications}}}', input.specifications)
+    .replace('{{{title}}}', input.title);
+
+  const researchTaskFlow = ai.defineFlow(
+    {
+      name: 'researchTaskFlow',
+      inputSchema: z.string(),
+      outputSchema: ResearchTaskOutputSchema,
+    },
+    async (prompt) => {
+      const {output} = await ai.generate({
+        model: modelName,
+        prompt: prompt,
+        output: {
+          schema: ResearchTaskOutputSchema,
+        },
+        config: apiKey ? {apiKey} : undefined,
+      });
+
+      if (!output) {
+        throw new Error(
+          'An unexpected response was received from the server.'
+        );
+      }
+      return output;
+    }
+  );
+
+  return await researchTaskFlow(prompt);
+}
