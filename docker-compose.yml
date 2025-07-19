@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "9002:9002" # Next.js app
+      - "4000:4000" # Genkit UI
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev # Use dev for local development with hot-reloading
+
+  genkit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4001:4000" # Expose Genkit UI on a different port if running alongside 'app' service locally
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run genkit:watch
