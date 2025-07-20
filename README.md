@@ -1,6 +1,6 @@
 # GitAutomate: PRD to Project Plan
 
-GitAutomate is a powerful web application designed to streamline the initial phases of a software project. By leveraging generative AI, it transforms a Product Requirements Document (PRD) into a comprehensive project plan, including software architecture, technical specifications, and a granular list of actionable development tasks. You can then export this plan or automatically create issues in your GitHub repository.
+GitAutomate is a powerful web application designed to streamline the initial phases of a software project. By leveraging generative AI, it transforms a Product Requirements Document (PRD) into a comprehensive project plan, including software architecture, technical specifications, and a granular list of actionable development tasks. You can then export this plan or automatically create issues in your GitHub repository. This is a simple local tool that makes it easier to task project building to AI SWE coders like OpenHands or Copilot Coding Agent. You can use the markdown task files with Claude Code or Roo Code as well.
 
 ## Features
 
