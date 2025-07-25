@@ -11,6 +11,7 @@ import {
   runGenerateArchitecture,
   runGenerateTasks,
   runResearchTask,
+  runGenerateFileStructure,
   getModels,
 } from './actions';
 import type { Task, ResearchTaskInput } from '@/types';
@@ -127,6 +128,7 @@ export default function Home() {
   const [prd, setPrd] = useState<string>('');
   const [architecture, setArchitecture] = useState<string>('');
   const [specifications, setSpecifications] = useState<string>('');
+  const [fileStructure, setFileStructure] = useState<string>('');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [finalIssueURL, setFinalIssueURL] = useState('');
 
@@ -267,16 +269,24 @@ export default function Home() {
     setLoading((prev) => ({ ...prev, arch: true }));
     setArchitecture('');
     setSpecifications('');
+    setFileStructure('');
     setTasks([]);
     setFinalIssueURL('');
     try {
       const result = await runGenerateArchitecture({ prd }, { apiKey: googleApiKey, model: selectedModel });
       setArchitecture(result.architecture);
       setSpecifications(result.specifications);
+
+      // Automatically generate file structure after architecture/specs
+      const fileStructResult = await runGenerateFileStructure(
+        { prd, architecture: result.architecture, specifications: result.specifications },
+        { apiKey: googleApiKey, model: selectedModel }
+      );
+      setFileStructure(fileStructResult.fileStructure || '');
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Architecture Generation Failed',
+        title: 'Architecture/File Structure Generation Failed',
         description: (error as Error).message,
       });
     } finally {
@@ -284,12 +294,17 @@ export default function Home() {
     }
   };
 
+  // REMOVED: handleGenerateFileStructure and all fileStruct loading logic, as file structure is now generated automatically after architecture/specs.
+
   const researchSingleTask = useCallback(async (task: Task) => {
     setTaskLoading(prev => ({ ...prev, [task.title]: true }));
     try {
-      const result = await runResearchTask({ title: task.title, architecture, specifications }, { apiKey: googleApiKey, model: selectedModel, useTDD });
+      const result = await runResearchTask(
+        { title: task.title, architecture, fileStructure, specifications },
+        { apiKey: googleApiKey, model: selectedModel, useTDD }
+      );
       const formattedDetails = `### Context\n${result.context}\n\n### Implementation Steps\n${result.implementationSteps}\n\n### Acceptance Criteria\n${result.acceptanceCriteria}`;
-      setTasks(currentTasks => 
+      setTasks(currentTasks =>
         currentTasks.map(t => t.title === task.title ? { ...t, details: formattedDetails } : t)
       );
       if (selectedTask?.title === task.title) {
@@ -297,7 +312,7 @@ export default function Home() {
       }
     } catch (researchError) {
       const errorMessage = `Failed to research task: ${(researchError as Error).message}`;
-      setTasks(currentTasks => 
+      setTasks(currentTasks =>
         currentTasks.map(t => t.title === task.title ? { ...t, details: errorMessage } : t)
       );
        if (selectedTask?.title === task.title) {
@@ -306,7 +321,7 @@ export default function Home() {
     } finally {
       setTaskLoading(prev => ({ ...prev, [task.title]: false }));
     }
-  }, [architecture, specifications, googleApiKey, selectedModel, useTDD, selectedTask?.title]);
+  }, [architecture, fileStructure, specifications, googleApiKey, selectedModel, useTDD, selectedTask?.title]);
 
 
   const handleGenerateTasks = async () => {
@@ -316,7 +331,10 @@ export default function Home() {
     setResearchProgress(0);
 
     try {
-      const result = await runGenerateTasks({ architecture, specifications }, { apiKey: googleApiKey, model: selectedModel, useTDD });
+      const result = await runGenerateTasks(
+        { architecture, specifications, fileStructure },
+        { apiKey: googleApiKey, model: selectedModel, useTDD }
+      );
       const initialTasks = result.tasks;
 
       if (!initialTasks || initialTasks.length === 0) {
@@ -372,6 +390,7 @@ export default function Home() {
         prd,
         architecture,
         specifications,
+        fileStructure,
         tasks
       );
 
@@ -421,6 +440,7 @@ export default function Home() {
       docsFolder.file('PRD.md', prd);
       docsFolder.file('ARCHITECTURE.md', architecture);
       docsFolder.file('SPECIFICATION.md', specifications);
+      docsFolder.file('FILE_STRUCTURE.md', fileStructure);
 
       // Create main tasks file
       const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
@@ -695,7 +715,7 @@ export default function Home() {
               </motion.div>
             )}
 
-            {/* Step 3: Architecture & Specs */}
+            {/* Step 3: Review Plan (Architecture, Specifications, File Structure in one card) */}
             {architecture && (
               <motion.div key="step3" {...cardAnimation}>
                 <Card>
@@ -705,7 +725,7 @@ export default function Home() {
                       <span>Step 3: Review Plan</span>
                     </CardTitle>
                     <CardDescription>
-                      The AI has generated the following architecture and specs.
+                      The AI has generated the following architecture, specifications, and file structure.
                       Review and edit if needed.
                     </CardDescription>
                   </CardHeader>
@@ -727,6 +747,16 @@ export default function Home() {
                         value={specifications}
                         onChange={(e) => setSpecifications(e.target.value)}
                         rows={15}
+                        className="mt-2 font-mono text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="file-structure" className="text-lg font-semibold">File Structure</Label>
+                      <Textarea
+                        id="file-structure"
+                        value={fileStructure}
+                        onChange={(e) => setFileStructure(e.target.value)}
+                        rows={12}
                         className="mt-2 font-mono text-sm"
                       />
                     </div>
@@ -755,10 +785,11 @@ export default function Home() {
                 </Card>
               </motion.div>
             )}
-             {loading.arch && (
-                <motion.div key="loading-arch" {...cardAnimation}>
-                    <LoadingSpinner text="Generating architecture & specs..." />
-                </motion.div>
+
+            {loading.arch && (
+               <motion.div key="loading-arch" {...cardAnimation}>
+                   <LoadingSpinner text="Generating architecture & specs..." />
+               </motion.div>
             )}
 
             {/* Step 4: Task List */}
@@ -818,41 +849,44 @@ export default function Home() {
                       ))}
                     </div>
                   </CardContent>
-                  <CardFooter className="flex justify-end gap-2">
-                     <Button
-                      variant="outline"
-                      onClick={handleExportData}
-                      disabled={loading.exporting || loading.researching}
-                    >
-                      {loading.exporting ? (
-                        <>
-                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                          Exporting...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="mr-2 h-4 w-4" />
-                          Export Data
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      onClick={handleCreateIssue}
-                      disabled={loading.issue || loading.researching || selectedRepo === LOCAL_MODE_REPO_ID}
-                      title={selectedRepo === LOCAL_MODE_REPO_ID ? "Cannot create issues in local mode" : ""}
-                    >
-                      {loading.issue ? (
-                        <>
-                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                          Creating Issue...
-                        </>
-                      ) : (
-                        <>
-                           <Github className="mr-2 h-4 w-4"/> Create GitHub Issue
-                        </>
-                      )}
-                    </Button>
-                  </CardFooter>
+                  {/* Export/Issue buttons only shown after tasks are generated */}
+                  {(tasks.length > 0) && (
+                    <CardFooter className="flex justify-end gap-2">
+                       <Button
+                        variant="outline"
+                        onClick={handleExportData}
+                        disabled={loading.exporting || loading.researching}
+                      >
+                        {loading.exporting ? (
+                          <>
+                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                            Exporting...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="mr-2 h-4 w-4" />
+                            Export Data
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={handleCreateIssue}
+                        disabled={loading.issue || loading.researching || selectedRepo === LOCAL_MODE_REPO_ID}
+                        title={selectedRepo === LOCAL_MODE_REPO_ID ? "Cannot create issues in local mode" : ""}
+                      >
+                        {loading.issue ? (
+                          <>
+                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                            Creating Issue...
+                          </>
+                        ) : (
+                          <>
+                             <Github className="mr-2 h-4 w-4"/> Create GitHub Issue
+                          </>
+                        )}
+                      </Button>
+                    </CardFooter>
+                  )}
                 </Card>
               </motion.div>
             )}

@@ -100,6 +100,31 @@ This method uses Docker Compose to build the necessary images and run the applic
 
 ---
 
+## Workflow Overview
+
+The core workflow is as follows:
+
+1. **Configure Settings**: Set up your GitHub and Google AI credentials.
+2. **Select Repository**: Choose between Local Mode or a GitHub repository.
+3. **Provide PRD**: Enter your Product Requirements Document.
+4. **Generate Architecture & Specifications**: AI generates a proposed architecture and technical specs.
+5. **Review & Edit Architecture/Specs**: Make any changes needed.
+6. **Generate File Structure**: AI proposes a comprehensive, editable file/folder structure based on your PRD, architecture, and specs. You can review and edit this structure before proceeding. (See [`src/ai/flows/generate-file-structure.ts`](src/ai/flows/generate-file-structure.ts) for types and implementation details.)
+7. **Generate Tasks**: AI generates actionable tasks, mapped to your reviewed file structure.
+8. **Review & Refine Tasks**: Edit task details as needed.
+9. **Export or Create Issues**: Export all data or create GitHub issues.
+
+### File Structure Generation Types
+
+- **Input:**
+  [`GenerateFileStructureInput`](src/ai/flows/generate-file-structure.ts:25)
+  `{ prd: string, architecture: string, specifications: string }`
+
+- **Output:**
+  [`GenerateFileStructureOutput`](src/ai/flows/generate-file-structure.ts:32)
+  `{ fileStructure: string }`
+
+
 ## How to Use GitAutomate
 
 Using the application involves a simple, sequential process.
@@ -126,17 +151,19 @@ Using the application involves a simple, sequential process.
 
 - The generated architecture and specifications will be displayed in editable text areas.
 - You can review and modify the AI's output to better fit your project's needs.
-- Once you are satisfied, click **"Generate Tasks"**. The AI will now break down the plan into a list of granular, actionable tasks.
+- Once you are satisfied, click **"Generate File Structure"**. The AI will propose a comprehensive file/folder structure for your project, based on your PRD, architecture, and specifications.
+- The proposed file structure will be shown in an editable text area. You can review and edit it as needed to match your preferred organization or conventions.
+- When ready, click **"Generate Tasks"**. The AI will use your PRD, architecture, specifications, and the (possibly edited) file structure to break down the plan into a list of granular, actionable tasks.
 
 ### 5. Review & Refine Tasks
 
-- The AI will generate a list of task titles and then, one by one, research each task to generate detailed implementation notes (context, steps, acceptance criteria).
+- The AI will generate a list of task titles and then, one by one, research each task to generate detailed implementation notes (context, steps, acceptance criteria). Tasks are mapped to the file/folder structure you reviewed in the previous step.
 - Click on any task to open a detailed view. You can edit the implementation details in the text editor. A live preview of the GitHub issue markdown is shown on the right.
 - If research for a task fails, you can click the **"Retry Research"** button within the task detail view.
 
 ### 6. Export or Create Issues
 
-- **Export Data**: Click the **"Export Data"** button at any time after tasks have been generated. This will download a `.zip` file containing the PRD, architecture, specifications, and all tasks in markdown format. This is the only option available in Local Mode.
+- **Export Data**: Click the **"Export Data"** button at any time after tasks have been generated. This will download a `.zip` file containing the PRD, architecture, specifications, file structure, and all tasks in markdown format. This is the only option available in Local Mode.
 - **Create GitHub Issue**: If you have selected a repository, click the **"Create GitHub Issue"** button. This will:
     1. Create individual issues in your repository for each task.
     2. Create a main "Implementation Plan" parent issue that links to all the sub-task issues.

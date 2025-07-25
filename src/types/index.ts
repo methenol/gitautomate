@@ -8,3 +8,4 @@ export const TaskSchema = z.object({
     .default(''),
 });
 export type Task = z.infer<typeof TaskSchema>;
+export type { ResearchTaskInput } from '@/ai/flows/research-task';

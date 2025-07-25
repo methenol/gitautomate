@@ -6,6 +6,7 @@ import {
 } from '@/ai/flows/generate-architecture';
 import { generateTasks, GenerateTasksInput } from '@/ai/flows/generate-tasks';
 import { researchTask, ResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
+import { generateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
 import { listAvailableModels } from '@/ai/genkit';
 
 type ActionOptions = {
@@ -50,9 +51,9 @@ export async function runGenerateTasks(
   input: GenerateTasksInput,
   options?: ActionOptions
 ) {
-  if (!input.architecture || !input.specifications) {
+  if (!input.architecture || !input.specifications || !input.fileStructure) {
     throw new Error(
-      'Architecture and specifications are required to generate tasks.'
+      'Architecture, specifications, and file structure are required to generate tasks.'
     );
   }
   try {
@@ -66,13 +67,53 @@ export async function runGenerateTasks(
   }
 }
 
+/**
+ * Generates a proposed file/folder structure for a software project.
+ * @param input - { prd, architecture, specifications }
+ * @param options - { apiKey, model }
+ * @returns { fileStructure: string }
+ */
+export async function runGenerateFileStructure(
+  input: GenerateFileStructureInput,
+  options?: ActionOptions
+) {
+  if (!input.prd || !input.architecture || !input.specifications) {
+    throw new Error(
+      'PRD, architecture, and specifications are required to generate the file structure.'
+    );
+  }
+  try {
+    const result = await generateFileStructure(
+      input,
+      options?.apiKey,
+      options?.model
+    );
+    return result;
+  } catch (error) {
+    console.error('Error generating file structure:', error);
+    if (
+      error instanceof Error &&
+      (error.message.includes('API key not found') ||
+        error.message.includes('API key is invalid') ||
+        error.message.includes('Please check your Google AI API key'))
+    ) {
+      throw new Error(
+        'Failed to generate file structure: Your Google AI API key is missing or invalid. Please check it in settings.'
+      );
+    }
+    throw new Error(
+      'File structure generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD, architecture, or specifications.'
+    );
+  }
+}
+
 export async function runResearchTask(
   input: ResearchTaskInput,
   options?: ActionOptions
 ): Promise<ResearchTaskOutput> {
-  if (!input.title || !input.architecture || !input.specifications) {
+  if (!input.title || !input.architecture || !input.specifications || !input.fileStructure) {
     throw new Error(
-      'Task title, architecture, and specifications are required for research.'
+      'Task title, architecture, specifications, and file structure are required for research.'
     );
   }
 

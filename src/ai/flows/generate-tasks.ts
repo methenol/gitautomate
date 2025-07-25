@@ -18,6 +18,7 @@ import {googleAI} from '@genkit-ai/googleai';
 const GenerateTasksInputSchema = z.object({
   architecture: z.string().describe('The architecture of the project.'),
   specifications: z.string().describe('The specifications of the project.'),
+  fileStructure: z.string().describe('The file structure of the project.'),
 });
 export type GenerateTasksInput = z.infer<typeof GenerateTasksInputSchema>;
 
@@ -27,7 +28,7 @@ const GenerateTasksOutputSchema = z.object({
 });
 export type GenerateTasksOutput = z.infer<typeof GenerateTasksOutputSchema>;
 
-const standardPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture and specifications into a series of actionable, granular development task *titles*.
+const standardPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable, granular development task *titles*.
 
 The tasks must be generated in a strict, sequential order that a developer would follow. Start with foundational tasks like project setup, creating the component library, and configuring CI/CD. Then, build out the features in a logical sequence, ensuring that any dependencies are addressed in prior tasks. For example, user authentication should be built before features that require a logged-in user.
 
@@ -36,12 +37,15 @@ These tasks are for an AI programmer, so they must be clear, unambiguous, and re
 Architecture:
 {{{architecture}}}
 
+File Structure:
+{{{fileStructure}}}
+
 Specifications:
 {{{specifications}}}
 
 Generate the complete, exhaustive, and sequentially ordered list of task titles now.`;
 
-const tddPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture and specifications into a series of actionable, granular development task *titles*.
+const tddPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable, granular development task *titles*.
 
 The tasks must be generated in a strict, sequential order that a developer would follow. Start with foundational tasks like project setup, creating the component library, and configuring CI/CD. The very next task must be to "Configure the testing environment". Then, build out the features in a logical sequence, ensuring that any dependencies are addressed in prior tasks. For example, user authentication should be built before features that require a logged-in user.
 
@@ -51,6 +55,9 @@ For each task, the implementation must strictly follow all phases of Test-Driven
 
 Architecture:
 {{{architecture}}}
+
+File Structure:
+{{{fileStructure}}}
 
 Specifications:
 {{{specifications}}}
@@ -64,10 +71,15 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
 
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
 
+  const prompt = promptTemplate
+    .replace('{{{architecture}}}', input.architecture)
+    .replace('{{{fileStructure}}}', input.fileStructure)
+    .replace('{{{specifications}}}', input.specifications);
+
   const {output} = await ai.generate({
     model: modelName,
     plugins: plugins,
-    prompt: promptTemplate.replace('{{{architecture}}}', input.architecture).replace('{{{specifications}}}', input.specifications),
+    prompt: prompt,
     output: {
       schema: GenerateTasksOutputSchema
     }

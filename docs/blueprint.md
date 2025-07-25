@@ -7,7 +7,8 @@
 - PRD Input: Provide a text box for users to input a Product Requirements Document (PRD).
 - Architecture & Specification Generation: Use an AI tool to plan the architecture and generate specifications from the PRD, leveraging Gemini and MCP tools for agentic research to enhance the proposal. This uses a tool so that the LLM can decide when or if to incorporate some piece of information in its output.
 - Review & Edit Architecture: Allow users to regenerate, review, and edit the architecture and specifications.
-- Task Generation: Transform the architecture and specifications into actionable tasks using the configured tools and LLM for agentic research to enhance the proposal. This uses a tool so that the LLM can decide when or if to incorporate some piece of information in its output.
+- **File Structure Generation:** Generate a comprehensive, human-editable file/folder structure proposal based on the PRD, architecture, and specifications. Users can review and edit the structure before proceeding. The file structure is used as a direct input to task generation, ensuring tasks are mapped to the intended project layout. (See [`src/ai/flows/generate-file-structure.ts`](../src/ai/flows/generate-file-structure.ts) for types and implementation.)
+- Task Generation: Transform the architecture, specifications, and file structure into actionable tasks using the configured tools and LLM for agentic research to enhance the proposal. This uses a tool so that the LLM can decide when or if to incorporate some piece of information in its output.
 - Github Issue Creation: Automatically create an implementation issue in Github that has sub-issues for each generated task. It contains all project context and reference documentation, using the github access token
 
 ## Style Guidelines:

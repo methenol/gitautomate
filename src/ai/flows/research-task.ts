@@ -14,6 +14,7 @@ import {z} from 'genkit';
 const ResearchTaskInputSchema = z.object({
   title: z.string().describe('The title of the development task to research.'),
   architecture: z.string().describe('The overall architecture of the project.'),
+  fileStructure: z.string().describe('The file/folder structure of the project.'),
   specifications: z.string().describe('The specifications of the project.'),
 });
 export type ResearchTaskInput = z.infer<typeof ResearchTaskInputSchema>;
@@ -47,6 +48,9 @@ For the given task, provide a detailed breakdown for each of the following field
 Overall Project Architecture:
 {{{architecture}}}
 
+File Structure:
+{{{fileStructure}}}
+
 Overall Project Specifications:
 {{{specifications}}}
 
@@ -66,6 +70,9 @@ For the given task, provide a detailed breakdown for each of the following field
 
 Overall Project Architecture:
 {{{architecture}}}
+
+File Structure:
+{{{fileStructure}}}
 
 Overall Project Specifications:
 {{{specifications}}}
@@ -88,6 +95,7 @@ export async function researchTask(
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
   const prompt = promptTemplate
     .replace('{{{architecture}}}', input.architecture)
+    .replace('{{{fileStructure}}}', input.fileStructure)
     .replace('{{{specifications}}}', input.specifications)
     .replace('{{{title}}}', input.title);
 

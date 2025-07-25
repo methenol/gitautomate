@@ -43,6 +43,7 @@ export async function createImplementationPlanIssues(
   prd: string,
   architecture: string,
   specifications: string,
+  fileStructure: string,
   tasks: Task[]
 ): Promise<{ html_url: string }> {
   const { Octokit } = await import('@octokit/rest');
@@ -84,23 +85,28 @@ export async function createImplementationPlanIssues(
     .join('\n');
 
   const parentIssueBody = `
-### Product Requirements Document
-${prd}
+  ### Product Requirements Document
+  ${prd}
 
----
+  ---
 
-### Proposed Architecture
-${architecture}
+  ### Proposed Architecture
+  ${architecture}
 
----
+  ---
 
-### Specifications
-${specifications}
+  ### File Structure
+  ${fileStructure}
 
----
+  ---
 
-### Actionable Tasks
-${taskList || 'No tasks were created.'}
+  ### Specifications
+  ${specifications}
+
+  ---
+
+  ### Actionable Tasks
+  ${taskList || 'No tasks were created.'}
   `.trim();
 
   // 3. Create the main implementation issue with the full task list.
