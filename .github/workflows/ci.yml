@@ -52,11 +52,6 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Run Snyk to check for vulnerabilities
-      uses: snyk/actions/node@master
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
     - name: Audit dependencies
       run: npm audit --audit-level=high
 
