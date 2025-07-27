@@ -1,13 +1,7 @@
 'use server'
 
 import type { Task } from '@/types'
-
-// A type for repository data
-export interface Repository {
-  owner: string
-  name: string
-  full_name: string
-}
+import type { Repository } from './github-actions-types'
 
 // Action to get user repositories
 export async function getRepositories(token: string): Promise<Repository[]> {
@@ -85,29 +79,29 @@ export async function createImplementationPlanIssues(
     .join('\n')
 
   const parentIssueBody = `
-  ### Product Requirements Document
-  ${prd}
+### Product Requirements Document
+${prd}
 
-  ---
+---
 
-  ### Proposed Architecture
-  ${architecture}
+### Proposed Architecture
+${architecture}
 
-  ---
+---
 
-  ### File Structure
-  ${fileStructure}
+### File Structure
+${fileStructure}
 
-  ---
+---
 
-  ### Specifications
-  ${specifications}
+### Specifications
+${specifications}
 
-  ---
+---
 
-  ### Actionable Tasks
-  ${taskList || 'No tasks were created.'}
-  `.trim()
+### Actionable Tasks
+${taskList || 'No tasks were created.'}
+`.trim()
 
   // 3. Create the main implementation issue with the full task list.
   try {

@@ -19,7 +19,7 @@ import {
   getRepositories,
   createImplementationPlanIssues,
 } from './github-actions'
-import type { Repository } from './github-actions'
+import type { Repository } from './github-actions-types'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import {
@@ -1084,7 +1084,7 @@ export default function Home() {
                 value={editedTaskDetails}
                 onChange={e => setEditedTaskDetails(e.target.value)}
                 rows={20}
-                className="max-w-none"
+                className="border rounded-md p-2 text-sm max-w-none"
               />
             </div>
             <div className="space-y-2">
@@ -1101,7 +1101,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <div
-                    className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none"
+                    className="text-sm text-muted-foreground max-w-none"
                     dangerouslySetInnerHTML={{
                       __html: editedTaskDetails.replace(/\n/g, '<br />'),
                     }}
