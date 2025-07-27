@@ -11,6 +11,7 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': 'warn',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     'prettier/prettier': ['error', {}, { usePrettierrc: true }],
+    '@next/next/no-page-custom-font': 'off', // Not applicable for App Router
   },
   ignorePatterns: ['node_modules/', '.next/'],
 }
