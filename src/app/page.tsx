@@ -959,7 +959,7 @@ export default function Home() {
                 value={editedTaskDetails}
                 onChange={(e) => setEditedTaskDetails(e.target.value)}
                 rows={20}
-                className="prose prose-sm max-w-none"
+                className="max-w-none"
               />
             </div>
             <div className="space-y-2">
