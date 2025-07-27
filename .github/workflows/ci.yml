@@ -84,7 +84,7 @@ jobs:
         run: npm ci
 
       - name: Run dependency audit
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high --exit-code
 
   test:
     name: Run Tests
