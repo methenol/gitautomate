@@ -968,7 +968,7 @@ export default function Home() {
                     <h4 className="font-bold text-card-foreground">✅ {selectedTask?.title}</h4>
                     <Separator/>
                     {isResearchFailed(editedTaskDetails) ? (
-                      <div className="text-destructive-foreground bg-destructive/80 p-3 rounded-md">
+                      <div className="text-destructive-foreground bg-destructive/80 p-3 rounded-md prose dark:prose-invert">
                         <p className="font-bold">Research Failed</p>
                         <p className="text-sm">{editedTaskDetails}</p>
                       </div>
