@@ -14,7 +14,7 @@ import {
   runGenerateFileStructure,
   getModels,
 } from './actions'
-import type { Task, ResearchTaskInput } from '@/types'
+import type { Task } from '@/types'
 import {
   getRepositories,
   createImplementationPlanIssues,

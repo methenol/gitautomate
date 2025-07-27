@@ -12,16 +12,20 @@
 import { ai } from '@/ai/genkit'
 
 import { TaskSchema, Task } from '@/types'
-
-
 import { z } from 'genkit'
-import { googleAI } from '@genkit-ai/googleai'
 
-const GenerateTasksInputSchema = z.object({
-  architecture: z.string().describe('The architecture of the project.'),
-  specifications: z.string().describe('The specifications of the project.'),
-  fileStructure: z.string().describe('The file structure of the project.'),
+export const GenerateTasksInputSchema = z.object({
+  architecture: z
+    .string()
+    .describe('The proposed software architecture for the project.'),
+  fileStructure: z
+    .string()
+    .describe('The proposed file/folder structure for the project.'),
+  specifications: z
+    .string()
+    .describe('The detailed specifications for the project.'),
 })
+
 export type GenerateTasksInput = z.infer<typeof GenerateTasksInputSchema>
 
 const GenerateTasksOutputSchema = z.object({
@@ -74,8 +78,8 @@ export async function generateTasks(
   const modelName = model
     ? `googleai/${model}`
     : 'googleai/gemini-1.5-flash-latest'
-  const options = apiKey ? { apiKey } : {}
-  const plugins = apiKey ? [googleAI(options)] : []
+
+  // const plugins = apiKey ? [googleAI(options)] : []
 
   const promptTemplate = useTDD ? tddPrompt : standardPrompt
 
@@ -94,7 +98,10 @@ export async function generateTasks(
   })
 
   if (output?.tasks) {
-    output.tasks = output.tasks.map((task: Task) => ({ ...task, details: task.details || '' }))
+    output.tasks = output.tasks.map((task: Task) => ({
+      ...task,
+      details: task.details || '',
+    }))
   }
   return output!
 }

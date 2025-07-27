@@ -11,16 +11,6 @@
 import { ai } from '@/ai/genkit'
 import { z } from 'genkit'
 
-const ResearchTaskInputSchema = z.object({
-  title: z.string().describe('The title of the development task to research.'),
-  architecture: z.string().describe('The overall architecture of the project.'),
-  fileStructure: z
-    .string()
-    .describe('The file/folder structure of the project.'),
-  specifications: z.string().describe('The specifications of the project.'),
-})
-export type ResearchTaskInput = z.infer<typeof ResearchTaskInputSchema>
-
 const ResearchTaskOutputSchema = z.object({
   context: z
     .string()
@@ -36,6 +26,21 @@ const ResearchTaskOutputSchema = z.object({
     .string()
     .describe('Define what it means for this task to be considered "done".'),
 })
+
+export const ResearchTaskInputSchema = z.object({
+  title: z.string().describe('The task title to research.'),
+  architecture: z
+    .string()
+    .describe('The proposed software architecture for the project.'),
+  fileStructure: z
+    .string()
+    .describe('The proposed file/folder structure for the project.'),
+  specifications: z
+    .string()
+    .describe('The detailed specifications for the project.'),
+})
+
+export type ResearchTaskInput = z.infer<typeof ResearchTaskInputSchema>
 export type ResearchTaskOutput = z.infer<typeof ResearchTaskOutputSchema>
 
 const standardPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan.

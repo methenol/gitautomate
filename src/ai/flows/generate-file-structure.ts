@@ -77,7 +77,6 @@ export async function generateFileStructure(
     .replace('{{{prd}}}', input.prd)
     .replace('{{{architecture}}}', input.architecture)
     .replace('{{{specifications}}}', input.specifications)
-
   const generateFileStructureFlow = ai.defineFlow(
     {
       name: 'generateFileStructureFlow',
@@ -87,7 +86,10 @@ export async function generateFileStructure(
     async input => {
       const { output } = await ai.generate({
         model: modelName,
-        prompt: prompt,
+        prompt: prompt
+          .replace('{{{prd}}}', input.prd)
+          .replace('{{{architecture}}}', input.architecture)
+          .replace('{{{specifications}}}', input.specifications),
         output: {
           schema: GenerateFileStructureOutputSchema,
         },
