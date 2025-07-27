@@ -11,34 +11,10 @@
 import { ai } from '@/ai/genkit'
 import { z } from 'genkit'
 
-const ResearchTaskOutputSchema = z.object({
-  context: z
-    .string()
-    .describe(
-      'Briefly explain how this task fits into the overall architecture.'
-    ),
-  implementationSteps: z
-    .string()
-    .describe(
-      'Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:\n- Files that need to be created or modified\n- Functions/components that need to be implemented\n- Integration points with other system components\n- The expected behavior and functionality\n- Any specific considerations or edge cases'
-    ),
-  acceptanceCriteria: z
-    .string()
-    .describe('Define what it means for this task to be considered "done".'),
-})
-
-export const ResearchTaskInputSchema = z.object({
-  title: z.string().describe('The task title to research.'),
-  architecture: z
-    .string()
-    .describe('The proposed software architecture for the project.'),
-  fileStructure: z
-    .string()
-    .describe('The proposed file/folder structure for the project.'),
-  specifications: z
-    .string()
-    .describe('The detailed specifications for the project.'),
-})
+import {
+  ResearchTaskInputSchema,
+  ResearchTaskOutputSchema,
+} from '@/types/research-task-types'
 
 export type ResearchTaskInput = z.infer<typeof ResearchTaskInputSchema>
 export type ResearchTaskOutput = z.infer<typeof ResearchTaskOutputSchema>
