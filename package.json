@@ -12,6 +12,7 @@
     "prod:start": "npm run genkit:start & npm run start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
     "format:check": "prettier --check \"./**/*.{js,ts,tsx,json,md}\"",
     "format": "prettier --write \"./**/*.{js,ts,tsx,json,md}\""
   },
