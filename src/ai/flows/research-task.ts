@@ -1,4 +1,4 @@
-'use server';
+'use server'
 
 /**
  * @fileOverview Researches a single development task and generates detailed implementation notes.
@@ -8,16 +8,18 @@
  * - ResearchTaskOutput - The return type for the researchTask function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { ai } from '@/ai/genkit'
+import { z } from 'genkit'
 
 const ResearchTaskInputSchema = z.object({
   title: z.string().describe('The title of the development task to research.'),
   architecture: z.string().describe('The overall architecture of the project.'),
-  fileStructure: z.string().describe('The file/folder structure of the project.'),
+  fileStructure: z
+    .string()
+    .describe('The file/folder structure of the project.'),
   specifications: z.string().describe('The specifications of the project.'),
-});
-export type ResearchTaskInput = z.infer<typeof ResearchTaskInputSchema>;
+})
+export type ResearchTaskInput = z.infer<typeof ResearchTaskInputSchema>
 
 const ResearchTaskOutputSchema = z.object({
   context: z
@@ -33,8 +35,8 @@ const ResearchTaskOutputSchema = z.object({
   acceptanceCriteria: z
     .string()
     .describe('Define what it means for this task to be considered "done".'),
-});
-export type ResearchTaskOutput = z.infer<typeof ResearchTaskOutputSchema>;
+})
+export type ResearchTaskOutput = z.infer<typeof ResearchTaskOutputSchema>
 
 const standardPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan.
 
@@ -62,7 +64,7 @@ Overall Project Specifications:
 Now, provide the detailed implementation plan as a JSON object for the following task:
 
 **Task Title: {{{title}}}**
-`;
+`
 
 const tddPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan.
 
@@ -91,7 +93,7 @@ Overall Project Specifications:
 Now, provide the detailed implementation plan as a JSON object for the following task:
 
 **Task Title: {{{title}}}**
-`;
+`
 
 export async function researchTask(
   input: ResearchTaskInput,
@@ -101,14 +103,14 @@ export async function researchTask(
 ): Promise<ResearchTaskOutput> {
   const modelName = model
     ? `googleai/${model}`
-    : 'googleai/gemini-1.5-pro-latest';
-  
-  const promptTemplate = useTDD ? tddPrompt : standardPrompt;
+    : 'googleai/gemini-1.5-pro-latest'
+
+  const promptTemplate = useTDD ? tddPrompt : standardPrompt
   const prompt = promptTemplate
     .replace('{{{architecture}}}', input.architecture)
     .replace('{{{fileStructure}}}', input.fileStructure)
     .replace('{{{specifications}}}', input.specifications)
-    .replace('{{{title}}}', input.title);
+    .replace('{{{title}}}', input.title)
 
   const researchTaskFlow = ai.defineFlow(
     {
@@ -116,24 +118,22 @@ export async function researchTask(
       inputSchema: z.string(),
       outputSchema: ResearchTaskOutputSchema,
     },
-    async (prompt) => {
-      const {output} = await ai.generate({
+    async prompt => {
+      const { output } = await ai.generate({
         model: modelName,
         prompt: prompt,
         output: {
           schema: ResearchTaskOutputSchema,
         },
-        config: apiKey ? {apiKey} : undefined,
-      });
+        config: apiKey ? { apiKey } : undefined,
+      })
 
       if (!output) {
-        throw new Error(
-          'An unexpected response was received from the server.'
-        );
+        throw new Error('An unexpected response was received from the server.')
       }
-      return output;
+      return output
     }
-  );
+  )
 
-  return await researchTaskFlow(prompt);
+  return await researchTaskFlow(prompt)
 }

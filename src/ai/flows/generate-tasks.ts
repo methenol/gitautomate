@@ -1,4 +1,4 @@
-'use server';
+'use server'
 
 /**
  * @fileOverview Transforms the architecture and specifications into actionable task titles.
@@ -9,24 +9,25 @@
  * - Task - The type for an individual task. Details are populated in a separate step.
  */
 
-import {ai} from '@/ai/genkit';
-import { TaskSchema } from '@/types';
-import {z} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit'
 
+import { TaskSchema, Task } from '@/types'
+
+
+import { z } from 'genkit'
+import { googleAI } from '@genkit-ai/googleai'
 
 const GenerateTasksInputSchema = z.object({
   architecture: z.string().describe('The architecture of the project.'),
   specifications: z.string().describe('The specifications of the project.'),
   fileStructure: z.string().describe('The file structure of the project.'),
-});
-export type GenerateTasksInput = z.infer<typeof GenerateTasksInputSchema>;
-
+})
+export type GenerateTasksInput = z.infer<typeof GenerateTasksInputSchema>
 
 const GenerateTasksOutputSchema = z.object({
   tasks: z.array(TaskSchema).describe('A list of actionable task titles.'),
-});
-export type GenerateTasksOutput = z.infer<typeof GenerateTasksOutputSchema>;
+})
+export type GenerateTasksOutput = z.infer<typeof GenerateTasksOutputSchema>
 
 const standardPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable, granular development task *titles*.
 
@@ -43,7 +44,7 @@ File Structure:
 Specifications:
 {{{specifications}}}
 
-Generate the complete, exhaustive, and sequentially ordered list of task titles now.`;
+Generate the complete, exhaustive, and sequentially ordered list of task titles now.`
 
 const tddPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable, granular development task *titles*.
 
@@ -62,31 +63,38 @@ File Structure:
 Specifications:
 {{{specifications}}}
 
-Generate the complete, exhaustive, and sequentially ordered list of task titles now.`;
+Generate the complete, exhaustive, and sequentially ordered list of task titles now.`
 
-export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
-  const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-flash-latest';
-  const options = apiKey ? {apiKey} : {};
-  const plugins = apiKey ? [googleAI(options)] : [];
+export async function generateTasks(
+  input: GenerateTasksInput,
+  apiKey?: string,
+  model?: string,
+  useTDD?: boolean
+): Promise<GenerateTasksOutput> {
+  const modelName = model
+    ? `googleai/${model}`
+    : 'googleai/gemini-1.5-flash-latest'
+  const options = apiKey ? { apiKey } : {}
+  const plugins = apiKey ? [googleAI(options)] : []
 
-  const promptTemplate = useTDD ? tddPrompt : standardPrompt;
+  const promptTemplate = useTDD ? tddPrompt : standardPrompt
 
   const prompt = promptTemplate
     .replace('{{{architecture}}}', input.architecture)
     .replace('{{{fileStructure}}}', input.fileStructure)
-    .replace('{{{specifications}}}', input.specifications);
+    .replace('{{{specifications}}}', input.specifications)
 
-  const {output} = await ai.generate({
+  const { output } = await ai.generate({
     model: modelName,
-    plugins: plugins,
     prompt: prompt,
     output: {
-      schema: GenerateTasksOutputSchema
-    }
-  });
-  
+      schema: GenerateTasksOutputSchema,
+    },
+    config: apiKey ? { apiKey } : undefined,
+  })
+
   if (output?.tasks) {
-    output.tasks = output.tasks.map(task => ({ ...task, details: '' }));
+    output.tasks = output.tasks.map((task: Task) => ({ ...task, details: task.details || '' }))
   }
-  return output!;
+  return output!
 }

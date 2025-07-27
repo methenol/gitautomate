@@ -1,4 +1,4 @@
-'use server';
+'use server'
 
 /**
  * @fileOverview Genkit flow for generating a proposed file/folder structure for a software project.
@@ -8,8 +8,8 @@
  * - GenerateFileStructureOutput - Output type: { fileStructure: string }
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { ai } from '@/ai/genkit'
+import { z } from 'genkit'
 
 const GenerateFileStructureInputSchema = z.object({
   prd: z
@@ -21,15 +21,21 @@ const GenerateFileStructureInputSchema = z.object({
   specifications: z
     .string()
     .describe('The detailed specifications for the project.'),
-});
-export type GenerateFileStructureInput = z.infer<typeof GenerateFileStructureInputSchema>;
+})
+export type GenerateFileStructureInput = z.infer<
+  typeof GenerateFileStructureInputSchema
+>
 
 const GenerateFileStructureOutputSchema = z.object({
   fileStructure: z
     .string()
-    .describe('A comprehensive, proposed file/folder structure for the project, formatted as a markdown code block or JSON tree.'),
-});
-export type GenerateFileStructureOutput = z.infer<typeof GenerateFileStructureOutputSchema>;
+    .describe(
+      'A comprehensive, proposed file/folder structure for the project, formatted as a markdown code block or JSON tree.'
+    ),
+})
+export type GenerateFileStructureOutput = z.infer<
+  typeof GenerateFileStructureOutputSchema
+>
 
 const fileStructurePrompt = `You are a senior software architect. Your task is to generate a comprehensive, proposed file and folder structure for a new software project, based on the following Product Requirements Document (PRD), architecture, and specifications.
 
@@ -56,7 +62,7 @@ const fileStructurePrompt = `You are a senior software architect. Your task is t
 {{{specifications}}}
 
 Respond with ONLY the proposed file/folder structure as a markdown code block or JSON tree.
-`;
+`
 
 export async function generateFileStructure(
   input: GenerateFileStructureInput,
@@ -65,12 +71,12 @@ export async function generateFileStructure(
 ): Promise<GenerateFileStructureOutput> {
   const modelName = model
     ? `googleai/${model}`
-    : 'googleai/gemini-1.5-flash-latest';
+    : 'googleai/gemini-1.5-flash-latest'
 
   const prompt = fileStructurePrompt
     .replace('{{{prd}}}', input.prd)
     .replace('{{{architecture}}}', input.architecture)
-    .replace('{{{specifications}}}', input.specifications);
+    .replace('{{{specifications}}}', input.specifications)
 
   const generateFileStructureFlow = ai.defineFlow(
     {
@@ -78,7 +84,7 @@ export async function generateFileStructure(
       inputSchema: GenerateFileStructureInputSchema,
       outputSchema: GenerateFileStructureOutputSchema,
     },
-    async (input) => {
+    async input => {
       const { output } = await ai.generate({
         model: modelName,
         prompt: prompt,
@@ -86,16 +92,14 @@ export async function generateFileStructure(
           schema: GenerateFileStructureOutputSchema,
         },
         config: apiKey ? { apiKey } : undefined,
-      });
+      })
 
       if (!output) {
-        throw new Error(
-          'An unexpected response was received from the server.'
-        );
+        throw new Error('An unexpected response was received from the server.')
       }
-      return output;
+      return output
     }
-  );
+  )
 
-  return await generateFileStructureFlow(input);
+  return await generateFileStructureFlow(input)
 }

@@ -4,65 +4,65 @@
  * - ai: The global Genkit AI instance.
  * - listAvailableModels: A function to list available Gemini models.
  */
-import { config } from 'dotenv';
-config();
+import { config } from 'dotenv'
+config()
 
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import { genkit } from 'genkit'
+import { googleAI } from '@genkit-ai/googleai'
 
 // Initialize Genkit with the Google AI plugin.
 // This will use the GOOGLE_API_KEY from the .env file by default.
 const ai = genkit({
   plugins: [googleAI()],
-});
+})
 
-export {ai};
+export { ai }
 
 export async function listAvailableModels(apiKey?: string): Promise<string[]> {
   try {
     // Prioritize the key from settings, but fall back to the .env file.
-    const key = apiKey || process.env.GOOGLE_API_KEY;
+    const key = apiKey || process.env.GOOGLE_API_KEY
 
     // Only throw an error if NO key is available from either source.
     if (!key) {
       throw new Error(
         'Google AI API key not found. Please add it to your .env file or in the settings.'
-      );
+      )
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
-    const response = await fetch(url);
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`
+    const response = await fetch(url)
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({
-        error: {message: 'Failed to parse error response.'},
-      }));
-      console.error('Failed to fetch models from API:', errorBody);
+        error: { message: 'Failed to parse error response.' },
+      }))
+      console.error('Failed to fetch models from API:', errorBody)
       throw new Error(
         `Failed to fetch models. Status: ${response.status}. Please check your Google AI API key. The API returned: ${
           errorBody.error?.message || response.statusText
         }`
-      );
+      )
     }
 
-    const data = await response.json();
+    const data = await response.json()
 
     if (!data.models || !Array.isArray(data.models)) {
-      console.log('API response did not contain a valid models array.');
-      return [];
+      console.log('API response did not contain a valid models array.')
+      return []
     }
 
     // Correctly parse the model list and remove the "models/" prefix.
-    return data.models.map((model: {name: string}) =>
+    return data.models.map((model: { name: string }) =>
       model.name.replace('models/', '')
-    );
+    )
   } catch (error) {
-    console.error('Failed to fetch models directly:', error);
+    console.error('Failed to fetch models directly:', error)
     // Let the UI know an error occurred.
     // The error is likely an invalid API key or network issue.
     if (error instanceof Error) {
-      throw error;
+      throw error
     }
-    throw new Error('An unknown error occurred while fetching models.');
+    throw new Error('An unknown error occurred while fetching models.')
   }
 }

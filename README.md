@@ -39,6 +39,7 @@ Follow these instructions to get a copy of the project up and running on your lo
 ### Installation & Setup
 
 1.  **Clone the repository:**
+
     ```bash
     git clone https://github.com/methenol/gitautomate.git
     cd gitautomate
@@ -51,6 +52,7 @@ Follow these instructions to get a copy of the project up and running on your lo
     # .env
     GOOGLE_API_KEY="YOUR_GOOGLE_AI_API_KEY"
     ```
+
     This key will be used by default for all AI operations. You can also override this by providing a key in the application's UI settings.
 
 ### Running the Application (Local npm)
@@ -58,6 +60,7 @@ Follow these instructions to get a copy of the project up and running on your lo
 This method requires two concurrent terminal sessions to run: one for the Next.js frontend and one for the Genkit AI backend.
 
 1.  **Install dependencies:**
+
     ```bash
     npm install
     ```
@@ -70,7 +73,7 @@ This method requires two concurrent terminal sessions to run: one for the Next.j
     ```
 
 3.  **Run the Next.js development server:**
-    Open a *second* terminal and run the following command to start the frontend application.
+    Open a _second_ terminal and run the following command to start the frontend application.
 
     ```bash
     npm run dev
@@ -84,9 +87,11 @@ This method uses Docker Compose to build the necessary images and run the applic
 
 1.  **Build and start the services:**
     From the root of the project directory, run:
+
     ```bash
     docker-compose up --build
     ```
+
     This command will build the Docker image for the application and start both the Next.js and Genkit services. The `-d` flag can be added to run the containers in detached mode (in the background).
 
 2.  **Access the application:**
@@ -123,7 +128,6 @@ The core workflow is as follows:
 - **Output:**
   [`GenerateFileStructureOutput`](src/ai/flows/generate-file-structure.ts:32)
   `{ fileStructure: string }`
-
 
 ## How to Use GitAutomate
 
@@ -165,6 +169,6 @@ Using the application involves a simple, sequential process.
 
 - **Export Data**: Click the **"Export Data"** button at any time after tasks have been generated. This will download a `.zip` file containing the PRD, architecture, specifications, file structure, and all tasks in markdown format. This is the only option available in Local Mode.
 - **Create GitHub Issue**: If you have selected a repository, click the **"Create GitHub Issue"** button. This will:
-    1. Create individual issues in your repository for each task.
-    2. Create a main "Implementation Plan" parent issue that links to all the sub-task issues.
-    3. Provide you with a link to the main plan issue.
+  1. Create individual issues in your repository for each task.
+  2. Create a main "Implementation Plan" parent issue that links to all the sub-task issues.
+  3. Provide you with a link to the main plan issue.
