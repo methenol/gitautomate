@@ -15,12 +15,12 @@ import {z} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 
 
-const GenerateTasksInputSchema = z.object({
+const _GenerateTasksInputSchema = z.object({
   architecture: z.string().describe('The architecture of the project.'),
   specifications: z.string().describe('The specifications of the project.'),
   fileStructure: z.string().describe('The file structure of the project.'),
 });
-export type GenerateTasksInput = z.infer<typeof GenerateTasksInputSchema>;
+export type GenerateTasksInput = z.infer<typeof _GenerateTasksInputSchema>;
 
 
 const GenerateTasksOutputSchema = z.object({
@@ -85,7 +85,7 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
   });
   
   if (output?.tasks) {
-    output.tasks = output.tasks.map((task: any) => ({ ...task, details: '' }));
+    output.tasks = output.tasks.map((task) => ({ ...task, details: '' }));
   }
   return output!;
 }
