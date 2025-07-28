@@ -75,7 +75,12 @@ You MUST return your response as a valid JSON object that conforms to the output
 
 For the given task, provide a detailed breakdown for each of the following fields:
 - context: Briefly explain how this task fits into the overall architecture.
-- implementationSteps: Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:\n- Files that need to be created or modified\n- Functions/components that need to be implemented\n- Integration points with other system components\n- The expected behavior and functionality\n- Any specific considerations or edge cases. The implementation plan must strictly follow all phases of Test-Driven Development (Red-Green-Refactor).
+- implementationSteps: Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
+  - Files that need to be created or modified
+  - Functions/components that need to be implemented
+  - Integration points with other system components
+  - The expected behavior and functionality
+  - Any specific considerations or edge cases. The implementation plan must strictly follow all phases of Test-Driven Development (Red-Green-Refactor).
 - acceptanceCriteria: Define what it means for this task to be considered "done".
 
 Overall Project Architecture:
