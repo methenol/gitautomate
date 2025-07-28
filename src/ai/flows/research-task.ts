@@ -28,7 +28,12 @@ const ResearchTaskOutputSchema = z.object({
   implementationSteps: z
     .string()
     .describe(
-      'Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:\n- Files that need to be created or modified\n- Functions/components that need to be implemented\n- Integration points with other system components\n- The expected behavior and functionality\n- Any specific considerations or edge cases'
+      `Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
+- Files that need to be created or modified
+- Functions/components that need to be implemented
+- Integration points with other system components
+- The expected behavior and functionality
+- Any specific considerations or edge cases`
     ),
   acceptanceCriteria: z
     .string()
