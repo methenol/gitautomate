@@ -11,13 +11,13 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const ResearchTaskInputSchema = z.object({
+const _ResearchTaskInputSchema = z.object({
   title: z.string().describe('The title of the development task to research.'),
   architecture: z.string().describe('The overall architecture of the project.'),
   fileStructure: z.string().describe('The file/folder structure of the project.'),
   specifications: z.string().describe('The specifications of the project.'),
 });
-export type ResearchTaskInput = z.infer<typeof ResearchTaskInputSchema>;
+export type ResearchTaskInput = { title: string; architecture: string; fileStructure: string; specifications: string };
 
 const ResearchTaskOutputSchema = z.object({
   context: z

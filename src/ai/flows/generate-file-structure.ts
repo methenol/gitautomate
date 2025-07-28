@@ -78,7 +78,7 @@ export async function generateFileStructure(
       inputSchema: GenerateFileStructureInputSchema,
       outputSchema: GenerateFileStructureOutputSchema,
     },
-    async (input) => {
+    async (_input) => {
       const { output } = await ai.generate({
         model: modelName,
         prompt: prompt,

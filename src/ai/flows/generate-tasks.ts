@@ -67,7 +67,7 @@ Generate the complete, exhaustive, and sequentially ordered list of task titles 
 export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
   const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-flash-latest';
   const options = apiKey ? {apiKey} : {};
-  const plugins = apiKey ? [googleAI(options)] : [];
+  const _plugins = apiKey ? [googleAI(options)] : [];
 
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
 
@@ -78,7 +78,6 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
 
   const {output} = await ai.generate({
     model: modelName,
-    plugins: plugins,
     prompt: prompt,
     output: {
       schema: GenerateTasksOutputSchema
@@ -86,7 +85,7 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
   });
   
   if (output?.tasks) {
-    output.tasks = output.tasks.map(task => ({ ...task, details: '' }));
+    output.tasks = output.tasks.map((task: any) => ({ ...task, details: '' }));
   }
   return output!;
 }
