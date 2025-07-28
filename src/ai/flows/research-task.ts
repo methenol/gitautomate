@@ -28,7 +28,7 @@ const ResearchTaskOutputSchema = z.object({
   implementationSteps: z
     .string()
     .describe(
-      `Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
+      `Provide a detailed, step-by-step implementation guide. DO NOT include actual code snippets or implementations. Focus on:
 - Files that need to be created or modified
 - Functions/components that need to be implemented
 - Integration points with other system components
@@ -47,12 +47,12 @@ You MUST return your response as a valid JSON object that conforms to the output
 
 For the given task, provide a detailed breakdown for each of the following fields:
 - context: Briefly explain how this task fits into the overall architecture.
-- implementationSteps: Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
+- implementationSteps: Provide a detailed, step-by-step implementation guide. DO NOT include actual code snippets or implementations. Focus on:
   - Files that need to be created or modified
   - Functions/components that need to be implemented
   - Integration points with other system components
   - The expected behavior and functionality
-  - Any specific considerations or edge cases
+  - Any specific considerations or edge cases. Use pseudocode, library documentation references, or high-level descriptions instead of actual code.
 - acceptanceCriteria: Define what it means for this task to be considered "done".
 
 Overall Project Architecture:
@@ -75,12 +75,12 @@ You MUST return your response as a valid JSON object that conforms to the output
 
 For the given task, provide a detailed breakdown for each of the following fields:
 - context: Briefly explain how this task fits into the overall architecture.
-- implementationSteps: Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
+- implementationSteps: Provide a detailed, step-by-step implementation guide. DO NOT include actual code snippets or implementations. Focus on:
   - Files that need to be created or modified
   - Functions/components that need to be implemented
   - Integration points with other system components
   - The expected behavior and functionality
-  - Any specific considerations or edge cases. The implementation plan must strictly follow all phases of Test-Driven Development (Red-Green-Refactor).
+  - Any specific considerations or edge cases. The implementation plan must strictly follow all phases of Test-Driven Development (Red-Green-Refactor). Use pseudocode, library documentation references, or high-level descriptions instead of actual code.
 - acceptanceCriteria: Define what it means for this task to be considered "done".
 
 Overall Project Architecture:
