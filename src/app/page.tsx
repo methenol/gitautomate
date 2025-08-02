@@ -8,15 +8,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import {
-  runGenerateArchitecture,
-  runGenerateTasks,
   runResearchTask,
-  runGenerateFileStructure,
   getModels,
 } from './actions';
 import {
   generateProjectWithUnifiedSystem,
-  getValidationSummary,
 } from './unified-actions';
 import type { Task } from '@/types';
 import {
@@ -140,7 +136,6 @@ export default function Home() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editedTaskDetails, setEditedTaskDetails] = useState('');
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
-  const [researchProgress, setResearchProgress] = useState(0);
 
   const [loading, setLoading] = useState<LoadingStates>({
     repos: false,
@@ -822,9 +817,8 @@ export default function Home() {
                   <CardContent>
                     {loading.researching && (
                       <div className="mb-4 space-y-2">
-                        <Progress value={researchProgress} />
                         <p className="text-sm text-center text-muted-foreground">
-                          {`Researching... (${Math.round((researchProgress / 100) * tasks.length)}/${tasks.length} complete)`}
+                          Researching tasks...
                         </p>
                       </div>
                     )}
