@@ -214,7 +214,7 @@ async function generateArchitectureWithRetry(
         options?.model
       );
     } catch (error) {
-      console.error(`Architecture generation attempt ${attempt}/${maxRetries} failed:`, error);
+      console.error('Architecture generation attempt ' + attempt + '/' + maxRetries + ' failed:', error);
       
       if (attempt === maxRetries) {
         throw new Error(`Failed to generate architecture after ${maxRetries} attempts`);
@@ -245,7 +245,7 @@ async function generateFileStructureWithRetry(
         options?.model
       );
     } catch (error) {
-      console.error(`File structure generation attempt ${attempt}/${maxRetries} failed:`, error);
+      console.error('File structure generation attempt ' + attempt + '/' + maxRetries + ' failed:', error);
       
       if (attempt === maxRetries) {
         throw new Error(`Failed to generate file structure after ${maxRetries} attempts`);
@@ -277,7 +277,7 @@ async function generateTasksWithRetry(
         options?.useTDD
       );
     } catch (error) {
-      console.error(`Task generation attempt ${attempt}/${maxRetries} failed:`, error);
+      console.error('Task generation attempt ' + attempt + '/' + maxRetries + ' failed:', error);
       
       if (attempt === maxRetries) {
         throw new Error(`Failed to generate tasks after ${maxRetries} attempts`);
@@ -301,13 +301,13 @@ async function researchTasksWithDependencies(
   const researcher = new DependencyAwareTaskResearcher(context);
   const researchOrder = researcher.getResearchOrder();
   
- console.log(`Researching ${context.tasks.length} tasks in dependency-aware order...`);
+ console.log('Researching ' + context.tasks.length + ' tasks in dependency-aware order...');
   
   for (let i = 0; i < researchOrder.length; i++) {
     const taskIndex = researchOrder[i];
-    const taskId = `task-${taskIndex + 1}`;
+    const taskId = 'task-' + (taskIndex + 1);
     
- console.log(`Researching task ${i + 1}/${researchOrder.length}: "${context.tasks[taskIndex].title}"`);
+ console.log('Researching task ' + (i + 1) + '/' + researchOrder.length + ': "' + context.tasks[taskIndex].title + '"');
     
     try {
       const completedTasks = new Set(
@@ -327,14 +327,14 @@ async function researchTasksWithDependencies(
       context.researchedTasks.set(taskId, researchResult);
       
       // Update task with formatted details
-      const formattedDetails = `### Context\n${researchResult.context}\n\n### Implementation Steps\n${researchResult.implementationSteps}\n\n### Acceptance Criteria\n${researchResult.acceptanceCriteria}`;
+      const formattedDetails = '### Context\n' + researchResult.context + '\n\n### Implementation Steps\n' + researchResult.implementationSteps + '\n\n### Acceptance Criteria\n' + researchResult.acceptanceCriteria;
       context.tasks[taskIndex].details = formattedDetails;
       
     } catch (error) {
- console.error(`Failed to research task "${context.tasks[taskIndex].title}":`, error);
+ console.error('Failed to research task "' + context.tasks[taskIndex].title + '":', error);
       
       // Set error details for the task
-      context.tasks[taskIndex].details = `Failed to research task: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      context.tasks[taskIndex].details = 'Failed to research task: ' + (error instanceof Error ? error.message : 'Unknown error');
     }
   }
 }
@@ -358,7 +358,7 @@ function buildSimpleDependencyMap(dependencyGraph: TaskDependencyGraph): Map<str
  console.warn('Circular dependency detected, using simple mapping:', error);
     
     for (let i = 0; i < dependencyGraph['getExecutionOrder'].length || 10; i++) {
-      const taskId = `task-${i + 1}`;
+      const taskId = 'task-' + (i + 1);
       simpleMap.set(taskId, []);
     }
   }
@@ -454,7 +454,7 @@ function validateTasksAgainstContext(context: UnifiedProjectContext): Validation
 
       if (!hasArchCoverage) {
         // Only warn, don't error - tasks might be valid even if not directly mentioning architecture
-        warnings.push(`Task "${task.title}" may not directly reference architectural components`);
+        warnings.push('Task "' + task.title + '" may not directly reference architectural components');
       }
     }
   }
@@ -469,7 +469,7 @@ function validateTasksAgainstContext(context: UnifiedProjectContext): Validation
       );
 
       if (!hasFileCoverage) {
-        warnings.push(`Task "${task.title}" may not align with proposed file structure`);
+        warnings.push('Task "' + task.title + '" may not align with proposed file structure');
       }
     }
   }
@@ -498,7 +498,7 @@ function validateCompleteProjectPlan(context: UnifiedProjectContext): Validation
   // Check research completeness
   const researchedCount = context.researchedTasks.size;
   if (researchedCount < context.tasks.length) {
-    warnings.push(`${context.tasks.length - researchedCount} tasks not fully researched`);
+    warnings.push((context.tasks.length - researchedCount) + ' tasks not fully researched');
   }
 
   // Cross-validate consistency
