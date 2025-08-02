@@ -14,6 +14,10 @@ import {
   runGenerateFileStructure,
   getModels,
 } from './actions';
+import {
+  generateProjectWithUnifiedSystem,
+  getValidationSummary,
+} from './unified-actions';
 import type { Task } from '@/types';
 import {
   getRepositories,
@@ -131,6 +135,7 @@ export default function Home() {
   const [fileStructure, setFileStructure] = useState<string>('');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [finalIssueURL, setFinalIssueURL] = useState('');
+  const [validationSummary, setValidationSummary] = useState('');
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editedTaskDetails, setEditedTaskDetails] = useState('');
@@ -272,21 +277,59 @@ export default function Home() {
     setFileStructure('');
     setTasks([]);
     setFinalIssueURL('');
+    setValidationSummary('');
+    
     try {
-      const result = await runGenerateArchitecture({ prd }, { apiKey: googleApiKey, model: selectedModel });
+      // Use the unified project generation system
+      console.log('Starting unified project generation...');
+      
+      const result = await generateProjectWithUnifiedSystem(
+        prd,
+        { 
+          apiKey: googleApiKey, 
+          model: selectedModel,
+          useTDD,
+          useUnifiedGeneration: true // Explicitly enable unified system
+        }
+      );
+      
       setArchitecture(result.architecture);
       setSpecifications(result.specifications);
-
-      // Automatically generate file structure after architecture/specs
-      const fileStructResult = await runGenerateFileStructure(
-        { prd, architecture: result.architecture, specifications: result.specifications },
-        { apiKey: googleApiKey, model: selectedModel }
-      );
-      setFileStructure(fileStructResult.fileStructure || '');
+      setFileStructure(result.fileStructure || '');
+      
+      // Set tasks with their research details
+      const formattedTasks = result.tasks.map(task => ({
+        ...task,
+        // Ensure tasks have details, fallback to empty string if undefined
+        details: task.details || ''
+      }));
+      setTasks(formattedTasks);
+      
+      // Set validation summary if available
+      if (result.validationSummary) {
+        setValidationSummary(result.validationSummary);
+        
+        // Show validation summary as toast notification
+        if (result.validationSummary.includes('✅')) {
+          toast({ title: 'Success', description: result.validationSummary });
+        } else if (result.validationSummary.includes('⚠️')) {
+          toast({ 
+            title: 'Generated with Warnings', 
+            description: result.validationSummary,
+          });
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Validation Issues Found', 
+            description: result.validationSummary,
+          });
+        }
+      }
+      
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Architecture/File Structure Generation Failed',
+        title: 'Project Generation Failed',
         description: (error as Error).message,
       });
     } finally {
@@ -324,50 +367,8 @@ export default function Home() {
   }, [architecture, fileStructure, specifications, googleApiKey, selectedModel, useTDD, selectedTask?.title]);
 
 
-  const handleGenerateTasks = async () => {
-    setLoading((prev) => ({ ...prev, tasks: true, researching: false }));
-    setTasks([]);
-    setFinalIssueURL('');
-    setResearchProgress(0);
-
-    try {
-      const result = await runGenerateTasks(
-        { architecture, specifications, fileStructure },
-        { apiKey: googleApiKey, model: selectedModel, useTDD }
-      );
-      const initialTasks = result.tasks;
-
-      if (!initialTasks || initialTasks.length === 0) {
-        toast({
-          title: 'No tasks generated',
-          description: 'The AI could not generate a task list. Try adjusting the PRD or architecture.',
-        });
-        setLoading((prev) => ({ ...prev, tasks: false }));
-        return;
-      }
-      
-      const tasksWithPlaceholders = initialTasks.map((t) => ({ ...t, details: 'Researching...' }));
-      setTasks(tasksWithPlaceholders);
-      setLoading((prev) => ({ ...prev, tasks: false, researching: true }));
-      
-      for (let i = 0; i < initialTasks.length; i++) {
-        await researchSingleTask(initialTasks[i]);
-        setResearchProgress(((i + 1) / initialTasks.length) * 100);
-      }
-      
-      toast({ title: 'Task research complete!', description: 'All tasks have been detailed.' });
-
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Task Generation Failed',
-        description: (error as Error).message,
-      });
-      setTasks([]);
-    } finally {
-      setLoading((prev) => ({ ...prev, tasks: false, researching: false }));
-    }
-  };
+  // handleGenerateTasks is now integrated into the unified system
+  // The button below now triggers full project generation including tasks
 
 
   const handleCreateIssue = async () => {
@@ -769,15 +770,15 @@ export default function Home() {
                     >
                       {loading.arch ? 'Regenerating...' : 'Regenerate'}
                     </Button>
-                    <Button onClick={handleGenerateTasks} disabled={loading.tasks || loading.researching}>
-                      {loading.tasks || loading.researching ? (
+                    <Button onClick={handleGenerateArchitecture} disabled={loading.arch || loading.tasks}>
+                      {loading.arch || loading.tasks ? (
                         <>
                           <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
                           Generating...
                         </>
                       ) : (
                         <>
-                          Generate Tasks <ChevronRight className="ml-2 h-4 w-4" />
+                          Generate Complete Plan <ChevronRight className="ml-2 h-4 w-4" />
                         </>
                       )}
                     </Button>
@@ -801,6 +802,17 @@ export default function Home() {
                       <ListChecks className="h-6 w-6 text-accent" />
                       <span>Step 4: Actionable Tasks</span>
                     </CardTitle>
+                    {validationSummary && (
+                      <div className={`text-sm p-3 rounded-md ${
+                        validationSummary.includes('✅') 
+                          ? 'bg-green-50 text-green-800 border border-green-200' :
+                        validationSummary.includes('⚠️')
+                          ? 'bg-yellow-50 text-yellow-800 border border-yellow-200' :
+                          'bg-red-50 text-red-800 border border-red-200'
+                      }`}>
+                        {validationSummary}
+                      </div>
+                    )}
                     <CardDescription>
                       {loading.researching
                         ? 'The AI is researching each task for detailed notes...'
