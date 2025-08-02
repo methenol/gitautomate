@@ -28,7 +28,7 @@ const ResearchTaskOutputSchema = z.object({
   implementationSteps: z
     .string()
     .describe(
-      `Provide a detailed, step-by-step implementation guide. Avoid including actual code snippets or implementations. Focus on:
+      `Provide a detailed, step-by-step implementation guide. Must not include actual code snippets or implementations. Focus on:
 - Files that need to be created or modified
 - Functions/components that need to be implemented
 - Integration points with other system components
@@ -47,7 +47,7 @@ You MUST return your response as a valid JSON object that conforms to the output
 
 For the given task, provide a detailed breakdown for each of the following fields:
 - context: Briefly explain how this task fits into the overall architecture.
-- implementationSteps: Provide a detailed, step-by-step implementation guide. Avoid including actual code snippets or implementations. Focus on:
+- implementationSteps: Provide a detailed, step-by-step implementation guide. Must not include actual code snippets or implementations. Focus on:
   - Files that need to be created or modified
   - Functions/components that need to be implemented
   - Integration points with other system components
@@ -75,7 +75,7 @@ You MUST return your response as a valid JSON object that conforms to the output
 
 For the given task, provide a detailed breakdown for each of the following fields:
 - context: Briefly explain how this task fits into the overall architecture.
-- implementationSteps: Provide a detailed, step-by-step implementation guide. Avoid including actual code snippets or implementations. Focus on:
+- implementationSteps: Provide a detailed, step-by-step implementation guide. Must not include actual code snippets or implementations. Focus on:
   - Files that need to be created or modified
   - Functions/components that need to be implemented
   - Integration points with other system components
