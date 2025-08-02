@@ -12,11 +12,12 @@
 
 import {
   generateUnifiedProjectPlan,
-  UnifiedGenerationOptions,
 } from '@/ai/flows/unified-project-generation';
 import type {
   UnifiedProjectInput,
   ProjectPlanOutput,
+  UnifiedProjectContext,
+  ValidationResult,
 } from '@/types/unified-context';
 
 type ActionOptions = {
@@ -77,13 +78,13 @@ export async function extractComponentsFromUnifiedResult(
       details: string;
     }>;
 }> {
-  const context = result.context;
+  const context = result.context as UnifiedProjectContext;
   
  return {
     architecture: context.architecture || '',
     specifications: context.specifications || '',
     fileStructure: context.fileStructure || '',
-    tasks: context.tasks.map(task => ({
+    tasks: (context.tasks || []).map((task) => ({
       title: task.title,
       details: task.details || '',
     })),
@@ -100,7 +101,7 @@ export async function validateUnifiedProjectResult(
     errors: string[];
     warnings: string[];
 }> {
-  const allValidationResults = result.validationResults;
+  const allValidationResults = (result.validationResults as ValidationResult[]) || [];
   
   // Combine all validation results
   const errors: string[] = [];

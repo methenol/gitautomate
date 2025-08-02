@@ -1,7 +1,8 @@
 
 
 import { z } from 'zod';
-import type { Task, ResearchTaskOutput as ResearchedTaskDetails } from './index';
+import type { Task } from '@/types';
+import type { ResearchTaskOutput as ResearchedTaskDetails } from '@/ai/flows/research-task';
 
 /**
  * Represents a dependency relationship between tasks
@@ -49,7 +50,7 @@ export type UnifiedProjectInput = z.infer<typeof UnifiedProjectInputSchema>;
  * Output schema for unified project plan
  */
 export const ProjectPlanOutputSchema = z.object({
-  context: UnifiedProjectContext,
+  context: z.any().describe('The unified project context containing all generated data.'),
   validationResults: z.array(z.object({
     isValid: z.boolean(),
     errors: z.array(z.string()),

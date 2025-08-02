@@ -13,46 +13,31 @@
  * - Missing Iterative Refinement Loop: Cross-consistency checking and validation
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+
 import {
   generateArchitecture,
   GenerateArchitectureInput,
 } from './generate-architecture';
 import { generateFileStructure, GenerateFileStructureInput } from './generate-file-structure';
 import { generateTasks, GenerateTasksInput } from './generate-tasks';
-import { researchTask, ResearchTaskInput } from './research-task';
 
 // Import new types
 import type {
   UnifiedProjectContext,
-  ProjectPlanOutput,
   ValidationResult,
 } from '@/types/unified-context';
 
 // Import dependency management
 import { TaskDependencyGraph, DependencyAwareTaskResearcher } from '@/lib/task-dependency-graph';
-import type { Task } from '@/types';
 
-// Input schema for unified project generation
-const UnifiedProjectInputSchema = z.object({
-  prd: z.string().min(1, 'PRD is required to generate project plan.'),
-});
+export type UnifiedProjectInput = {
+  prd: string;
+};
 
-export type UnifiedProjectInput = z.infer<typeof UnifiedProjectInputSchema>;
-
-// Output schema for unified project generation
-const ProjectPlanOutputSchema = z.object({
-  context: z.any().describe('The unified project context containing all generated data.'),
-  validationResults: z.array(z.object({
-    isValid: z.boolean(),
-    errors: z.array(z.string()),
-    warnings: z.array(z.string()),
-    timestamp: z.date(),
-  })).describe('Validation results from cross-consistency checking.'),
-});
-
-export type ProjectPlanOutput = z.infer<typeof ProjectPlanOutputSchema>;
+export type ProjectPlanOutput = {
+  context: UnifiedProjectContext;
+  validationResults: ValidationResult[];
+};
 
 /**
  * Options for unified project generation
@@ -72,7 +57,9 @@ export async function generateUnifiedProjectPlan(
   input: UnifiedProjectInput,
   options?: UnifiedGenerationOptions
 ): Promise<ProjectPlanOutput> {
-  const startTime = new Date();
+  // const startTime = new Date();
+  
+  const currentValidationResults: ValidationResult[] = [];
   
   try {
     console.log('Starting unified project generation...');
@@ -85,8 +72,6 @@ export async function generateUnifiedProjectPlan(
       dependencyGraph: new Map(),
       validationHistory: [],
     };
-
-    const validationResults: ValidationResult[] = [];
     
     // Phase 1: Generate Architecture
  console.log('Phase 1: Generating architecture...');
@@ -100,7 +85,7 @@ export async function generateUnifiedProjectPlan(
 
     // Validate architecture phase
     const archValidation = validateArchitecturePhase(context);
-    validationResults.push(archValidation);
+    currentValidationResults.push(archValidation);
 
     if (archValidation.isValid === false) {
       throw new Error(`Architecture validation failed: ${archValidation.errors.join(', ')}`);
@@ -121,7 +106,7 @@ export async function generateUnifiedProjectPlan(
 
     // Validate file structure phase
     const fileValidation = validateFileStructurePhase(context);
-    validationResults.push(fileValidation);
+    currentValidationResults.push(fileValidation);
 
     if (fileValidation.isValid === false) {
       throw new Error(`File structure validation failed: ${fileValidation.errors.join(', ')}`);
@@ -138,14 +123,14 @@ export async function generateUnifiedProjectPlan(
       options
     );
     
-    context.tasks = tasksResult.tasks.map((task, index) => ({
+    context.tasks = tasksResult.tasks.map((task, _index) => ({
       ...task,
       details: '', // Will be populated during research phase
     }));
 
     // Validate tasks against architecture and file structure
     const tasksValidation = validateTasksAgainstContext(context);
-    validationResults.push(tasksValidation);
+    currentValidationResults.push(tasksValidation);
 
     if (tasksValidation.isValid === false) {
       console.warn('Task validation warnings:', tasksValidation.warnings);
@@ -158,7 +143,7 @@ export async function generateUnifiedProjectPlan(
 
     // Validate dependency graph
     const depValidation = dependencyGraph.validate();
-    validationResults.push(depValidation);
+    currentValidationResults.push(depValidation);
 
     if (depValidation.isValid === false) {
       throw new Error(`Dependency graph validation failed: ${depValidation.errors.join(', ')}`);
@@ -170,13 +155,13 @@ export async function generateUnifiedProjectPlan(
 
     // Final validation
     const finalValidation = validateCompleteProjectPlan(context);
-    validationResults.push(finalValidation);
+    currentValidationResults.push(finalValidation);
 
  console.log('Unified project generation completed successfully.');
     
     return {
       context,
-      validationResults,
+      validationResults: currentValidationResults,
     };
 
   } catch (error) {
@@ -190,7 +175,7 @@ export async function generateUnifiedProjectPlan(
       timestamp: new Date(),
     };
     
-    validationResults.push(errorValidation);
+    currentValidationResults.push(errorValidation);
     
     // Re-throw the error for handling by caller
     throw new Error(`Unified project generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -296,7 +281,7 @@ async function generateTasksWithRetry(
  */
 async function researchTasksWithDependencies(
   context: UnifiedProjectContext,
-  options?: UnifiedGenerationOptions
+  _options?: UnifiedGenerationOptions
 ) {
   const researcher = new DependencyAwareTaskResearcher(context);
   const researchOrder = researcher.getResearchOrder();
@@ -310,7 +295,7 @@ async function researchTasksWithDependencies(
  console.log('Researching task ' + (i + 1) + '/' + researchOrder.length + ': "' + context.tasks[taskIndex].title + '"');
     
     try {
-      const completedTasks = new Set(
+      const completedTaskIds = new Set(
         Array.from(context.researchedTasks.keys()).map(id => 
           parseInt(id.replace('task-', '')) - 1
         ).filter(index => index < taskIndex)
@@ -319,7 +304,7 @@ async function researchTasksWithDependencies(
       const researchResult = await researcher.researchTaskWithDependencies(
         taskId,
         taskIndex,
-        completedTasks,
+        completedTaskIds,
         new TaskDependencyGraph(context.tasks.slice(0, taskIndex + 1))
       );
       
@@ -357,7 +342,7 @@ function buildSimpleDependencyMap(dependencyGraph: TaskDependencyGraph): Map<str
     // If there are circular dependencies, use a simple linear approach
  console.warn('Circular dependency detected, using simple mapping:', error);
     
-    for (let i = 0; i < dependencyGraph['getExecutionOrder'].length || 10; i++) {
+    for (let i = 0; i < 10; i++) {
       const taskId = 'task-' + (i + 1);
       simpleMap.set(taskId, []);
     }

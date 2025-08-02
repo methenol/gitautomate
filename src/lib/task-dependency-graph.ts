@@ -1,6 +1,7 @@
 
 
-import { Task } from '@/types';
+import type { Task } from '@/types';
+import type { ResearchTaskOutput as ResearchedTaskDetails } from '@/ai/flows/research-task';
 import type { UnifiedProjectContext, ValidationResult } from '@/types/unified-context';
 
 /**
@@ -63,7 +64,6 @@ export class TaskDependencyGraph {
       if (otherTask.title === task.title) return; // Don't depend on self
       
       const otherTaskId = `task-${otherIndex + 1}`;
-      const otherTitleLower = otherTask.title.toLowerCase();
       
       // Check if this task mentions the other task
       prerequisiteKeywords.forEach(keyword => {
@@ -238,9 +238,9 @@ export class DependencyAwareTaskResearcher {
   async researchTaskWithDependencies(
     taskId: string,
     taskIndex: number,
-    completedTasks: Set<string>,
+    completedTasks: Set<number>,
     dependencyGraph: TaskDependencyGraph
-  ): Promise<any> {
+  ): Promise<ResearchedTaskDetails> {
     const task = this.context.tasks[taskIndex];
     
     if (!task) {
@@ -249,12 +249,12 @@ export class DependencyAwareTaskResearcher {
 
     // Get dependency chain for context
     const dependencyChain = dependencyGraph.getDependencyChain(taskId);
-    const completedTaskTitles = Array.from(completedTasks).map(id => 
-      dependencyGraph.getTaskTitlesForIds([id])[0] || id
+    const completedTaskTitles = Array.from(completedTasks).map(index => 
+      this.context.tasks[index]?.title || `Task ${index + 1}`
     );
 
     // Build enhanced context considering dependencies
-    const researchContext = {
+    const _researchContext = {
       ...this.context,
       completedTasks: completedTaskTitles,
       dependencyChain: dependencyGraph.getTaskTitlesForIds(dependencyChain),
