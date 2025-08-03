@@ -14,7 +14,19 @@ import {
   runGenerateFileStructure,
   getModels,
 } from './actions';
-import type { Task } from '@/types';
+import {
+  initializeProject,
+  generateCompleteProjectPlan,
+  generateArchitectureWithContext,
+  generateTasksWithContext,
+  researchTasksWithContext,
+  validateProjectContext,
+  validateTaskConsistency,
+  optimizeTaskOrdering,
+  convertLegacyTasksToEnhanced,
+  convertEnhancedTasksToLegacy,
+} from './unified-actions';
+import type { Task, UnifiedProjectContext, ValidationResult } from '@/types';
 import {
   getRepositories,
   createImplementationPlanIssues,
@@ -131,6 +143,12 @@ export default function Home() {
   const [fileStructure, setFileStructure] = useState<string>('');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [finalIssueURL, setFinalIssueURL] = useState('');
+
+  // New unified context state
+  const [unifiedContext, setUnifiedContext] = useState<UnifiedProjectContext | null>(null);
+  const [useUnifiedMode, setUseUnifiedMode] = useState<boolean>(false);
+  const [validationResults, setValidationResults] = useState<ValidationResult[]>([]);
+  const [showValidation, setShowValidation] = useState<boolean>(false);
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editedTaskDetails, setEditedTaskDetails] = useState('');
@@ -366,6 +384,137 @@ export default function Home() {
       setTasks([]);
     } finally {
       setLoading((prev) => ({ ...prev, tasks: false, researching: false }));
+    }
+  };
+
+  // New unified workflow functions
+  const handleUnifiedProjectGeneration = async () => {
+    if (!prd.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'PRD Required',
+        description: 'Please provide a Product Requirements Document first.',
+      });
+      return;
+    }
+
+    setLoading((prev) => ({ ...prev, arch: true, tasks: true, researching: true }));
+    setValidationResults([]);
+    setTasks([]);
+    setFinalIssueURL('');
+
+    try {
+      // Initialize unified context
+      let context = await initializeProject(prd);
+      setUnifiedContext(context);
+
+      // Generate complete project plan with dependencies
+      context = await generateCompleteProjectPlan(context, {
+        apiKey: googleApiKey,
+        model: selectedModel,
+        useTDD,
+        enableDependencyAnalysis: true,
+        enableCrossTaskValidation: true,
+      });
+
+      // Update legacy state for UI compatibility
+      setArchitecture(context.architecture);
+      setSpecifications(context.specifications);
+      setFileStructure(context.fileStructure);
+      setTasks(convertEnhancedTasksToLegacy(context.tasks));
+
+      // Validate the entire context
+      const contextValidation = await validateProjectContext(context);
+      const taskValidation = await validateTaskConsistency(context);
+      setValidationResults([contextValidation, taskValidation]);
+
+      // Show validation if there are issues or suggestions
+      if (!contextValidation.isValid || !taskValidation.isValid || 
+          contextValidation.suggestions?.length || taskValidation.suggestions?.length) {
+        setShowValidation(true);
+      }
+
+      setUnifiedContext(context);
+      
+      toast({ 
+        title: 'Unified Project Plan Generated!', 
+        description: 'Architecture, tasks, and dependencies have been analyzed and optimized.',
+      });
+
+    } catch (error) {
+      console.error('Unified project generation error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Unified Generation Failed',
+        description: (error as Error).message,
+      });
+    } finally {
+      setLoading((prev) => ({ ...prev, arch: false, tasks: false, researching: false }));
+    }
+  };
+
+  const handleValidateProject = async () => {
+    if (!unifiedContext) {
+      toast({
+        variant: 'destructive',
+        title: 'No Project Context',
+        description: 'Please generate a project plan first.',
+      });
+      return;
+    }
+
+    try {
+      const contextValidation = await validateProjectContext(unifiedContext);
+      const taskValidation = await validateTaskConsistency(unifiedContext);
+      setValidationResults([contextValidation, taskValidation]);
+      setShowValidation(true);
+
+      if (contextValidation.isValid && taskValidation.isValid) {
+        toast({
+          title: 'Validation Passed',
+          description: 'Project context and task consistency are valid.',
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Validation Issues Found',
+          description: 'Please review the validation results below.',
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Failed',
+        description: (error as Error).message,
+      });
+    }
+  };
+
+  const handleOptimizeTasks = async () => {
+    if (!unifiedContext) {
+      toast({
+        variant: 'destructive',
+        title: 'No Project Context',
+        description: 'Please generate a project plan first.',
+      });
+      return;
+    }
+
+    try {
+      const optimizedContext = await optimizeTaskOrdering(unifiedContext);
+      setUnifiedContext(optimizedContext);
+      setTasks(convertEnhancedTasksToLegacy(optimizedContext.tasks));
+      
+      toast({
+        title: 'Tasks Optimized',
+        description: 'Task order has been optimized based on dependencies.',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Optimization Failed',
+        description: (error as Error).message,
+      });
     }
   };
 
@@ -693,23 +842,55 @@ export default function Home() {
                       rows={10}
                     />
                   </CardContent>
-                  <CardFooter>
-                    <Button
-                      onClick={handleGenerateArchitecture}
-                      disabled={!prd || loading.arch}
-                      className="ml-auto"
-                    >
-                      {loading.arch ? (
-                        <>
-                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          Generate Architecture <ChevronRight className="ml-2 h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
+                  <CardFooter className="flex justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="unified-mode"
+                        checked={useUnifiedMode}
+                        onCheckedChange={setUseUnifiedMode}
+                      />
+                      <Label htmlFor="unified-mode" className="text-sm">
+                        Use Enhanced Mode
+                        <span className="block text-xs text-muted-foreground">
+                          Dependencies, validation & optimization
+                        </span>
+                      </Label>
+                    </div>
+                    {useUnifiedMode ? (
+                      <Button
+                        onClick={handleUnifiedProjectGeneration}
+                        disabled={!prd || loading.arch || loading.tasks || loading.researching}
+                        className="ml-auto"
+                      >
+                        {loading.arch || loading.tasks || loading.researching ? (
+                          <>
+                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                            Generating Unified Plan...
+                          </>
+                        ) : (
+                          <>
+                            Generate Complete Plan <ChevronRight className="ml-2 h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleGenerateArchitecture}
+                        disabled={!prd || loading.arch}
+                        className="ml-auto"
+                      >
+                        {loading.arch ? (
+                          <>
+                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            Generate Architecture <ChevronRight className="ml-2 h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </CardFooter>
                 </Card>
               </motion.div>
@@ -790,6 +971,92 @@ export default function Home() {
                <motion.div key="loading-arch" {...cardAnimation}>
                    <LoadingSpinner text="Generating architecture & specs..." />
                </motion.div>
+            )}
+
+            {/* Validation Results Section (Enhanced Mode) */}
+            {useUnifiedMode && showValidation && validationResults.length > 0 && (
+              <motion.div key="validation" {...cardAnimation}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertTriangle className="h-6 w-6 text-accent" />
+                      <span>Project Validation</span>
+                    </CardTitle>
+                    <CardDescription>
+                      Validation results for project consistency and task dependencies.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {validationResults.map((result, index) => (
+                      <div key={index} className="border rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          {result.isValid ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <AlertTriangle className="h-5 w-5 text-destructive" />
+                          )}
+                          <span className="font-semibold">
+                            {index === 0 ? 'Context Validation' : 'Task Consistency'}
+                          </span>
+                        </div>
+                        
+                        {result.issues.length > 0 && (
+                          <div className="mb-3">
+                            <h4 className="text-sm font-medium text-destructive mb-1">Issues:</h4>
+                            <ul className="text-sm text-muted-foreground space-y-1">
+                              {result.issues.map((issue, i) => (
+                                <li key={i} className="flex items-start gap-2">
+                                  <span className="text-destructive">•</span>
+                                  {issue}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {result.suggestions && result.suggestions.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium text-yellow-600 mb-1">Suggestions:</h4>
+                            <ul className="text-sm text-muted-foreground space-y-1">
+                              {result.suggestions.map((suggestion, i) => (
+                                <li key={i} className="flex items-start gap-2">
+                                  <span className="text-yellow-600">•</span>
+                                  {suggestion}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </CardContent>
+                  <CardFooter className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleValidateProject}
+                      disabled={!unifiedContext}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Re-validate
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleOptimizeTasks}
+                      disabled={!unifiedContext}
+                    >
+                      <Wrench className="mr-2 h-4 w-4" />
+                      Optimize Tasks
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setShowValidation(false)}
+                      className="ml-auto"
+                    >
+                      Hide Validation
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </motion.div>
             )}
 
             {/* Step 4: Task List */}

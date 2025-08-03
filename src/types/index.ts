@@ -9,3 +9,6 @@ export const TaskSchema = z.object({
 });
 export type Task = z.infer<typeof TaskSchema>;
 export type { ResearchTaskInput } from '@/ai/flows/research-task';
+
+// Export unified context types
+export * from './unified-context';
