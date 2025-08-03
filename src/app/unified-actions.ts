@@ -8,8 +8,8 @@ import {
   EnhancedTask 
 } from '@/types/unified-context';
 
-// Legacy action support - maintaining backward compatibility
-export { 
+// Import legacy actions as needed
+import { 
   runGenerateArchitecture,
   runGenerateTasks,
   runGenerateFileStructure,
@@ -128,34 +128,4 @@ export async function refineProjectPlan(
   options: GenerationOptions = {}
 ): Promise<UnifiedProjectContext> {
   return await projectManager.refineContextBasedOnValidation(context, validation);
-}
-
-// Utility functions for working with the unified context
-export function updateProjectContext(
-  context: UnifiedProjectContext,
-  updates: Partial<UnifiedProjectContext>
-): UnifiedProjectContext {
-  return projectManager.updateContext(context, updates);
-}
-
-export function convertLegacyTasksToEnhanced(tasks: any[]): EnhancedTask[] {
-  return tasks.map(task => ({
-    title: task.title,
-    details: task.details || '',
-    dependencies: {
-      taskTitle: task.title,
-      dependsOn: [],
-      blockedBy: [],
-      priority: 3,
-      category: 'core' as const,
-    },
-    researched: Boolean(task.details && task.details.trim() && task.details !== 'Researching...'),
-  }));
-}
-
-export function convertEnhancedTasksToLegacy(enhancedTasks: EnhancedTask[]): any[] {
-  return enhancedTasks.map(task => ({
-    title: task.title,
-    details: task.details,
-  }));
 }

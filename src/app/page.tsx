@@ -23,9 +23,11 @@ import {
   validateProjectContext,
   validateTaskConsistency,
   optimizeTaskOrdering,
+} from './unified-actions';
+import {
   convertLegacyTasksToEnhanced,
   convertEnhancedTasksToLegacy,
-} from './unified-actions';
+} from '@/lib/unified-utils';
 import type { Task, UnifiedProjectContext, ValidationResult } from '@/types';
 import {
   getRepositories,
