@@ -12,7 +12,7 @@
 import {ai} from '@/ai/genkit';
 import { TaskSchema } from '@/types';
 import {z} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+
 
 
 const _GenerateTasksInputSchema = z.object({
@@ -64,10 +64,8 @@ Specifications:
 
 Generate the complete, exhaustive, and sequentially ordered list of task titles now.`;
 
-export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
+export async function generateTasks(input: GenerateTasksInput, model?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
   const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-flash-latest';
-  const options = apiKey ? {apiKey} : {};
-  const _plugins = apiKey ? [googleAI(options)] : [];
 
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
 
@@ -85,7 +83,7 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
   });
   
   if (output?.tasks) {
-    output.tasks = output.tasks.map((task) => ({ ...task, details: '' }));
+    output.tasks = output.tasks.map((task: { title: string; details?: string }) => ({ ...task, details: '' }));
   }
   return output!;
 }

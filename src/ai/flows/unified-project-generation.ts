@@ -257,7 +257,6 @@ async function generateTasksWithRetry(
     try {
       return await generateTasks(
         input,
-        options?.apiKey,
         options?.model,
         options?.useTDD
       );
@@ -295,18 +294,8 @@ async function researchTasksWithDependencies(
  console.log('Researching task ' + (i + 1) + '/' + researchOrder.length + ': "' + context.tasks[taskIndex].title + '"');
     
     try {
-      const completedTaskIds = new Set(
-        Array.from(context.researchedTasks.keys()).map(id => 
-          parseInt(id.replace('task-', '')) - 1
-        ).filter(index => index < taskIndex)
-      );
-      
-      const researchResult = await researcher.researchTaskWithDependencies(
-        taskId,
-        taskIndex,
-        completedTaskIds,
-        new TaskDependencyGraph(context.tasks.slice(0, taskIndex + 1))
-      );
+        
+      const researchResult = await researcher.researchTaskWithDependencies(taskIndex);
       
       // Store research result
       context.researchedTasks.set(taskId, researchResult);

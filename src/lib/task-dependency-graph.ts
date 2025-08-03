@@ -236,29 +236,13 @@ export class DependencyAwareTaskResearcher {
    * Researches a single task with full knowledge of dependencies and completed work
    */
   async researchTaskWithDependencies(
-    taskId: string,
-    taskIndex: number,
-    completedTasks: Set<number>,
-    dependencyGraph: TaskDependencyGraph
+    taskIndex: number
   ): Promise<ResearchedTaskDetails> {
     const task = this.context.tasks[taskIndex];
     
     if (!task) {
       throw new Error(`Task not found at index ${taskIndex}`);
     }
-
-    // Get dependency chain for context
-    const dependencyChain = dependencyGraph.getDependencyChain(taskId);
-    const completedTaskTitles = Array.from(completedTasks).map(index => 
-      this.context.tasks[index]?.title || `Task ${index + 1}`
-    );
-
-    // Build enhanced context considering dependencies
-    const _researchContext = {
-      ...this.context,
-      completedTasks: completedTaskTitles,
-      dependencyChain: dependencyGraph.getTaskTitlesForIds(dependencyChain),
-    };
 
     // Import the research task function
     const { runResearchTask } = await import('@/app/actions');

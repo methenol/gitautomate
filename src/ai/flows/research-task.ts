@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const _ResearchTaskInputSchema = z.object({
+export const ResearchTaskInputSchema = z.object({
   title: z.string().describe('The title of the development task to research.'),
   architecture: z.string().describe('The overall architecture of the project.'),
   fileStructure: z.string().describe('The file/folder structure of the project.'),

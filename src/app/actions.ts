@@ -57,7 +57,7 @@ export async function runGenerateTasks(
     );
   }
   try {
-    const result = await generateTasks(input, options?.apiKey, options?.model, options?.useTDD);
+    const result = await generateTasks(input, options?.model, options?.useTDD);
     return result;
   } catch (error) {
     console.error('Error generating tasks:', error);
