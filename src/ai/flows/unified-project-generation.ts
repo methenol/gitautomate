@@ -199,7 +199,7 @@ async function generateArchitectureWithRetry(
         options?.model
       );
     } catch (error) {
-      console.error('Architecture generation attempt ' + attempt + '/' + maxRetries + ' failed:', error);
+      console.error('Architecture generation attempt %s/%s failed:', attempt, maxRetries, error);
       
       if (attempt === maxRetries) {
         throw new Error(`Failed to generate architecture after ${maxRetries} attempts`);
