@@ -86,9 +86,14 @@ export async function generateCompleteProjectPlan(
     const validationIssues = validateProject(unifiedTasks, fileStructResult.fileStructure || '', dependencyGraph);
     const executionOrder = dependencyGraph.getExecutionOrder();
 
-    // Ensure we have an execution order
-    if (!executionOrder || executionOrder.length === 0) {
-      throw new Error('Failed to determine task execution order. This may be due to circular dependencies or invalid task structure.');
+    // Ensure we have a valid execution order - this is critical
+    if (!executionOrder || !Array.isArray(executionOrder) || executionOrder.length === 0) {
+      // If we have tasks but no execution order, there's likely a serious issue
+      if (unifiedTasks && unifiedTasks.length > 0) {
+        throw new Error('Failed to determine task execution order despite having tasks. This indicates a critical issue with dependency processing.');
+      } else {
+        throw new Error('No tasks were generated and execution order is empty. Please try again with a more detailed PRD.');
+      }
     }
 
     // Step 6: Create unified context
@@ -176,21 +181,39 @@ async function generateUnifiedTasks(
   }
 
   // Transform the result into UnifiedTask format
-  return result.tasks.map((task, index) => ({
-    id: task.id || `task-${index + 1}`,
-    title: task.title,
-    details: `### Context\n${task.context}\n\n### Implementation Steps\n${task.implementationSteps}\n\n### Acceptance Criteria\n${task.acceptanceCriteria}`,
-    dependencies: {
+  const transformedTasks = result.tasks.map((task, index) => {
+    // Validate each task has required properties
+    if (!task || typeof task !== 'object') {
+      throw new Error(`Invalid task at index ${index}: Task is not an object`);
+    }
+    
+    if (!task.title || typeof task.title !== 'string') {
+      throw new Error(`Invalid task at index ${index}: Missing or invalid title`);
+    }
+    
+    return {
       id: task.id || `task-${index + 1}`,
-      dependsOn: task.dependsOn,
-      category: task.category,
-      priority: task.priority,
-    },
-    context: task.context,
-    implementationSteps: task.implementationSteps,
-    acceptanceCriteria: task.acceptanceCriteria,
-    fileReferences: task.fileReferences,
-  }));
+      title: task.title,
+      details: `### Context\n${task.context || 'No context provided'}\n\n### Implementation Steps\n${task.implementationSteps || 'No implementation steps provided'}\n\n### Acceptance Criteria\n${task.acceptanceCriteria || 'No acceptance criteria provided'}`,
+      dependencies: {
+        id: task.id || `task-${index + 1}`,
+        dependsOn: Array.isArray(task.dependsOn) ? task.dependsOn : [],
+        category: task.category || 'feature',
+        priority: typeof task.priority === 'number' ? task.priority : 3,
+      },
+      context: task.context || '',
+      implementationSteps: task.implementationSteps || '',
+      acceptanceCriteria: task.acceptanceCriteria || '',
+      fileReferences: Array.isArray(task.fileReferences) ? task.fileReferences : [],
+    };
+  });
+  
+  // Final validation that we have valid tasks
+  if (!Array.isArray(transformedTasks) || transformedTasks.length === 0) {
+    throw new Error('Task transformation resulted in empty or invalid task array.');
+  }
+  
+  return transformedTasks;
 }
 
 function getUnifiedStandardPrompt(input: {

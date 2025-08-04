@@ -280,8 +280,13 @@ export default function Home() {
         throw new Error('Invalid result structure returned from project generation');
       }
 
+      // Additional validation to ensure executionOrder is a proper array
+      if (!Array.isArray(result.executionOrder)) {
+        throw new Error('Invalid execution order: Expected an array of tasks');
+      }
+
       setProjectContext(result.context);
-      setExecutionOrder(result.executionOrder || []);
+      setExecutionOrder(result.executionOrder);
       setValidationIssues(result.validationIssues || []);
 
       const errorCount = (result.validationIssues || []).filter(i => i.type === 'error').length;
@@ -367,7 +372,7 @@ export default function Home() {
   };
 
   const handleExportData = async () => {
-    if (!projectContext || !executionOrder || executionOrder.length === 0) {
+    if (!projectContext || !executionOrder || !Array.isArray(executionOrder) || executionOrder.length === 0) {
       toast({
         variant: 'destructive',
         title: 'Nothing to Export',
@@ -397,25 +402,35 @@ export default function Home() {
       docsFolder.file('DEPENDENCIES.md', `# Task Dependencies\n\n${JSON.stringify(projectContext.dependencies, null, 2)}`);
       docsFolder.file('VALIDATION.md', `# Validation Results\n\n${JSON.stringify(projectContext.validationResults, null, 2)}`);
       
-      if (validationIssues && validationIssues.length > 0) {
+      if (validationIssues && Array.isArray(validationIssues) && validationIssues.length > 0) {
         const validationContent = validationIssues.map(issue => 
           `## ${issue.type.toUpperCase()}: ${issue.category}\n${issue.message}\n${issue.affectedTasks ? `Affected tasks: ${issue.affectedTasks.join(', ')}` : ''}`
         ).join('\n\n');
         docsFolder.file('VALIDATION_ISSUES.md', validationContent);
       }
 
+      // Defensive check - ensure executionOrder is still valid before using it
+      const safeTasks = Array.isArray(executionOrder) ? executionOrder : [];
+      
+      if (safeTasks.length === 0) {
+        throw new Error('No tasks available for export. This may be due to a generation error.');
+      }
+
       // Create main tasks file with execution order
-      const mainTasksContent = executionOrder.map((task, index) => {
+      const mainTasksContent = safeTasks.map((task, index) => {
+        if (!task || !task.dependencies) {
+          return `- [ ] task-${index}: [UNKNOWN] Invalid task data`;
+        }
         const category = task.dependencies?.category?.toUpperCase() || 'UNKNOWN';
         const deps = (task.dependencies?.dependsOn?.length || 0) > 0 ? ` (depends on: ${task.dependencies.dependsOn.join(', ')})` : '';
         return `- [ ] ${task.id}: [${category}] ${task.title}${deps}`;
       }).join('\n');
       tasksFolder.file('execution-order.md', `# Task Execution Order\n\n${mainTasksContent}`);
 
-      // Create individual task files
-      executionOrder.forEach((task) => {
-        if (task && task.dependencies) {
-          const taskContent = `# ${task.title}\n\n**Category:** ${task.dependencies.category}\n**Priority:** ${task.dependencies.priority}\n**Dependencies:** ${task.dependencies.dependsOn?.join(', ') || 'None'}\n\n${task.details}`;
+      // Create individual task files with additional validation
+      safeTasks.forEach((task) => {
+        if (task && task.dependencies && task.id && task.title) {
+          const taskContent = `# ${task.title}\n\n**Category:** ${task.dependencies.category}\n**Priority:** ${task.dependencies.priority}\n**Dependencies:** ${task.dependencies.dependsOn?.join(', ') || 'None'}\n\n${task.details || 'No details available'}`;
           tasksFolder.file(`${task.id}.md`, taskContent);
         }
       });
@@ -850,7 +865,7 @@ export default function Home() {
             )}
 
             {/* Step 4: Unified Tasks with Dependencies */}
-            {executionOrder.length > 0 && (
+            {Array.isArray(executionOrder) && executionOrder.length > 0 && (
               <motion.div key="step4" {...cardAnimation}>
                 <Card>
                   <CardHeader>

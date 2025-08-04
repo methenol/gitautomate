@@ -188,11 +188,13 @@ export class TaskDependencyGraph {
 
   getExecutionOrder(): UnifiedTask[] {
     try {
-      return this.topologicalSort();
+      const sortedTasks = this.topologicalSort();
+      // Ensure we always return an array, even if empty
+      return Array.isArray(sortedTasks) ? sortedTasks : [];
     } catch {
       // If there are cycles, return tasks sorted by category and priority
       const tasks = Array.from(this.nodes.values()).map(node => node.task);
-      return tasks.sort((a, b) => {
+      const sortedTasks = tasks.sort((a, b) => {
         const categoryOrder = { setup: 0, core: 1, feature: 2, testing: 3, deployment: 4 };
         const aCat = categoryOrder[a.dependencies.category as keyof typeof categoryOrder];
         const bCat = categoryOrder[b.dependencies.category as keyof typeof categoryOrder];
@@ -203,6 +205,9 @@ export class TaskDependencyGraph {
         
         return b.dependencies.priority - a.dependencies.priority;
       });
+      
+      // Ensure we always return an array
+      return Array.isArray(sortedTasks) ? sortedTasks : [];
     }
   }
 
