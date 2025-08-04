@@ -73,6 +73,11 @@ export async function generateCompleteProjectPlan(
       options
     );
 
+    // Validate unified tasks
+    if (!unifiedTasks || unifiedTasks.length === 0) {
+      throw new Error('No tasks were generated. Please try again with a more detailed PRD.');
+    }
+
     // Step 4: Build dependency graph
     const dependencyGraph = new TaskDependencyGraph();
     dependencyGraph.addMultipleTasks(unifiedTasks);
@@ -80,6 +85,11 @@ export async function generateCompleteProjectPlan(
     // Step 5: Validate and get execution order
     const validationIssues = validateProject(unifiedTasks, fileStructResult.fileStructure || '', dependencyGraph);
     const executionOrder = dependencyGraph.getExecutionOrder();
+
+    // Ensure we have an execution order
+    if (!executionOrder || executionOrder.length === 0) {
+      throw new Error('Failed to determine task execution order. This may be due to circular dependencies or invalid task structure.');
+    }
 
     // Step 6: Create unified context
     const context: ProjectContext = {
@@ -155,6 +165,15 @@ async function generateUnifiedTasks(
   );
 
   const result = await generateUnifiedTasksFlow(input);
+
+  // Validate the result
+  if (!result || !result.tasks || !Array.isArray(result.tasks)) {
+    throw new Error('AI generated invalid tasks response. Expected an object with a tasks array.');
+  }
+
+  if (result.tasks.length === 0) {
+    throw new Error('AI generated no tasks. Please try again with a more detailed PRD or a different model.');
+  }
 
   // Transform the result into UnifiedTask format
   return result.tasks.map((task, index) => ({

@@ -275,12 +275,17 @@ export default function Home() {
         useTDD,
       });
 
-      setProjectContext(result.context);
-      setExecutionOrder(result.executionOrder);
-      setValidationIssues(result.validationIssues);
+      // Validate the result structure
+      if (!result || !result.context || !result.executionOrder) {
+        throw new Error('Invalid result structure returned from project generation');
+      }
 
-      const errorCount = result.validationIssues.filter(i => i.type === 'error').length;
-      const warningCount = result.validationIssues.filter(i => i.type === 'warning').length;
+      setProjectContext(result.context);
+      setExecutionOrder(result.executionOrder || []);
+      setValidationIssues(result.validationIssues || []);
+
+      const errorCount = (result.validationIssues || []).filter(i => i.type === 'error').length;
+      const warningCount = (result.validationIssues || []).filter(i => i.type === 'warning').length;
 
       if (errorCount > 0) {
         toast({
@@ -291,12 +296,12 @@ export default function Home() {
       } else if (warningCount > 0) {
         toast({
           title: 'Project Plan Generated Successfully',
-          description: `Generated ${result.context.tasks.length} tasks with ${warningCount} warning(s).`,
+          description: `Generated ${(result.context.tasks || []).length} tasks with ${warningCount} warning(s).`,
         });
       } else {
         toast({
           title: 'Perfect Project Plan Generated!',
-          description: `Generated ${result.context.tasks.length} tasks with dependency analysis and validation.`,
+          description: `Generated ${(result.context.tasks || []).length} tasks with dependency analysis and validation.`,
         });
       }
     } catch (error) {
@@ -362,7 +367,7 @@ export default function Home() {
   };
 
   const handleExportData = async () => {
-    if (!projectContext || executionOrder.length === 0) {
+    if (!projectContext || !executionOrder || executionOrder.length === 0) {
       toast({
         variant: 'destructive',
         title: 'Nothing to Export',
@@ -392,7 +397,7 @@ export default function Home() {
       docsFolder.file('DEPENDENCIES.md', `# Task Dependencies\n\n${JSON.stringify(projectContext.dependencies, null, 2)}`);
       docsFolder.file('VALIDATION.md', `# Validation Results\n\n${JSON.stringify(projectContext.validationResults, null, 2)}`);
       
-      if (validationIssues.length > 0) {
+      if (validationIssues && validationIssues.length > 0) {
         const validationContent = validationIssues.map(issue => 
           `## ${issue.type.toUpperCase()}: ${issue.category}\n${issue.message}\n${issue.affectedTasks ? `Affected tasks: ${issue.affectedTasks.join(', ')}` : ''}`
         ).join('\n\n');
@@ -401,16 +406,18 @@ export default function Home() {
 
       // Create main tasks file with execution order
       const mainTasksContent = executionOrder.map((task, index) => {
-        const category = task.dependencies.category.toUpperCase();
-        const deps = task.dependencies.dependsOn.length > 0 ? ` (depends on: ${task.dependencies.dependsOn.join(', ')})` : '';
+        const category = task.dependencies?.category?.toUpperCase() || 'UNKNOWN';
+        const deps = (task.dependencies?.dependsOn?.length || 0) > 0 ? ` (depends on: ${task.dependencies.dependsOn.join(', ')})` : '';
         return `- [ ] ${task.id}: [${category}] ${task.title}${deps}`;
       }).join('\n');
       tasksFolder.file('execution-order.md', `# Task Execution Order\n\n${mainTasksContent}`);
 
       // Create individual task files
       executionOrder.forEach((task) => {
-        const taskContent = `# ${task.title}\n\n**Category:** ${task.dependencies.category}\n**Priority:** ${task.dependencies.priority}\n**Dependencies:** ${task.dependencies.dependsOn.join(', ') || 'None'}\n\n${task.details}`;
-        tasksFolder.file(`${task.id}.md`, taskContent);
+        if (task && task.dependencies) {
+          const taskContent = `# ${task.title}\n\n**Category:** ${task.dependencies.category}\n**Priority:** ${task.dependencies.priority}\n**Dependencies:** ${task.dependencies.dependsOn?.join(', ') || 'None'}\n\n${task.details}`;
+          tasksFolder.file(`${task.id}.md`, taskContent);
+        }
       });
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });
