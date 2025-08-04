@@ -70,7 +70,7 @@ export async function createImplementationPlanIssues(
       // Delay to avoid hitting GitHub's secondary rate limits.
       await new Promise((resolve) => setTimeout(resolve, 1000));
     } catch (error) {
-      console.error(`Failed to create issue for task "${task.title}":`, error);
+      console.error(`Failed to create issue for task "%s":`, String(task.title), error);
       // We'll still try to create the parent issue, but this one will be marked as failed.
       createdTaskIssues.push({
         title: `${task.title} (⚠️ Failed to create)`,

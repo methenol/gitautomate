@@ -64,6 +64,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import {
   Bot,
+  Brain,
   ChevronRight,
   FileText,
   Github,

@@ -54,13 +54,13 @@ function extractTechnologies(text: string): Set<string> {
     /react/gi,
     /next\.?js/gi, 
     /node\.?js|express/gi,
-    /typescript/ts/gi,
-    /python/flask/django/fastapi/gi,
-    /java/spring/gi,
-    /c#/\.net/gi,
-    /vue/angular/gi,
-    /graphql|rest/gi,
-    /mongodb/mysql/postgres/redis/gi,
+    /typescript\/ts/gi,
+    /python\/(flask|django|fastapi)/gi,
+    /java\/spring/gi,
+    /c#\/\.net/gi,
+    /(vue|angular)/gi,
+    /(graphql|rest)/gi,
+    /mongodb|mysql|postgres|redis/gi,
   ];
   
   const technologies = new Set<string>();
@@ -160,10 +160,10 @@ export function validateTaskAlignmentWithRequirements(
   );
 
   // Extract mentioned features from architecture and specs
-  const allFeatures = new Set([
+  const allFeatures = Array.from(new Set([
     ...architecture.toLowerCase().split(/\s+/),
     ...specifications.toLowerCase().split(/\s+/)
-  ]).filter(word => word.length > 4 && !['this', 'that', 'with', 'from'].includes(word));
+  ])).filter(word => word.length > 4 && !['this', 'that', 'with', 'from'].includes(word));
 
   // Check if major features are reflected in tasks
   const taskTitles = new Set(tasks.map(task => 
@@ -173,7 +173,7 @@ export function validateTaskAlignmentWithRequirements(
   // Compare requirements with task coverage
   const uncoveredRequirements = Array.from(prdKeywords).filter(req => {
     return !Array.from(allFeatures).some(feature => 
-      req.includes(feature) || feature.includes(req)
+      req.includes(String(feature)) || String(feature).includes(req)
     );
   });
 
@@ -230,7 +230,7 @@ export function validateFileReferencesInTasks(
 ): ValidationResult {
   
   const errors: string[] = [];
-  const warnings: []string = [];
+  const warnings: string[] = [];
 
   if (!fileStructure) {
     return { isValid: true, errors, warnings };
@@ -276,7 +276,7 @@ export async function validateCompleteProjectPlan(
 ): Promise<ValidationResult> {
   
   const errors: string[] = [];
-  const warnings: []string = [];
+  const warnings: string[] = [];
 
   try {
     // Basic validation - check all required fields
@@ -322,7 +322,7 @@ export async function validateCompleteProjectPlan(
       input.prd,
       input.architecture,
       input.specifications, 
-      input.tasks
+      input.tasks as Task[]
     );
 
     errors.push(...taskAlignment.errors);
@@ -332,7 +332,7 @@ export async function validateCompleteProjectPlan(
     if (level === 'comprehensive') {
       const fileRefValidation = validateFileReferencesInTasks(
         input.fileStructure,
-        input.tasks
+        input.tasks as Task[]
       );
       
       warnings.push(...fileRefValidation.warnings);

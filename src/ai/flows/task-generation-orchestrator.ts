@@ -256,7 +256,7 @@ export async function researchTaskWithDependencies(
   
   // Build context from completed tasks to avoid duplication
   const completedContext = completedTasks.map(t => 
-    `Completed Task: ${t.title}\n${t.details ? Details: ''}`
+    `Completed Task: ${t.title}\n${t.details ? t.details : ''}`
   ).join('\n\n');
 
   const researchInput: ResearchTaskInput = {
@@ -376,7 +376,7 @@ export async function generateProjectPlanWithOrchestrator(
         });
 
       } catch (error) {
-        console.warn(`Failed to research task "${task.title}":`, error);
+        console.warn(`Failed to research task "%s":`, String(task.title), error);
         
         // Add placeholder for failed tasks
         researchedTasks.push({

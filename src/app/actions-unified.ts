@@ -144,18 +144,18 @@ export async function runCompleteProjectWorkflow(
     
     // Step 3: Generate summary
     const hasCriticalErrors = validationOutput.validationResults.some(
-      result => !result.isValid && result.errors.length > 0
+      (result: any) => !result.isValid && result.errors.length > 0
     );
     
     let summary = '';
     if (hasCriticalErrors) {
       const totalErrors = validationOutput.validationResults.reduce(
-        sum, result => sum + result.errors.length, 0
+        (sum: number, result: any) => sum + result.errors.length, 0
       );
       summary = `Generated project plan with ${projectPlan.tasks.length} tasks, but has ${totalErrors} critical validation issues that need to be addressed.`;
     } else {
       const totalWarnings = validationOutput.validationResults.reduce(
-        sum, result => sum + result.warnings.length, 0
+        (sum: number, result: any) => sum + result.warnings.length, 0
       );
       summary = `Successfully generated project plan with ${projectPlan.tasks.length} tasks. Found ${totalWarnings} minor considerations for improvement.`;
     }

@@ -243,7 +243,7 @@ export async function batchResearchTasksWithDependencies(
       completedTitles.add(task.title);
       
     } catch (error) {
-      console.warn(`Failed to research task "${task.title}":`, error);
+      console.warn(`Failed to research task "%s":`, String(task.title), error);
       
       // Add placeholder for failed tasks
       researchedTasks.push({
