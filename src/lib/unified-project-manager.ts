@@ -1,417 +1,327 @@
-import { 
-  UnifiedProjectContext, 
-  ValidationResult, 
-  GenerationOptions, 
-  ProjectManager, 
-  EnhancedTask,
-  TaskDependency 
-} from '@/types/unified-context';
-import { TaskDependencyGraph } from '@/lib/dependency-graph';
+'use server';
+
+import { ProjectContext, UnifiedTask, ValidationIssue } from '@/types/unified-context';
+import { TaskDependencyGraph } from './dependency-graph';
 import { generateArchitecture } from '@/ai/flows/generate-architecture';
 import { generateFileStructure } from '@/ai/flows/generate-file-structure';
-import { generateTasks } from '@/ai/flows/generate-tasks';
-import { researchTask } from '@/ai/flows/research-task';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
-export class UnifiedProjectManager implements ProjectManager {
-  
-  initializeContext(prd: string): UnifiedProjectContext {
-    return {
-      prd,
-      architecture: '',
-      specifications: '',
-      fileStructure: '',
-      tasks: [],
-      dependencyGraph: new TaskDependencyGraph<EnhancedTask>(),
-      validationHistory: [],
-      componentVersions: {
-        architecture: 1,
-        specifications: 1,
-        fileStructure: 1,
-        tasks: 1,
-      },
-      researchContext: {
-        completedTasks: [],
-        activeResearch: [],
-        researchInsights: [],
-      },
-    };
-  }
+export interface UnifiedGenerationOptions {
+  apiKey?: string;
+  model?: string;
+  useTDD?: boolean;
+}
 
-  updateContext(context: UnifiedProjectContext, updates: Partial<UnifiedProjectContext>): UnifiedProjectContext {
-    const newContext = { ...context, ...updates };
-    
-    // Update component versions when key components change
-    if (updates.architecture && updates.architecture !== context.architecture) {
-      newContext.componentVersions.architecture += 1;
-    }
-    if (updates.specifications && updates.specifications !== context.specifications) {
-      newContext.componentVersions.specifications += 1;
-    }
-    if (updates.fileStructure && updates.fileStructure !== context.fileStructure) {
-      newContext.componentVersions.fileStructure += 1;
-    }
-    if (updates.tasks && updates.tasks !== context.tasks) {
-      newContext.componentVersions.tasks += 1;
-    }
-    
-    return newContext;
-  }
+export interface UnifiedGenerationResult {
+  context: ProjectContext;
+  executionOrder: UnifiedTask[];
+  validationIssues: ValidationIssue[];
+  stats: {
+    totalTasks: number;
+    hasCycles: boolean;
+    categoryCounts: Record<string, number>;
+  };
+}
 
-  validateContext(context: UnifiedProjectContext): ValidationResult {
-    const issues: string[] = [];
-    const suggestions: string[] = [];
+const UnifiedTasksOutputSchema = z.object({
+  tasks: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    category: z.enum(['setup', 'core', 'feature', 'testing', 'deployment']),
+    dependsOn: z.array(z.string()).default([]),
+    priority: z.number().min(1).max(5).default(3),
+    context: z.string(),
+    implementationSteps: z.string(),
+    acceptanceCriteria: z.string(),
+    fileReferences: z.array(z.string()).default([]),
+  })),
+});
 
-    // Basic validation
-    if (!context.prd.trim()) {
-      issues.push('PRD is empty or missing');
-    }
-
-    if (!context.architecture.trim()) {
-      issues.push('Architecture is missing');
-    }
-
-    if (!context.specifications.trim()) {
-      issues.push('Specifications are missing');
-    }
-
-    if (!context.fileStructure.trim()) {
-      issues.push('File structure is missing');
-    }
-
-    // Task validation
-    if (context.tasks.length === 0) {
-      suggestions.push('No tasks have been generated yet');
-    } else {
-      // Check for circular dependencies
-      if (context.dependencyGraph && (context.dependencyGraph as TaskDependencyGraph<EnhancedTask>).hasCycle()) {
-        issues.push('Task dependency graph contains circular dependencies');
-      }
-
-      // Check for orphaned tasks
-      const tasksWithoutDeps = context.tasks.filter(task => 
-        task.dependencies.dependsOn.length === 0 && 
-        task.dependencies.category !== 'setup'
-      );
-      if (tasksWithoutDeps.length > context.tasks.length * 0.7) {
-        suggestions.push('Many tasks have no dependencies - consider adding more dependency relationships');
-      }
-    }
-
-    return {
-      isValid: issues.length === 0,
-      issues,
-      suggestions,
-    };
-  }
-
-  async generateProjectPlan(context: UnifiedProjectContext, options: GenerationOptions = {}): Promise<UnifiedProjectContext> {
-    // Generate architecture and specifications
-    let updatedContext = await this.generateArchitectureWithDependencies(context, options);
-    
-    // Generate tasks with dependencies
-    updatedContext = await this.generateTasksWithDependencies(updatedContext, options);
-    
-    // Research tasks with cross-task context
-    updatedContext = await this.researchTasksWithContext(updatedContext, options);
-    
-    // Validate and optimize
-    const validation = this.validateContext(updatedContext);
-    updatedContext.validationHistory.push(validation);
-    updatedContext.lastValidated = new Date();
-    
-    if (validation.isValid) {
-      updatedContext = this.optimizeDependencyOrdering(updatedContext);
-    }
-    
-    return updatedContext;
-  }
-
-  async generateArchitectureWithDependencies(context: UnifiedProjectContext, options: GenerationOptions = {}): Promise<UnifiedProjectContext> {
-    const result = await generateArchitecture(
-      { prd: context.prd },
+export async function generateCompleteProjectPlan(
+  prd: string,
+  options: UnifiedGenerationOptions = {}
+): Promise<UnifiedGenerationResult> {
+  try {
+    // Step 1: Generate architecture and specifications
+    const archResult = await generateArchitecture(
+      { prd },
       options.apiKey,
       options.model
     );
 
+    // Step 2: Generate file structure
     const fileStructResult = await generateFileStructure(
-      { prd: context.prd, architecture: result.architecture, specifications: result.specifications },
+      {
+        prd,
+        architecture: archResult.architecture,
+        specifications: archResult.specifications,
+      },
       options.apiKey,
       options.model
     );
 
-    return this.updateContext(context, {
-      architecture: result.architecture,
-      specifications: result.specifications,
-      fileStructure: fileStructResult.fileStructure,
-    });
-  }
-
-  async generateTasksWithDependencies(context: UnifiedProjectContext, options: GenerationOptions = {}): Promise<UnifiedProjectContext> {
-    const result = await generateTasks(
-      { architecture: context.architecture, specifications: context.specifications, fileStructure: context.fileStructure },
-      options.apiKey,
-      options.model,
-      options.useTDD
-    );
-
-    // Enhance tasks with dependency analysis
-    const enhancedTasks = await this.analyzeDependencies(result.tasks, context, options);
-    
-    // Build dependency graph
-    const graph = new TaskDependencyGraph<EnhancedTask>();
-    enhancedTasks.forEach(task => {
-      graph.addNode(task.title, task);
-      task.dependencies.dependsOn.forEach(dep => {
-        graph.addDependency(task.title, dep);
-      });
-    });
-
-    return this.updateContext(context, {
-      tasks: enhancedTasks,
-      dependencyGraph: graph,
-    });
-  }
-
-  async researchTasksWithContext(context: UnifiedProjectContext, options: GenerationOptions = {}): Promise<UnifiedProjectContext> {
-    const updatedTasks = [...context.tasks];
-    const insights: { taskTitle: string; insights: string[]; crossTaskImplications: string[] }[] = [];
-    
-    // Research tasks in dependency order
-    const graph = context.dependencyGraph as TaskDependencyGraph<EnhancedTask>;
-    const executionOrder = graph ? graph.getTopologicalOrder() : context.tasks.map(t => t.title);
-    
-    for (const taskTitle of executionOrder) {
-      const taskIndex = updatedTasks.findIndex(t => t.title === taskTitle);
-      if (taskIndex === -1) continue;
-      
-      const task = updatedTasks[taskIndex];
-      
-      // Add context from previous research
-      const previousInsights = insights.map(i => i.insights.join('\n')).join('\n\n');
-      const contextualSpecs = context.specifications + 
-        (previousInsights ? '\n\n## Previous Task Research Insights:\n' + previousInsights : '');
-      
-      // Build context-aware research input
-      const researchInput = {
-        title: task.title,
-        architecture: context.architecture,
-        fileStructure: context.fileStructure,
-        specifications: contextualSpecs,
-      };
-      
-      const result = await researchTask(
-        researchInput,
-        options.apiKey,
-        options.model,
-        options.useTDD
-      );
-      
-      // Enhanced task details with cross-task implications
-      const formattedDetails = `### Context\n${result.context}\n\n### Implementation Steps\n${result.implementationSteps}\n\n### Acceptance Criteria\n${result.acceptanceCriteria}`;
-      
-      updatedTasks[taskIndex] = {
-        ...task,
-        details: formattedDetails,
-        researched: true,
-        researchContext: {
-          relatedTasks: task.dependencies.dependsOn,
-          conflictingRequirements: [],
-          prerequisiteChecks: task.dependencies.dependsOn,
-        },
-      };
-      
-      // Collect insights for next tasks
-      insights.push({
-        taskTitle: task.title,
-        insights: [result.context, result.implementationSteps].filter(Boolean),
-        crossTaskImplications: [],
-      });
-      
-      context.researchContext.completedTasks.push(task.title);
-    }
-
-    return this.updateContext(context, {
-      tasks: updatedTasks,
-      researchContext: {
-        ...context.researchContext,
-        researchInsights: insights,
+    // Step 3: Generate unified tasks with dependencies
+    const unifiedTasks = await generateUnifiedTasks(
+      {
+        prd,
+        architecture: archResult.architecture,
+        specifications: archResult.specifications,
+        fileStructure: fileStructResult.fileStructure || '',
       },
-    });
-  }
-
-  validateTaskConsistency(context: UnifiedProjectContext): ValidationResult {
-    const issues: string[] = [];
-    const suggestions: string[] = [];
-
-    // Check for task-file structure consistency
-    const fileStructureText = context.fileStructure.toLowerCase();
-    context.tasks.forEach(task => {
-      const taskDetails = task.details.toLowerCase();
-      // Simple heuristic: if task mentions specific files, check if they exist in file structure
-      const fileReferences = taskDetails.match(/[\w-]+\.(js|ts|tsx|jsx|py|html|css|json|md)/g) || [];
-      fileReferences.forEach(file => {
-        if (!fileStructureText.includes(file)) {
-          issues.push(`Task "${task.title}" references file "${file}" not found in file structure`);
-        }
-      });
-    });
-
-    // Check dependency validity
-    context.tasks.forEach(task => {
-      task.dependencies.dependsOn.forEach(dep => {
-        const dependencyExists = context.tasks.some(t => t.title === dep);
-        if (!dependencyExists) {
-          issues.push(`Task "${task.title}" depends on non-existent task "${dep}"`);
-        }
-      });
-    });
-
-    // Check for logical task ordering issues
-    const authTasks = context.tasks.filter(t => 
-      t.title.toLowerCase().includes('auth') || 
-      t.title.toLowerCase().includes('login')
+      options
     );
-    const userFeatureTasks = context.tasks.filter(t => 
-      t.title.toLowerCase().includes('user') && 
-      !t.title.toLowerCase().includes('auth')
-    );
-    
-    if (authTasks.length > 0 && userFeatureTasks.length > 0) {
-      userFeatureTasks.forEach(userTask => {
-        const hasAuthDependency = userTask.dependencies.dependsOn.some(dep => 
-          authTasks.some(authTask => authTask.title === dep)
-        );
-        if (!hasAuthDependency) {
-          suggestions.push(`Task "${userTask.title}" may need authentication dependency`);
-        }
-      });
-    }
+
+    // Step 4: Build dependency graph
+    const dependencyGraph = new TaskDependencyGraph();
+    dependencyGraph.addMultipleTasks(unifiedTasks);
+
+    // Step 5: Validate and get execution order
+    const validationIssues = validateProject(unifiedTasks, fileStructResult.fileStructure || '', dependencyGraph);
+    const executionOrder = dependencyGraph.getExecutionOrder();
+
+    // Step 6: Create unified context
+    const context: ProjectContext = {
+      prd,
+      architecture: archResult.architecture,
+      specifications: archResult.specifications,
+      fileStructure: fileStructResult.fileStructure || '',
+      tasks: unifiedTasks,
+      dependencies: extractDependencyEdges(unifiedTasks),
+      validationResults: {
+        architectureFileConsistency: true,
+        taskFileReferences: validationIssues.filter(i => i.category === 'fileReferences').length === 0,
+        dependencyOrder: !dependencyGraph.hasCycles(),
+        circularDependencies: dependencyGraph.hasCycles(),
+        issues: validationIssues.filter(i => i.type === 'error').map(i => i.message),
+        warnings: validationIssues.filter(i => i.type === 'warning').map(i => i.message),
+      },
+      version: 1,
+      lastUpdated: new Date().toISOString(),
+    };
 
     return {
-      isValid: issues.length === 0,
-      issues,
-      suggestions,
+      context,
+      executionOrder,
+      validationIssues,
+      stats: dependencyGraph.getStats(),
     };
+  } catch (error) {
+    throw new Error(`Failed to generate unified project plan: ${(error as Error).message}`);
   }
+}
 
-  optimizeDependencyOrdering(context: UnifiedProjectContext): UnifiedProjectContext {
-    const graph = context.dependencyGraph as TaskDependencyGraph<EnhancedTask>;
-    if (!graph) return context;
+async function generateUnifiedTasks(
+  input: {
+    prd: string;
+    architecture: string;
+    specifications: string;
+    fileStructure: string;
+  },
+  options: UnifiedGenerationOptions
+): Promise<UnifiedTask[]> {
+  const prompt = options.useTDD
+    ? getUnifiedTDDPrompt(input)
+    : getUnifiedStandardPrompt(input);
 
-    try {
-      const optimizedOrder = graph.getTopologicalOrder();
-      const reorderedTasks = optimizedOrder
-        .map(title => context.tasks.find(t => t.title === title))
-        .filter(Boolean) as EnhancedTask[];
+  const generateUnifiedTasksFlow = ai.defineFlow(
+    {
+      name: 'generateUnifiedTasks',
+      inputSchema: z.object({
+        prd: z.string(),
+        architecture: z.string(),
+        specifications: z.string(),
+        fileStructure: z.string(),
+      }),
+      outputSchema: UnifiedTasksOutputSchema,
+    },
+    async (input) => {
+      const llmResponse = await ai.generate({
+        model: options.model ? googleAI(options.model) : googleAI('gemini-1.5-pro'),
+        prompt: prompt,
+        config: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+        },
+      });
 
-      return this.updateContext(context, { tasks: reorderedTasks });
-    } catch {
-      // If topological sort fails due to cycles, return as-is
-      console.warn('Could not optimize task ordering due to dependency cycles');
-      return context;
+      return llmResponse.output();
     }
-  }
+  );
 
-  async refineContextBasedOnValidation(context: UnifiedProjectContext, validation: ValidationResult): Promise<UnifiedProjectContext> {
-    // For now, this is a placeholder for future AI-powered refinement
-    // In a full implementation, this would use AI to fix validation issues
-    console.log('Validation issues to address:', validation.issues);
-    console.log('Validation suggestions:', validation.suggestions);
-    return context;
-  }
+  const result = await generateUnifiedTasksFlow(input, { apiKey: options.apiKey });
 
-  private async analyzeDependencies(tasks: { title: string; details?: string }[], _context: UnifiedProjectContext, _options: GenerationOptions): Promise<EnhancedTask[]> {
-    // Enhanced dependency analysis using simple heuristics
-    const enhancedTasks: EnhancedTask[] = tasks.map(task => {
-      const dependencies: TaskDependency = {
-        taskTitle: task.title,
-        dependsOn: [],
-        blockedBy: [],
-        priority: 3,
-        category: this.categorizeTask(task.title),
-      };
+  // Transform the result into UnifiedTask format
+  return result.tasks.map((task, index) => ({
+    id: task.id || `task-${index + 1}`,
+    title: task.title,
+    details: `### Context\n${task.context}\n\n### Implementation Steps\n${task.implementationSteps}\n\n### Acceptance Criteria\n${task.acceptanceCriteria}`,
+    dependencies: {
+      id: task.id || `task-${index + 1}`,
+      dependsOn: task.dependsOn,
+      category: task.category,
+      priority: task.priority,
+    },
+    context: task.context,
+    implementationSteps: task.implementationSteps,
+    acceptanceCriteria: task.acceptanceCriteria,
+    fileReferences: task.fileReferences,
+  }));
+}
 
-      // Simple dependency inference based on task titles and common patterns
-      const title = task.title.toLowerCase();
-      
-      // Setup tasks typically come first
-      if (title.includes('setup') || title.includes('init') || title.includes('install')) {
-        dependencies.category = 'setup';
-        dependencies.priority = 5;
-      }
-      
-      // Testing tasks usually depend on implementation
-      if (title.includes('test')) {
-        dependencies.category = 'testing';
-        dependencies.priority = 2;
-        // Find related implementation tasks
-        const implementationTasks = tasks.filter(t => 
-          !t.title.toLowerCase().includes('test') && 
-          this.areTasksRelated(t.title, task.title)
-        );
-        dependencies.dependsOn = implementationTasks.map(t => t.title);
-      }
-      
-      // UI tasks often depend on API/backend tasks
-      if (title.includes('ui') || title.includes('component') || title.includes('page')) {
-        const apiTasks = tasks.filter(t => 
-          t.title.toLowerCase().includes('api') || 
-          t.title.toLowerCase().includes('backend') ||
-          t.title.toLowerCase().includes('service')
-        );
-        dependencies.dependsOn = apiTasks.map(t => t.title);
-      }
-      
-      // Authentication dependencies
-      if (title.includes('user') && !title.includes('auth')) {
-        const authTasks = tasks.filter(t => 
-          t.title.toLowerCase().includes('auth') ||
-          t.title.toLowerCase().includes('login')
-        );
-        dependencies.dependsOn.push(...authTasks.map(t => t.title));
-      }
+function getUnifiedStandardPrompt(input: {
+  prd: string;
+  architecture: string;
+  specifications: string;
+  fileStructure: string;
+}): string {
+  return `You are a lead software engineer creating a comprehensive, dependency-aware project plan. Generate a complete list of development tasks with proper dependencies, categories, and detailed implementation guidance.
 
-      return {
-        title: task.title,
-        details: task.details || '',
-        dependencies,
-        researched: false,
-      };
+CRITICAL REQUIREMENTS:
+1. Each task MUST have a unique ID (format: category-number, e.g., "setup-1", "core-1")
+2. Tasks MUST be categorized: setup, core, feature, testing, deployment
+3. Dependencies MUST reference existing task IDs (dependsOn array)
+4. NO circular dependencies allowed
+5. Tasks must reference actual files from the file structure
+6. Implementation steps must be detailed but not include actual code
+
+DEPENDENCY RULES:
+- setup tasks: foundational work (project setup, CI/CD, pre-commit hooks)
+- core tasks: essential functionality that features depend on (auth, database, core APIs)
+- feature tasks: user-facing features that depend on core tasks
+- testing tasks: test implementation that depends on corresponding features
+- deployment tasks: final deployment steps that depend on testing
+
+PROJECT DETAILS:
+PRD: ${input.prd}
+
+Architecture: ${input.architecture}
+
+Specifications: ${input.specifications}
+
+File Structure: ${input.fileStructure}
+
+Generate the complete task list with proper dependencies, ensuring a logical execution order that eliminates broken workflows.`;
+}
+
+function getUnifiedTDDPrompt(input: {
+  prd: string;
+  architecture: string;
+  specifications: string;
+  fileStructure: string;
+}): string {
+  return `You are a lead software engineer creating a comprehensive, dependency-aware TDD project plan. Generate a complete list of development tasks with proper dependencies, categories, and detailed implementation guidance following Test-Driven Development principles.
+
+CRITICAL REQUIREMENTS:
+1. Each task MUST have a unique ID (format: category-number, e.g., "setup-1", "core-1")
+2. Tasks MUST be categorized: setup, core, feature, testing, deployment
+3. Dependencies MUST reference existing task IDs (dependsOn array)
+4. NO circular dependencies allowed
+5. Tasks must reference actual files from the file structure
+6. Implementation steps must follow TDD: Red → Green → Refactor
+
+TDD DEPENDENCY RULES:
+- setup tasks: project setup, testing environment configuration, pre-commit hooks
+- testing tasks: write tests BEFORE implementing features
+- core tasks: implement core functionality to make tests pass
+- feature tasks: implement features to make tests pass
+- deployment tasks: final deployment steps
+
+For each feature/core task, ensure the corresponding test task is listed as a dependency.
+
+PROJECT DETAILS:
+PRD: ${input.prd}
+
+Architecture: ${input.architecture}
+
+Specifications: ${input.specifications}
+
+File Structure: ${input.fileStructure}
+
+Generate the complete TDD task list with proper dependencies, ensuring tests are written before implementation.`;
+}
+
+function validateProject(tasks: UnifiedTask[], fileStructure: string, dependencyGraph: TaskDependencyGraph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  // Validate dependency graph
+  const graphIssues = dependencyGraph.validate();
+  issues.push(...graphIssues);
+
+  // Validate file references
+  const fileLines = fileStructure.split('\n').filter(line => line.trim() && !line.includes('/'));
+  const referencedFiles = new Set<string>();
+  
+  tasks.forEach(task => {
+    task.fileReferences.forEach(fileRef => {
+      referencedFiles.add(fileRef);
+      if (!fileLines.some(line => line.includes(fileRef))) {
+        issues.push({
+          type: 'warning',
+          message: `Task "${task.title}" references file "${fileRef}" that doesn't exist in the file structure`,
+          category: 'fileReferences',
+          affectedTasks: [task.id],
+        });
+      }
     });
+  });
 
-    return enhancedTasks;
-  }
+  // Validate logical task order
+  const tasksByCategory = {
+    setup: tasks.filter(t => t.dependencies.category === 'setup'),
+    core: tasks.filter(t => t.dependencies.category === 'core'),
+    feature: tasks.filter(t => t.dependencies.category === 'feature'),
+    testing: tasks.filter(t => t.dependencies.category === 'testing'),
+    deployment: tasks.filter(t => t.dependencies.category === 'deployment'),
+  };
 
-  private categorizeTask(title: string): 'setup' | 'core' | 'feature' | 'testing' | 'deployment' {
-    const lowerTitle = title.toLowerCase();
-    
-    if (lowerTitle.includes('setup') || lowerTitle.includes('init') || lowerTitle.includes('install')) {
-      return 'setup';
-    }
-    if (lowerTitle.includes('test')) {
-      return 'testing';
-    }
-    if (lowerTitle.includes('deploy') || lowerTitle.includes('build') || lowerTitle.includes('ci')) {
-      return 'deployment';
-    }
-    if (lowerTitle.includes('core') || lowerTitle.includes('base') || lowerTitle.includes('foundation')) {
-      return 'core';
-    }
-    
-    return 'feature';
-  }
-
-  private areTasksRelated(title1: string, title2: string): boolean {
-    const words1 = title1.toLowerCase().split(/\s+/);
-    const words2 = title2.toLowerCase().split(/\s+/);
-    
-    // Simple word overlap heuristic
-    const overlap = words1.filter(word => 
-      words2.includes(word) && 
-      word.length > 3 && 
-      !['test', 'implement', 'create', 'add', 'build'].includes(word)
+  // Check if core tasks depend on setup
+  tasksByCategory.core.forEach(task => {
+    const hasSetupDep = task.dependencies.dependsOn.some(depId =>
+      tasksByCategory.setup.some(setupTask => setupTask.id === depId)
     );
-    
-    return overlap.length > 0;
-  }
+    if (!hasSetupDep && tasksByCategory.setup.length > 0) {
+      issues.push({
+        type: 'warning',
+        message: `Core task "${task.title}" should depend on at least one setup task`,
+        category: 'logical-order',
+        affectedTasks: [task.id],
+      });
+    }
+  });
+
+  // Check if features depend on core
+  tasksByCategory.feature.forEach(task => {
+    const hasCoreDep = task.dependencies.dependsOn.some(depId =>
+      tasksByCategory.core.some(coreTask => coreTask.id === depId)
+    );
+    if (!hasCoreDep && tasksByCategory.core.length > 0) {
+      issues.push({
+        type: 'warning',
+        message: `Feature task "${task.title}" should depend on at least one core task`,
+        category: 'logical-order',
+        affectedTasks: [task.id],
+      });
+    }
+  });
+
+  return issues;
+}
+
+function extractDependencyEdges(tasks: UnifiedTask[]) {
+  const edges: Array<{ from: string; to: string; type: 'blocking' | 'sequential' | 'optional' }> = [];
+  
+  tasks.forEach(task => {
+    task.dependencies.dependsOn.forEach(depId => {
+      edges.push({
+        from: depId,
+        to: task.id,
+        type: 'blocking',
+      });
+    });
+  });
+
+  return edges;
 }

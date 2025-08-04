@@ -1,108 +1,64 @@
 import { z } from 'zod';
 
-// Validation result for consistency checks
-export const ValidationResultSchema = z.object({
-  isValid: z.boolean(),
-  issues: z.array(z.string()),
-  suggestions: z.array(z.string()).optional(),
-});
-export type ValidationResult = z.infer<typeof ValidationResultSchema>;
-
-// Task dependency modeling
 export const TaskDependencySchema = z.object({
-  taskTitle: z.string(),
+  id: z.string(),
   dependsOn: z.array(z.string()).default([]),
-  blockedBy: z.array(z.string()).default([]),
+  category: z.enum(['setup', 'core', 'feature', 'testing', 'deployment']),
   priority: z.number().min(1).max(5).default(3),
-  category: z.enum(['setup', 'core', 'feature', 'testing', 'deployment']).default('core'),
 });
-export type TaskDependency = z.infer<typeof TaskDependencySchema>;
 
-// Dependency graph for task ordering
-export interface DependencyGraph<T> {
-  nodes: Map<string, T>;
-  edges: Map<string, Set<string>>;
-  getTopologicalOrder(): string[];
-  addDependency(from: string, to: string): void;
-  hasCycle(): boolean;
-}
-
-// Enhanced task with dependency information
-export const EnhancedTaskSchema = z.object({
-  title: z.string(),
-  details: z.string().default(''),
+export const UnifiedTaskSchema = z.object({
+  id: z.string(),
+  title: z.string().describe('A concise title for the development task.'),
+  details: z
+    .string()
+    .describe('Detailed implementation guidance, not actual code snippets. This field should contain step-by-step instructions for what needs to be implemented.')
+    .default(''),
   dependencies: TaskDependencySchema,
-  researched: z.boolean().default(false),
-  researchContext: z.object({
-    relatedTasks: z.array(z.string()).default([]),
-    conflictingRequirements: z.array(z.string()).default([]),
-    prerequisiteChecks: z.array(z.string()).default([]),
-  }).optional(),
+  context: z.string().default(''),
+  implementationSteps: z.string().default(''),
+  acceptanceCriteria: z.string().default(''),
+  fileReferences: z.array(z.string()).default([]),
 });
-export type EnhancedTask = z.infer<typeof EnhancedTaskSchema>;
 
-// Unified project context that tracks all components and their relationships
-export const UnifiedProjectContextSchema = z.object({
-  // Core project data
+export const ProjectContextSchema = z.object({
   prd: z.string(),
   architecture: z.string(),
   specifications: z.string(),
   fileStructure: z.string(),
-  
-  // Enhanced task management
-  tasks: z.array(EnhancedTaskSchema).default([]),
-  dependencyGraph: z.any().optional(), // Will be populated with DependencyGraph instance
-  
-  // Validation and consistency tracking
-  validationHistory: z.array(ValidationResultSchema).default([]),
-  lastValidated: z.date().optional(),
-  
-  // Context propagation tracking
-  componentVersions: z.object({
-    architecture: z.number().default(1),
-    specifications: z.number().default(1),
-    fileStructure: z.number().default(1),
-    tasks: z.number().default(1),
+  tasks: z.array(UnifiedTaskSchema),
+  dependencies: z.array(z.object({
+    from: z.string(),
+    to: z.string(),
+    type: z.enum(['blocking', 'sequential', 'optional']).default('blocking'),
+  })),
+  validationResults: z.object({
+    architectureFileConsistency: z.boolean().default(true),
+    taskFileReferences: z.boolean().default(true),
+    dependencyOrder: z.boolean().default(true),
+    circularDependencies: z.boolean().default(false),
+    issues: z.array(z.string()).default([]),
+    warnings: z.array(z.string()).default([]),
   }),
-  
-  // Research context for interconnected task research
-  researchContext: z.object({
-    completedTasks: z.array(z.string()).default([]),
-    activeResearch: z.array(z.string()).default([]),
-    researchInsights: z.array(z.object({
-      taskTitle: z.string(),
-      insights: z.array(z.string()),
-      crossTaskImplications: z.array(z.string()),
-    })).default([]),
-  }).default({}),
+  version: z.number().default(1),
+  lastUpdated: z.string().default(''),
 });
-export type UnifiedProjectContext = z.infer<typeof UnifiedProjectContextSchema>;
 
-// Configuration for different generation options
-export interface GenerationOptions {
-  apiKey?: string;
-  model?: string;
-  useTDD?: boolean;
-  enableDependencyAnalysis?: boolean;
-  enableCrossTaskValidation?: boolean;
-  maxRetries?: number;
+export type TaskDependency = z.infer<typeof TaskDependencySchema>;
+export type UnifiedTask = z.infer<typeof UnifiedTaskSchema>;
+export type ProjectContext = z.infer<typeof ProjectContextSchema>;
+
+export interface DependencyGraphNode {
+  id: string;
+  task: UnifiedTask;
+  dependencies: string[];
+  dependents: string[];
+  level: number;
 }
 
-// Interface for the unified project manager
-export interface ProjectManager {
-  // Context management
-  initializeContext(prd: string): UnifiedProjectContext;
-  updateContext(context: UnifiedProjectContext, updates: Partial<UnifiedProjectContext>): UnifiedProjectContext;
-  validateContext(context: UnifiedProjectContext): ValidationResult;
-  
-  // Orchestrated generation workflows
-  generateProjectPlan(context: UnifiedProjectContext, options?: GenerationOptions): Promise<UnifiedProjectContext>;
-  generateArchitectureWithDependencies(context: UnifiedProjectContext, options?: GenerationOptions): Promise<UnifiedProjectContext>;
-  generateTasksWithDependencies(context: UnifiedProjectContext, options?: GenerationOptions): Promise<UnifiedProjectContext>;
-  researchTasksWithContext(context: UnifiedProjectContext, options?: GenerationOptions): Promise<UnifiedProjectContext>;
-  
-  // Validation and refinement
-  validateTaskConsistency(context: UnifiedProjectContext): ValidationResult;
-  optimizeDependencyOrdering(context: UnifiedProjectContext): UnifiedProjectContext;
-  refineContextBasedOnValidation(context: UnifiedProjectContext, validation: ValidationResult): Promise<UnifiedProjectContext>;
+export interface ValidationIssue {
+  type: 'error' | 'warning';
+  message: string;
+  category: string;
+  affectedTasks?: string[];
 }

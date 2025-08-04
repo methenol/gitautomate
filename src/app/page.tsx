@@ -7,24 +7,9 @@ import * as z from 'zod';
 import { AnimatePresence, motion } from 'framer-motion';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import {
-  runGenerateArchitecture,
-  runGenerateTasks,
-  runResearchTask,
-  runGenerateFileStructure,
-  getModels,
-} from './actions';
-import {
-  initializeProject,
-  generateCompleteProjectPlan,
-  validateProjectContext,
-  validateTaskConsistency,
-  optimizeTaskOrdering,
-} from './unified-actions';
-import {
-  convertEnhancedTasksToLegacy,
-} from '@/lib/unified-utils';
-import type { Task, UnifiedProjectContext, ValidationResult } from '@/types';
+import { generateUnifiedProjectPlan } from './unified-actions';
+import { getModels } from './actions';
+import type { UnifiedTask, ProjectContext, ValidationIssue } from '@/types/unified-context';
 import {
   getRepositories,
   createImplementationPlanIssues,
@@ -126,6 +111,8 @@ const UI_DEFAULT_MODEL = 'gemini-1.5-flash-latest';
 
 export default function Home() {
   const { toast } = useToast();
+  
+  // Unified System State
   const [githubToken, setGithubToken] = useState<string>('');
   const [googleApiKey, setGoogleApiKey] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<string>(UI_DEFAULT_MODEL);
@@ -136,34 +123,24 @@ export default function Home() {
   const [repositories, setRepositories] = useState<Repository[]>([LOCAL_MODE_REPO]);
   const [selectedRepo, setSelectedRepo] = useState<string>(LOCAL_MODE_REPO_ID);
   const [prd, setPrd] = useState<string>('');
-  const [architecture, setArchitecture] = useState<string>('');
-  const [specifications, setSpecifications] = useState<string>('');
-  const [fileStructure, setFileStructure] = useState<string>('');
-  const [tasks, setTasks] = useState<Task[]>([]);
+  
+  // Unified project context (replaces separate architecture, specs, fileStructure)
+  const [projectContext, setProjectContext] = useState<ProjectContext | null>(null);
+  const [executionOrder, setExecutionOrder] = useState<UnifiedTask[]>([]);
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
   const [finalIssueURL, setFinalIssueURL] = useState('');
 
-  // New unified context state
-  const [unifiedContext, setUnifiedContext] = useState<UnifiedProjectContext | null>(null);
-  const [useUnifiedMode, setUseUnifiedMode] = useState<boolean>(false);
-  const [validationResults, setValidationResults] = useState<ValidationResult[]>([]);
-  const [showValidation, setShowValidation] = useState<boolean>(false);
-
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTask, setSelectedTask] = useState<UnifiedTask | null>(null);
   const [editedTaskDetails, setEditedTaskDetails] = useState('');
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
-  const [researchProgress, setResearchProgress] = useState(0);
 
-  const [loading, setLoading] = useState<LoadingStates>({
+  const [loading, setLoading] = useState({
     repos: false,
-    arch: false,
-    tasks: false,
-    researching: false,
+    generating: false,
     issue: false,
     exporting: false,
     models: false,
   });
-  
-  const [taskLoading, setTaskLoading] = useState<TaskLoadingStates>({});
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -281,247 +258,61 @@ export default function Home() {
     }
   };
 
-  const handleGenerateArchitecture = async () => {
-    setLoading((prev) => ({ ...prev, arch: true }));
-    setArchitecture('');
-    setSpecifications('');
-    setFileStructure('');
-    setTasks([]);
+  // Unified Project Generation Handler (replaces separate handlers)
+  const handleGenerateProject = async () => {
+    setLoading((prev) => ({ ...prev, generating: true }));
+    setProjectContext(null);
+    setExecutionOrder([]);
+    setValidationIssues([]);
     setFinalIssueURL('');
+    
     try {
-      const result = await runGenerateArchitecture({ prd }, { apiKey: googleApiKey, model: selectedModel });
-      setArchitecture(result.architecture);
-      setSpecifications(result.specifications);
-
-      // Automatically generate file structure after architecture/specs
-      const fileStructResult = await runGenerateFileStructure(
-        { prd, architecture: result.architecture, specifications: result.specifications },
-        { apiKey: googleApiKey, model: selectedModel }
-      );
-      setFileStructure(fileStructResult.fileStructure || '');
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Architecture/File Structure Generation Failed',
-        description: (error as Error).message,
-      });
-    } finally {
-      setLoading((prev) => ({ ...prev, arch: false }));
-    }
-  };
-
-  // REMOVED: handleGenerateFileStructure and all fileStruct loading logic, as file structure is now generated automatically after architecture/specs.
-
-  const researchSingleTask = useCallback(async (task: Task) => {
-    setTaskLoading(prev => ({ ...prev, [task.title]: true }));
-    try {
-      const result = await runResearchTask(
-        { title: task.title, architecture, fileStructure, specifications },
-        { apiKey: googleApiKey, model: selectedModel, useTDD }
-      );
-      const formattedDetails = `### Context\n${result.context}\n\n### Implementation Steps\n${result.implementationSteps}\n\n### Acceptance Criteria\n${result.acceptanceCriteria}`;
-      setTasks(currentTasks =>
-        currentTasks.map(t => t.title === task.title ? { ...t, details: formattedDetails } : t)
-      );
-      if (selectedTask?.title === task.title) {
-        setEditedTaskDetails(formattedDetails);
-      }
-    } catch (researchError) {
-      const errorMessage = `Failed to research task: ${(researchError as Error).message}`;
-      setTasks(currentTasks =>
-        currentTasks.map(t => t.title === task.title ? { ...t, details: errorMessage } : t)
-      );
-       if (selectedTask?.title === task.title) {
-        setEditedTaskDetails(errorMessage);
-      }
-    } finally {
-      setTaskLoading(prev => ({ ...prev, [task.title]: false }));
-    }
-  }, [architecture, fileStructure, specifications, googleApiKey, selectedModel, useTDD, selectedTask?.title]);
-
-
-  const handleGenerateTasks = async () => {
-    setLoading((prev) => ({ ...prev, tasks: true, researching: false }));
-    setTasks([]);
-    setFinalIssueURL('');
-    setResearchProgress(0);
-
-    try {
-      const result = await runGenerateTasks(
-        { architecture, specifications, fileStructure },
-        { apiKey: googleApiKey, model: selectedModel, useTDD }
-      );
-      const initialTasks = result.tasks;
-
-      if (!initialTasks || initialTasks.length === 0) {
-        toast({
-          title: 'No tasks generated',
-          description: 'The AI could not generate a task list. Try adjusting the PRD or architecture.',
-        });
-        setLoading((prev) => ({ ...prev, tasks: false }));
-        return;
-      }
-      
-      const tasksWithPlaceholders = initialTasks.map((t) => ({ ...t, details: 'Researching...' }));
-      setTasks(tasksWithPlaceholders);
-      setLoading((prev) => ({ ...prev, tasks: false, researching: true }));
-      
-      for (let i = 0; i < initialTasks.length; i++) {
-        await researchSingleTask(initialTasks[i]);
-        setResearchProgress(((i + 1) / initialTasks.length) * 100);
-      }
-      
-      toast({ title: 'Task research complete!', description: 'All tasks have been detailed.' });
-
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Task Generation Failed',
-        description: (error as Error).message,
-      });
-      setTasks([]);
-    } finally {
-      setLoading((prev) => ({ ...prev, tasks: false, researching: false }));
-    }
-  };
-
-  // New unified workflow functions
-  const handleUnifiedProjectGeneration = async () => {
-    if (!prd.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'PRD Required',
-        description: 'Please provide a Product Requirements Document first.',
-      });
-      return;
-    }
-
-    setLoading((prev) => ({ ...prev, arch: true, tasks: true, researching: true }));
-    setValidationResults([]);
-    setTasks([]);
-    setFinalIssueURL('');
-
-    try {
-      // Initialize unified context
-      let context = await initializeProject(prd);
-      setUnifiedContext(context);
-
-      // Generate complete project plan with dependencies
-      context = await generateCompleteProjectPlan(context, {
+      const result = await generateUnifiedProjectPlan(prd, {
         apiKey: googleApiKey,
         model: selectedModel,
         useTDD,
-        enableDependencyAnalysis: true,
-        enableCrossTaskValidation: true,
       });
 
-      // Update legacy state for UI compatibility
-      setArchitecture(context.architecture);
-      setSpecifications(context.specifications);
-      setFileStructure(context.fileStructure);
-      setTasks(convertEnhancedTasksToLegacy(context.tasks));
+      setProjectContext(result.context);
+      setExecutionOrder(result.executionOrder);
+      setValidationIssues(result.validationIssues);
 
-      // Validate the entire context
-      const contextValidation = await validateProjectContext(context);
-      const taskValidation = await validateTaskConsistency(context);
-      setValidationResults([contextValidation, taskValidation]);
+      const errorCount = result.validationIssues.filter(i => i.type === 'error').length;
+      const warningCount = result.validationIssues.filter(i => i.type === 'warning').length;
 
-      // Show validation if there are issues or suggestions
-      if (!contextValidation.isValid || !taskValidation.isValid || 
-          contextValidation.suggestions?.length || taskValidation.suggestions?.length) {
-        setShowValidation(true);
-      }
-
-      setUnifiedContext(context);
-      
-      toast({ 
-        title: 'Unified Project Plan Generated!', 
-        description: 'Architecture, tasks, and dependencies have been analyzed and optimized.',
-      });
-
-    } catch (error) {
-      console.error('Unified project generation error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Unified Generation Failed',
-        description: (error as Error).message,
-      });
-    } finally {
-      setLoading((prev) => ({ ...prev, arch: false, tasks: false, researching: false }));
-    }
-  };
-
-  const handleValidateProject = async () => {
-    if (!unifiedContext) {
-      toast({
-        variant: 'destructive',
-        title: 'No Project Context',
-        description: 'Please generate a project plan first.',
-      });
-      return;
-    }
-
-    try {
-      const contextValidation = await validateProjectContext(unifiedContext);
-      const taskValidation = await validateTaskConsistency(unifiedContext);
-      setValidationResults([contextValidation, taskValidation]);
-      setShowValidation(true);
-
-      if (contextValidation.isValid && taskValidation.isValid) {
+      if (errorCount > 0) {
         toast({
-          title: 'Validation Passed',
-          description: 'Project context and task consistency are valid.',
+          variant: 'destructive',
+          title: 'Project Plan Generated with Errors',
+          description: `${errorCount} error(s) and ${warningCount} warning(s) found. Please review the validation issues.`,
+        });
+      } else if (warningCount > 0) {
+        toast({
+          title: 'Project Plan Generated Successfully',
+          description: `Generated ${result.context.tasks.length} tasks with ${warningCount} warning(s).`,
         });
       } else {
         toast({
-          variant: 'destructive',
-          title: 'Validation Issues Found',
-          description: 'Please review the validation results below.',
+          title: 'Perfect Project Plan Generated!',
+          description: `Generated ${result.context.tasks.length} tasks with dependency analysis and validation.`,
         });
       }
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Validation Failed',
+        title: 'Project Generation Failed',
         description: (error as Error).message,
       });
+    } finally {
+      setLoading((prev) => ({ ...prev, generating: false }));
     }
   };
-
-  const handleOptimizeTasks = async () => {
-    if (!unifiedContext) {
-      toast({
-        variant: 'destructive',
-        title: 'No Project Context',
-        description: 'Please generate a project plan first.',
-      });
-      return;
-    }
-
-    try {
-      const optimizedContext = await optimizeTaskOrdering(unifiedContext);
-      setUnifiedContext(optimizedContext);
-      setTasks(convertEnhancedTasksToLegacy(optimizedContext.tasks));
-      
-      toast({
-        title: 'Tasks Optimized',
-        description: 'Task order has been optimized based on dependencies.',
-      });
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Optimization Failed',
-        description: (error as Error).message,
-      });
-    }
-  };
-
 
   const handleCreateIssue = async () => {
     setLoading((prev) => ({ ...prev, issue: true }));
     setFinalIssueURL('');
     try {
-      if (!githubToken || !selectedRepo || tasks.length === 0 || selectedRepo === LOCAL_MODE_REPO_ID) {
+      if (!githubToken || !selectedRepo || !executionOrder.length || selectedRepo === LOCAL_MODE_REPO_ID) {
         toast({
           variant: 'destructive',
           title: 'Cannot Create Issues',
@@ -531,14 +322,20 @@ export default function Home() {
         return;
       }
       
+      // Convert unified tasks back to legacy format for issue creation
+      const legacyTasks = executionOrder.map(task => ({
+        title: task.title,
+        details: task.details,
+      }));
+
       const result = await createImplementationPlanIssues(
         githubToken,
         selectedRepo,
         prd,
-        architecture,
-        specifications,
-        fileStructure,
-        tasks
+        projectContext?.architecture || '',
+        projectContext?.specifications || '',
+        projectContext?.fileStructure || '',
+        legacyTasks
       );
 
       setFinalIssueURL(result.html_url);
@@ -563,11 +360,11 @@ export default function Home() {
   };
 
   const handleExportData = async () => {
-    if (tasks.length === 0) {
+    if (!projectContext || executionOrder.length === 0) {
       toast({
         variant: 'destructive',
         title: 'Nothing to Export',
-        description: 'Please generate tasks first.',
+        description: 'Please generate project plan first.',
       });
       return;
     }
@@ -583,20 +380,35 @@ export default function Home() {
         throw new Error('Could not create folders in zip file.');
       }
 
-      // Add docs
+      // Add docs  
       docsFolder.file('PRD.md', prd);
-      docsFolder.file('ARCHITECTURE.md', architecture);
-      docsFolder.file('SPECIFICATION.md', specifications);
-      docsFolder.file('FILE_STRUCTURE.md', fileStructure);
+      docsFolder.file('ARCHITECTURE.md', projectContext.architecture);
+      docsFolder.file('SPECIFICATION.md', projectContext.specifications);
+      docsFolder.file('FILE_STRUCTURE.md', projectContext.fileStructure);
+      
+      // Add unified system documentation
+      docsFolder.file('DEPENDENCIES.md', `# Task Dependencies\n\n${JSON.stringify(projectContext.dependencies, null, 2)}`);
+      docsFolder.file('VALIDATION.md', `# Validation Results\n\n${JSON.stringify(projectContext.validationResults, null, 2)}`);
+      
+      if (validationIssues.length > 0) {
+        const validationContent = validationIssues.map(issue => 
+          `## ${issue.type.toUpperCase()}: ${issue.category}\n${issue.message}\n${issue.affectedTasks ? `Affected tasks: ${issue.affectedTasks.join(', ')}` : ''}`
+        ).join('\n\n');
+        docsFolder.file('VALIDATION_ISSUES.md', validationContent);
+      }
 
-      // Create main tasks file
-      const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
-      tasksFolder.file('tasks.md', `# Task List\n\n${mainTasksContent}`);
+      // Create main tasks file with execution order
+      const mainTasksContent = executionOrder.map((task, index) => {
+        const category = task.dependencies.category.toUpperCase();
+        const deps = task.dependencies.dependsOn.length > 0 ? ` (depends on: ${task.dependencies.dependsOn.join(', ')})` : '';
+        return `- [ ] ${task.id}: [${category}] ${task.title}${deps}`;
+      }).join('\n');
+      tasksFolder.file('execution-order.md', `# Task Execution Order\n\n${mainTasksContent}`);
 
       // Create individual task files
-      tasks.forEach((task, index) => {
-        const taskNumber = (index + 1).toString().padStart(3, '0');
-        tasksFolder.file(`task-${taskNumber}.md`, `# ${task.title}\n\n${task.details}`);
+      executionOrder.forEach((task) => {
+        const taskContent = `# ${task.title}\n\n**Category:** ${task.dependencies.category}\n**Priority:** ${task.dependencies.priority}\n**Dependencies:** ${task.dependencies.dependsOn.join(', ') || 'None'}\n\n${task.details}`;
+        tasksFolder.file(`${task.id}.md`, taskContent);
       });
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -618,20 +430,34 @@ export default function Home() {
     }
   };
   
-  const handleViewTask = (task: Task) => {
+  const handleViewTask = (task: UnifiedTask) => {
     setSelectedTask(task);
     setEditedTaskDetails(task.details);
     setIsTaskDetailOpen(true);
   };
   
   const handleSaveTaskDetails = () => {
-    if (!selectedTask) return;
-    const updatedTasks = tasks.map(task => 
-      task.title === selectedTask.title 
+    if (!selectedTask || !projectContext) return;
+    
+    // Update task in project context
+    const updatedTasks = projectContext.tasks.map(task => 
+      task.id === selectedTask.id 
         ? { ...task, details: editedTaskDetails } 
         : task
     );
-    setTasks(updatedTasks);
+    
+    // Update project context
+    const updatedContext = { ...projectContext, tasks: updatedTasks };
+    setProjectContext(updatedContext);
+    
+    // Update execution order as well
+    const updatedExecutionOrder = executionOrder.map(task => 
+      task.id === selectedTask.id 
+        ? { ...task, details: editedTaskDetails } 
+        : task
+    );
+    setExecutionOrder(updatedExecutionOrder);
+    
     setIsTaskDetailOpen(false);
     setSelectedTask(null);
     toast({ title: "Task updated", description: "Your changes have been saved." });
@@ -840,123 +666,20 @@ export default function Home() {
                       rows={10}
                     />
                   </CardContent>
-                  <CardFooter className="flex justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="unified-mode"
-                        checked={useUnifiedMode}
-                        onCheckedChange={setUseUnifiedMode}
-                      />
-                      <Label htmlFor="unified-mode" className="text-sm">
-                        Use Enhanced Mode
-                        <span className="block text-xs text-muted-foreground">
-                          Dependencies, validation & optimization
-                        </span>
-                      </Label>
-                    </div>
-                    {useUnifiedMode ? (
-                      <Button
-                        onClick={handleUnifiedProjectGeneration}
-                        disabled={!prd || loading.arch || loading.tasks || loading.researching}
-                        className="ml-auto"
-                      >
-                        {loading.arch || loading.tasks || loading.researching ? (
-                          <>
-                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                            Generating Unified Plan...
-                          </>
-                        ) : (
-                          <>
-                            Generate Complete Plan <ChevronRight className="ml-2 h-4 w-4" />
-                          </>
-                        )}
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={handleGenerateArchitecture}
-                        disabled={!prd || loading.arch}
-                        className="ml-auto"
-                      >
-                        {loading.arch ? (
-                          <>
-                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                            Generating...
-                          </>
-                        ) : (
-                          <>
-                            Generate Architecture <ChevronRight className="ml-2 h-4 w-4" />
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </CardFooter>
-                </Card>
-              </motion.div>
-            )}
-
-            {/* Step 3: Review Plan (Architecture, Specifications, File Structure in one card) */}
-            {architecture && (
-              <motion.div key="step3" {...cardAnimation}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Wrench className="h-6 w-6 text-accent" />
-                      <span>Step 3: Review Plan</span>
-                    </CardTitle>
-                    <CardDescription>
-                      The AI has generated the following architecture, specifications, and file structure.
-                      Review and edit if needed.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label htmlFor="architecture" className="text-lg font-semibold">Architecture</Label>
-                      <Textarea
-                        id="architecture"
-                        value={architecture}
-                        onChange={(e) => setArchitecture(e.target.value)}
-                        rows={10}
-                        className="mt-2 font-mono text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="specifications" className="text-lg font-semibold">Specifications</Label>
-                      <Textarea
-                        id="specifications"
-                        value={specifications}
-                        onChange={(e) => setSpecifications(e.target.value)}
-                        rows={15}
-                        className="mt-2 font-mono text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="file-structure" className="text-lg font-semibold">File Structure</Label>
-                      <Textarea
-                        id="file-structure"
-                        value={fileStructure}
-                        onChange={(e) => setFileStructure(e.target.value)}
-                        rows={12}
-                        className="mt-2 font-mono text-sm"
-                      />
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-end gap-2">
+                  <CardFooter>
                     <Button
-                      variant="outline"
-                      onClick={handleGenerateArchitecture}
-                      disabled={loading.arch}
+                      onClick={handleGenerateProject}
+                      disabled={!prd || loading.generating}
+                      className="ml-auto"
                     >
-                      {loading.arch ? 'Regenerating...' : 'Regenerate'}
-                    </Button>
-                    <Button onClick={handleGenerateTasks} disabled={loading.tasks || loading.researching}>
-                      {loading.tasks || loading.researching ? (
+                      {loading.generating ? (
                         <>
                           <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                          Generating...
+                          Generating Complete Project Plan...
                         </>
                       ) : (
                         <>
-                          Generate Tasks <ChevronRight className="ml-2 h-4 w-4" />
+                          Generate Complete Project Plan <ChevronRight className="ml-2 h-4 w-4" />
                         </>
                       )}
                     </Button>
@@ -965,148 +688,144 @@ export default function Home() {
               </motion.div>
             )}
 
-            {loading.arch && (
-               <motion.div key="loading-arch" {...cardAnimation}>
-                   <LoadingSpinner text="Generating architecture & specs..." />
-               </motion.div>
-            )}
-
-            {/* Validation Results Section (Enhanced Mode) */}
-            {useUnifiedMode && showValidation && validationResults.length > 0 && (
-              <motion.div key="validation" {...cardAnimation}>
+            {/* Step 3: Review Unified Project Plan */}
+            {projectContext && (
+              <motion.div key="step3" {...cardAnimation}>
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-6 w-6 text-accent" />
-                      <span>Project Validation</span>
+                      <Wrench className="h-6 w-6 text-accent" />
+                      <span>Step 3: Review Unified Project Plan</span>
                     </CardTitle>
                     <CardDescription>
-                      Validation results for project consistency and task dependencies.
+                      The AI has generated a complete project plan with dependency-aware tasks.
+                      Review the architecture, specifications, file structure, and validation results.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {validationResults.map((result, index) => (
-                      <div key={index} className="border rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          {result.isValid ? (
-                            <CheckCircle2 className="h-5 w-5 text-green-500" />
-                          ) : (
-                            <AlertTriangle className="h-5 w-5 text-destructive" />
-                          )}
-                          <span className="font-semibold">
-                            {index === 0 ? 'Context Validation' : 'Task Consistency'}
-                          </span>
+                    <div>
+                      <Label htmlFor="architecture" className="text-lg font-semibold">Architecture</Label>
+                      <Textarea
+                        id="architecture"
+                        value={projectContext.architecture}
+                        onChange={(e) => setProjectContext(prev => prev ? {...prev, architecture: e.target.value} : null)}
+                        rows={10}
+                        className="mt-2 font-mono text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="specifications" className="text-lg font-semibold">Specifications</Label>
+                      <Textarea
+                        id="specifications"
+                        value={projectContext.specifications}
+                        onChange={(e) => setProjectContext(prev => prev ? {...prev, specifications: e.target.value} : null)}
+                        rows={10}
+                        className="mt-2 font-mono text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="fileStructure" className="text-lg font-semibold">File Structure</Label>
+                      <Textarea
+                        id="fileStructure"
+                        value={projectContext.fileStructure}
+                        onChange={(e) => setProjectContext(prev => prev ? {...prev, fileStructure: e.target.value} : null)}
+                        rows={10}
+                        className="mt-2 font-mono text-sm"
+                      />
+                    </div>
+                    
+                    {/* Validation Results */}
+                    {validationIssues.length > 0 && (
+                      <div>
+                        <Label className="text-lg font-semibold">Validation Results</Label>
+                        <div className="mt-2 space-y-2">
+                          {validationIssues.map((issue, index) => (
+                            <div key={index} className={`p-3 rounded-lg border ${
+                              issue.type === 'error' ? 'border-destructive bg-destructive/10' : 'border-warning bg-warning/10'
+                            }`}>
+                              <div className="flex items-start gap-2">
+                                {issue.type === 'error' ? (
+                                  <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
+                                ) : (
+                                  <AlertTriangle className="h-4 w-4 text-warning mt-0.5" />
+                                )}
+                                <div>
+                                  <p className="font-semibold capitalize">{issue.type}: {issue.category}</p>
+                                  <p className="text-sm text-muted-foreground">{issue.message}</p>
+                                  {issue.affectedTasks && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Affected tasks: {issue.affectedTasks.join(', ')}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        
-                        {result.issues.length > 0 && (
-                          <div className="mb-3">
-                            <h4 className="text-sm font-medium text-destructive mb-1">Issues:</h4>
-                            <ul className="text-sm text-muted-foreground space-y-1">
-                              {result.issues.map((issue, i) => (
-                                <li key={i} className="flex items-start gap-2">
-                                  <span className="text-destructive">•</span>
-                                  {issue}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        
-                        {result.suggestions && result.suggestions.length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-medium text-yellow-600 mb-1">Suggestions:</h4>
-                            <ul className="text-sm text-muted-foreground space-y-1">
-                              {result.suggestions.map((suggestion, i) => (
-                                <li key={i} className="flex items-start gap-2">
-                                  <span className="text-yellow-600">•</span>
-                                  {suggestion}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
                       </div>
-                    ))}
+                    )}
                   </CardContent>
-                  <CardFooter className="flex gap-2">
+                  <CardFooter className="flex justify-end gap-2">
                     <Button
                       variant="outline"
-                      onClick={handleValidateProject}
-                      disabled={!unifiedContext}
+                      onClick={handleGenerateProject}
+                      disabled={loading.generating}
                     >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Re-validate
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleOptimizeTasks}
-                      disabled={!unifiedContext}
-                    >
-                      <Wrench className="mr-2 h-4 w-4" />
-                      Optimize Tasks
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setShowValidation(false)}
-                      className="ml-auto"
-                    >
-                      Hide Validation
+                      {loading.generating ? 'Regenerating...' : 'Regenerate Complete Plan'}
                     </Button>
                   </CardFooter>
                 </Card>
               </motion.div>
             )}
 
-            {/* Step 4: Task List */}
-            {(tasks.length > 0 || loading.researching) && (
+            {loading.generating && (
+               <motion.div key="loading-generation" {...cardAnimation}>
+                    <LoadingSpinner text="Generating unified project plan with dependency analysis..." />
+                </motion.div>
+            )}
+
+            {/* Step 4: Unified Tasks with Dependencies */}
+            {executionOrder.length > 0 && (
               <motion.div key="step4" {...cardAnimation}>
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <ListChecks className="h-6 w-6 text-accent" />
-                      <span>Step 4: Actionable Tasks</span>
+                      <span>Step 4: Dependency-Ordered Tasks</span>
                     </CardTitle>
                     <CardDescription>
-                      {loading.researching
-                        ? 'The AI is researching each task for detailed notes...'
-                        : 'Click on a task to view, edit, and preview its details.'}
+                      Tasks are automatically ordered by dependencies with validation and context analysis.
+                      Click on a task to view, edit, and preview its details.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {loading.researching && (
-                      <div className="mb-4 space-y-2">
-                        <Progress value={researchProgress} />
-                        <p className="text-sm text-center text-muted-foreground">
-                          {`Researching... (${Math.round((researchProgress / 100) * tasks.length)}/${tasks.length} complete)`}
-                        </p>
-                      </div>
-                    )}
                     <div className="space-y-2">
-                      {tasks.map((task, index) => (
+                      {executionOrder.map((task, index) => (
                         <button
-                          key={index}
+                          key={task.id}
                           onClick={() => handleViewTask(task)}
-                          disabled={task.details === 'Researching...' || taskLoading[task.title]}
-                          className="flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 disabled:cursor-wait disabled:bg-muted/30"
+                          className="flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
                         >
-                          {isResearchFailed(task.details) ? (
-                            <AlertTriangle className="h-5 w-5 flex-shrink-0 text-destructive" />
-                          ) : (
-                            <Bot className="h-5 w-5 flex-shrink-0 text-primary" />
-                          )}
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                              {index + 1}
+                            </span>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              task.dependencies.category === 'setup' ? 'bg-blue-100 text-blue-800' :
+                              task.dependencies.category === 'core' ? 'bg-green-100 text-green-800' :
+                              task.dependencies.category === 'feature' ? 'bg-purple-100 text-purple-800' :
+                              task.dependencies.category === 'testing' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {task.dependencies.category.toUpperCase()}
+                            </span>
+                          </div>
                           <div className="flex-1 overflow-hidden">
                             <p className='font-medium truncate'>{task.title}</p>
-                            {taskLoading[task.title] && (
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                  <LoaderCircle className="h-3 w-3 animate-spin" />
-                                  <span>Retrying research...</span>
-                                </div>
-                            )}
-                            {task.details === 'Researching...' && !taskLoading[task.title] && (
-                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                <LoaderCircle className="h-3 w-3 animate-spin" />
-                                <span>Researching details...</span>
-                              </div>
+                            {task.dependencies.dependsOn.length > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                Depends on: {task.dependencies.dependsOn.join(', ')}
+                              </p>
                             )}
                           </div>
                           <FilePenLine className="h-4 w-4 text-muted-foreground" />
@@ -1114,53 +833,45 @@ export default function Home() {
                       ))}
                     </div>
                   </CardContent>
-                  {/* Export/Issue buttons only shown after tasks are generated */}
-                  {(tasks.length > 0) && (
-                    <CardFooter className="flex justify-end gap-2">
-                       <Button
-                        variant="outline"
-                        onClick={handleExportData}
-                        disabled={loading.exporting || loading.researching}
-                      >
-                        {loading.exporting ? (
-                          <>
-                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                            Exporting...
-                          </>
-                        ) : (
-                          <>
-                            <Download className="mr-2 h-4 w-4" />
-                            Export Data
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        onClick={handleCreateIssue}
-                        disabled={loading.issue || loading.researching || selectedRepo === LOCAL_MODE_REPO_ID}
-                        title={selectedRepo === LOCAL_MODE_REPO_ID ? "Cannot create issues in local mode" : ""}
-                      >
-                        {loading.issue ? (
-                          <>
-                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                            Creating Issue...
-                          </>
-                        ) : (
-                          <>
-                             <Github className="mr-2 h-4 w-4"/> Create GitHub Issue
-                          </>
-                        )}
-                      </Button>
-                    </CardFooter>
-                  )}
+                  {/* Export/Issue buttons */}
+                  <CardFooter className="flex justify-end gap-2">
+                     <Button
+                      variant="outline"
+                      onClick={handleExportData}
+                      disabled={loading.exporting}
+                    >
+                      {loading.exporting ? (
+                        <>
+                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                          Exporting...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Export Data
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleCreateIssue}
+                      disabled={loading.issue || selectedRepo === LOCAL_MODE_REPO_ID}
+                      title={selectedRepo === LOCAL_MODE_REPO_ID ? "Cannot create issues in local mode" : ""}
+                    >
+                      {loading.issue ? (
+                        <>
+                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                          Creating Issue...
+                        </>
+                      ) : (
+                        <>
+                           <Github className="mr-2 h-4 w-4"/> Create GitHub Issue
+                        </>
+                      )}
+                    </Button>
+                  </CardFooter>
                 </Card>
               </motion.div>
             )}
-            {loading.tasks && !loading.researching && (
-                <motion.div key="loading-tasks" {...cardAnimation}>
-                    <LoadingSpinner text="Generating task list..." />
-                </motion.div>
-            )}
-
             {/* Step 5: Done */}
             {finalIssueURL && (
                <motion.div key="step5" {...cardAnimation}>
@@ -1238,14 +949,10 @@ export default function Home() {
                         <p className="text-sm">{editedTaskDetails}</p>
                       </div>
                     ) : (
-                      <div className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none">
-                        {editedTaskDetails.split('\n').map((line, index) => (
-                          <span key={index}>
-                            {line}
-                            {index < editedTaskDetails.split('\n').length - 1 && <br />}
-                          </span>
-                        ))}
-                      </div>
+                      <div 
+                        className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none" 
+                        dangerouslySetInnerHTML={{ __html: editedTaskDetails.replace(/\n/g, '<br />') }}
+                      />
                     )}
                 </div>
             </div>
