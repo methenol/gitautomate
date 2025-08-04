@@ -14,6 +14,7 @@ import {
   runGenerateFileStructure,
   getModels,
 } from './actions';
+import { UnifiedWorkflow } from '@/components/unified-workflow';
 import type { Task } from '@/types';
 import {
   getRepositories,
@@ -890,6 +891,26 @@ export default function Home() {
                 </Card>
               </motion.div>
             )}
+            
+            {/* Alternative: Unified Workflow */}
+            <motion.div key="unified" {...cardAnimation}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Brain className="h-6 w-6 text-purple-600" />
+                    <span>Alternative: Unified Workflow (Experimental)</span>
+                  </CardTitle>
+                  <CardDescription>
+                    Try our new unified generation approach that addresses the architectural flaws identified in Issue #7.
+                    This method provides coordinated workflow with dependency awareness and built-in validation.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <UnifiedWorkflow />
+                </CardContent>
+              </Card>
+            </motion.div>
+
             {loading.tasks && !loading.researching && (
                 <motion.div key="loading-tasks" {...cardAnimation}>
                     <LoadingSpinner text="Generating task list..." />
