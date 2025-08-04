@@ -125,6 +125,10 @@ async function generateUnifiedTasks(
     ? getUnifiedTDDPrompt(input)
     : getUnifiedStandardPrompt(input);
 
+  const modelName = options.model
+    ? `googleai/${options.model}`
+    : 'googleai/gemini-1.5-pro';
+
   const generateUnifiedTasksFlow = ai.defineFlow(
     {
       name: 'generateUnifiedTasks',
@@ -137,21 +141,20 @@ async function generateUnifiedTasks(
       outputSchema: UnifiedTasksOutputSchema,
     },
     async (input) => {
-      const llmResponse = await ai.generate({
-        model: options.model ? googleAI(options.model) : googleAI('gemini-1.5-pro'),
+      const { output } = await ai.generate({
+        model: modelName,
         prompt: prompt,
-        config: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
+        output: {
+          schema: UnifiedTasksOutputSchema,
         },
+        config: options.apiKey ? { apiKey: options.apiKey } : undefined,
       });
 
-      return llmResponse.output();
+      return output!;
     }
   );
 
-  const result = await generateUnifiedTasksFlow(input, { apiKey: options.apiKey });
+  const result = await generateUnifiedTasksFlow(input);
 
   // Transform the result into UnifiedTask format
   return result.tasks.map((task, index) => ({

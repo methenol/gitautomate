@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { generateUnifiedProjectPlan } from './unified-actions';
-import { getModels } from './actions';
+import { getModels, runResearchTask } from './actions';
 import type { UnifiedTask, ProjectContext, ValidationIssue } from '@/types/unified-context';
 import {
   getRepositories,
@@ -141,6 +141,8 @@ export default function Home() {
     exporting: false,
     models: false,
   });
+  
+  const [taskLoading, setTaskLoading] = useState<TaskLoadingStates>({});
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -461,6 +463,62 @@ export default function Home() {
     setIsTaskDetailOpen(false);
     setSelectedTask(null);
     toast({ title: "Task updated", description: "Your changes have been saved." });
+  };
+  
+  const researchSingleTask = async (task: UnifiedTask) => {
+    if (!projectContext) return;
+    
+    setTaskLoading(prev => ({ ...prev, [task.title]: true }));
+    
+    try {
+      const result = await runResearchTask({
+        title: task.title,
+        architecture: projectContext.architecture,
+        specifications: projectContext.specifications,
+        fileStructure: projectContext.fileStructure,
+      }, {
+        apiKey: googleApiKey,
+        model: selectedModel,
+        useTDD,
+      });
+      
+      // Update task with research result
+      const researchedDetails = `### Context\n${result.context}\n\n### Implementation Steps\n${result.implementationSteps}\n\n### Acceptance Criteria\n${result.acceptanceCriteria}`;
+      
+      const updatedTasks = projectContext.tasks.map(t => 
+        t.id === task.id 
+          ? { ...t, details: researchedDetails } 
+          : t
+      );
+      
+      const updatedContext = { ...projectContext, tasks: updatedTasks };
+      setProjectContext(updatedContext);
+      
+      const updatedExecutionOrder = executionOrder.map(t => 
+        t.id === task.id 
+          ? { ...t, details: researchedDetails } 
+          : t
+      );
+      setExecutionOrder(updatedExecutionOrder);
+      
+      // Update edited details if this task is currently being viewed
+      if (selectedTask?.id === task.id) {
+        setEditedTaskDetails(researchedDetails);
+      }
+      
+      toast({
+        title: "Research Complete",
+        description: `Task "${task.title}" has been researched successfully.`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Research Failed",
+        description: `Failed to research task "${task.title}": ${(error as Error).message}`,
+      });
+    } finally {
+      setTaskLoading(prev => ({ ...prev, [task.title]: false }));
+    }
   };
   
   const isResearchFailed = (details: string) => details.startsWith('Failed to research task');
@@ -897,9 +955,9 @@ export default function Home() {
                         <Button variant="link" onClick={() => {
                            setSelectedRepo(LOCAL_MODE_REPO_ID);
                            setPrd('');
-                           setArchitecture('');
-                           setSpecifications('');
-                           setTasks([]);
+                           setProjectContext(null);
+                           setExecutionOrder([]);
+                           setValidationIssues([]);
                            setFinalIssueURL('');
                            setSelectedTask(null);
                         }}>Start Over</Button>
