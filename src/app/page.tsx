@@ -14,6 +14,10 @@ import {
   runGenerateFileStructure,
   getModels,
 } from './actions';
+import {
+  runUnifiedProjectPlanGeneration,
+  getUnifiedModels
+} from './actions-unified';
 import type { Task } from '@/types';
 import {
   getRepositories,
@@ -136,6 +140,12 @@ export default function Home() {
   const [editedTaskDetails, setEditedTaskDetails] = useState('');
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
   const [researchProgress, setResearchProgress] = useState(0);
+
+  // Unified workflow state
+  const [useUnifiedWorkflow, setUseUnifiedWorkflow] = useState(false);
+  const [unifiedGenerationProgress, setUnifiedGenerationProgress] = useState(0);
+  const [isGeneratingUnifiedPlan, setIsGeneratingUnifiedPlan] = useState(false);
+  const [unifiedProjectPlan, setUnifiedProjectPlan] = useState<any>(null);
 
   const [loading, setLoading] = useState<LoadingStates>({
     repos: false,
@@ -366,6 +376,83 @@ export default function Home() {
       setTasks([]);
     } finally {
       setLoading((prev) => ({ ...prev, tasks: false, researching: false }));
+    }
+  };
+
+  const handleGenerateUnifiedProjectPlan = async () => {
+    if (!prd.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'PRD Required',
+        description: 'Please enter a Product Requirements Document to generate a unified project plan.',
+      });
+      return;
+    }
+
+    setIsGeneratingUnifiedPlan(true);
+    setUnifiedGenerationProgress(0);
+
+    try {
+      // Simulate progress updates
+      const progressSteps = ['Validating input...', 'Generating architecture...', 'Creating file structure...', 
+                           'Building dependency graph...', 'Researching tasks...', 'Validating consistency...'];
+      
+      for (let i = 0; i < progressSteps.length; i++) {
+        setUnifiedGenerationProgress(((i + 1) / progressSteps.length) * 100);
+        
+        // Simulate processing time
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      const result = await runUnifiedProjectPlanGeneration(
+        {
+          prd: prd.trim(),
+          options: {
+            apiKey: googleApiKey,
+            model: selectedModel,
+            useTDD
+          }
+        },
+        { apiKey: googleApiKey, model: selectedModel, useTDD }
+      );
+
+      setUnifiedProjectPlan(result);
+      
+      // Update the traditional state with unified results for compatibility
+      if (result.architecture) setArchitecture(result.architecture);
+      if (result.specifications) setSpecifications(result.specifications);
+      if (result.fileStructure) setFileStructure(result.fileStructure);
+      
+      const tasksFromUnified = result.tasks?.map((t: any) => ({
+        title: t.title,
+        details: t.details || 'Task research incomplete or failed.'
+      })) || [];
+      
+      setTasks(tasksFromUnified);
+      setFinalIssueURL('');
+
+      if (result.success) {
+        toast({
+          title: 'Unified Project Plan Generated!',
+          description: `${result.tasks?.length || 0} tasks generated with ${Math.round(result.validationResults.consistencyScore)}% consistency.`,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Generation Failed',
+          description: result.message || 'Failed to generate unified project plan.',
+        });
+      }
+
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Unified Generation Failed',
+        description: (error as Error).message,
+      });
+    } finally {
+      setIsGeneratingUnifiedPlan(false);
+      setUnifiedGenerationProgress(0);
     }
   };
 
@@ -693,23 +780,73 @@ export default function Home() {
                       rows={10}
                     />
                   </CardContent>
-                  <CardFooter>
-                    <Button
-                      onClick={handleGenerateArchitecture}
-                      disabled={!prd || loading.arch}
-                      className="ml-auto"
-                    >
-                      {loading.arch ? (
-                        <>
-                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          Generate Architecture <ChevronRight className="ml-2 h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
+                  
+                  {/* Workflow Selection */}
+                  <div className="px-6 pb-4">
+                    <Label className="text-sm font-medium mb-2 block">Choose Workflow</Label>
+                    <div className="flex gap-4">
+                      <Button
+                        variant={useUnifiedWorkflow ? "default" : "outline"}
+                        onClick={() => setUseUnifiedWorkflow(false)}
+                      >
+                        <Wrench className="mr-2 h-4 w-4" />
+                        Legacy Sequential
+                      </Button>
+                      <Button
+                        variant={useUnifiedWorkflow ? "default" : "outline"}
+                        onClick={() => setUseUnifiedWorkflow(true)}
+                      >
+                        <Bot className="mr-2 h-4 w-4" />
+                        Unified System (NEW)
+                      </Button>
+                    </div>
+                  </div>
+
+                  <CardFooter className="flex-col gap-2">
+                    {!useUnifiedWorkflow ? (
+                      <Button
+                        onClick={handleGenerateArchitecture}
+                        disabled={!prd || loading.arch}
+                        className="w-full"
+                      >
+                        {loading.arch ? (
+                          <>
+                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            Generate Architecture <ChevronRight className="ml-2 h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleGenerateUnifiedProjectPlan}
+                        disabled={!prd || isGeneratingUnifiedPlan}
+                        className="w-full"
+                      >
+                        {isGeneratingUnifiedPlan ? (
+                          <>
+                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                            Generating Unified Plan...
+                          </>
+                        ) : (
+                          <>
+                            Generate Complete Project Plan <ChevronRight className="ml-2 h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    )}
+
+                    {useUnifiedWorkflow && isGeneratingUnifiedPlan && (
+                      <div className="w-full space-y-2">
+                        <Progress value={unifiedGenerationProgress} />
+                        <p className="text-sm text-muted-foreground text-center">
+                          {unifiedGenerationProgress.toFixed(0)}% Complete
+                        </p>
+                      </div>
+                    )}
                   </CardFooter>
                 </Card>
               </motion.div>
@@ -719,14 +856,64 @@ export default function Home() {
             {architecture && (
               <motion.div key="step3" {...cardAnimation}>
                 <Card>
-                  <CardHeader>
+                  {useUnifiedWorkflow && unifiedProjectPlan && (
+                    <>
+                      {/* Validation Results Section */}
+                      <CardHeader className="pt-6">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">Validation Results</CardTitle>
+                          <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            unifiedProjectPlan.validationResults.isValid 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {unifiedProjectPlan.validationResults.isValid ? '✅ Valid' : '❌ Issues Found'}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent className="border-b">
+                        <div className="space-y-4">
+                          <div>
+                            <Label>Consistency Score: {Math.round(unifiedProjectPlan.validationResults.consistencyScore)}%</Label>
+                            <Progress value={unifiedProjectPlan.validationResults.consistencyScore} className="mt-2" />
+                          </div>
+                          
+                          {unifiedProjectPlan.validationResults.errors.length > 0 && (
+                            <div className="space-y-2">
+                              <Label className="text-red-600 font-medium">Critical Errors ({unifiedProjectPlan.validationResults.errors.length})</Label>
+                              {unifiedProjectPlan.validationResults.errors.map((error: any, index: number) => (
+                                <div key={index} className="p-2 bg-red-50 border border-red-200 rounded text-sm">
+                                  {error.message}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {unifiedProjectPlan.validationResults.warnings.length > 0 && (
+                            <div className="space-y-2">
+                              <Label className="text-yellow-600 font-medium">Warnings ({unifiedProjectPlan.validationResults.warnings.length})</Label>
+                              {unifiedProjectPlan.validationResults.warnings.map((warning: any, index: number) => (
+                                <div key={index} className="p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                                  {warning.message}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </>
+                  )}
+
+                  <CardHeader className={useUnifiedWorkflow && unifiedProjectPlan ? "pt-0" : ""}>
                     <CardTitle className="flex items-center gap-2">
                       <Wrench className="h-6 w-6 text-accent" />
                       <span>Step 3: Review Plan</span>
                     </CardTitle>
                     <CardDescription>
-                      The AI has generated the following architecture, specifications, and file structure.
-                      Review and edit if needed.
+                      {useUnifiedWorkflow && unifiedProjectPlan
+                        ? 'The AI has generated a complete project plan with dependency management and validation.'
+                        : 'The AI has generated the following architecture, specifications, and file structure. Review and edit if needed.'}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
