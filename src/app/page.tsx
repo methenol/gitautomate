@@ -1238,10 +1238,14 @@ export default function Home() {
                         <p className="text-sm">{editedTaskDetails}</p>
                       </div>
                     ) : (
-                      <div 
-                        className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none" 
-                        dangerouslySetInnerHTML={{ __html: editedTaskDetails.replace(/\n/g, '<br />') }}
-                      />
+                      <div className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none">
+                        {editedTaskDetails.split('\n').map((line, index) => (
+                          <span key={index}>
+                            {line}
+                            {index < editedTaskDetails.split('\n').length - 1 && <br />}
+                          </span>
+                        ))}
+                      </div>
                     )}
                 </div>
             </div>
