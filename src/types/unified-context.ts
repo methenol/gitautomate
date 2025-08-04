@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { Task } from './index';
 
 // Validation result for consistency checks
 export const ValidationResultSchema = z.object({

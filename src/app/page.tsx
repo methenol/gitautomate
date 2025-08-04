@@ -17,15 +17,11 @@ import {
 import {
   initializeProject,
   generateCompleteProjectPlan,
-  generateArchitectureWithContext,
-  generateTasksWithContext,
-  researchTasksWithContext,
   validateProjectContext,
   validateTaskConsistency,
   optimizeTaskOrdering,
 } from './unified-actions';
 import {
-  convertLegacyTasksToEnhanced,
   convertEnhancedTasksToLegacy,
 } from '@/lib/unified-utils';
 import type { Task, UnifiedProjectContext, ValidationResult } from '@/types';

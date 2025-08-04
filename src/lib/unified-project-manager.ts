@@ -174,7 +174,7 @@ export class UnifiedProjectManager implements ProjectManager {
 
   async researchTasksWithContext(context: UnifiedProjectContext, options: GenerationOptions = {}): Promise<UnifiedProjectContext> {
     const updatedTasks = [...context.tasks];
-    const insights: any[] = [];
+    const insights: { taskTitle: string; insights: string[]; crossTaskImplications: string[] }[] = [];
     
     // Research tasks in dependency order
     const graph = context.dependencyGraph as TaskDependencyGraph<EnhancedTask>;
@@ -186,21 +186,21 @@ export class UnifiedProjectManager implements ProjectManager {
       
       const task = updatedTasks[taskIndex];
       
-      // Build context-aware research input
-      const researchInput = {
-        title: task.title,
-        architecture: context.architecture,
-        fileStructure: context.fileStructure,
-        specifications: context.specifications,
-      };
-      
       // Add context from previous research
       const previousInsights = insights.map(i => i.insights.join('\n')).join('\n\n');
       const contextualSpecs = context.specifications + 
         (previousInsights ? '\n\n## Previous Task Research Insights:\n' + previousInsights : '');
       
+      // Build context-aware research input
+      const researchInput = {
+        title: task.title,
+        architecture: context.architecture,
+        fileStructure: context.fileStructure,
+        specifications: contextualSpecs,
+      };
+      
       const result = await researchTask(
-        { ...researchInput, specifications: contextualSpecs },
+        researchInput,
         options.apiKey,
         options.model,
         options.useTDD
@@ -305,7 +305,7 @@ export class UnifiedProjectManager implements ProjectManager {
         .filter(Boolean) as EnhancedTask[];
 
       return this.updateContext(context, { tasks: reorderedTasks });
-    } catch (error) {
+    } catch {
       // If topological sort fails due to cycles, return as-is
       console.warn('Could not optimize task ordering due to dependency cycles');
       return context;
@@ -320,7 +320,7 @@ export class UnifiedProjectManager implements ProjectManager {
     return context;
   }
 
-  private async analyzeDependencies(tasks: any[], context: UnifiedProjectContext, options: GenerationOptions): Promise<EnhancedTask[]> {
+  private async analyzeDependencies(tasks: { title: string; details?: string }[], _context: UnifiedProjectContext, _options: GenerationOptions): Promise<EnhancedTask[]> {
     // Enhanced dependency analysis using simple heuristics
     const enhancedTasks: EnhancedTask[] = tasks.map(task => {
       const dependencies: TaskDependency = {

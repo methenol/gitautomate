@@ -1,6 +1,6 @@
 import { TaskDependencyGraph } from '../lib/dependency-graph';
 import { UnifiedProjectManager } from '../lib/unified-project-manager';
-import { UnifiedProjectContext, EnhancedTask } from '../types/unified-context';
+import { EnhancedTask } from '../types/unified-context';
 
 // Mock the AI flows
 jest.mock('../ai/flows/generate-architecture', () => ({
@@ -198,6 +198,7 @@ describe('UnifiedProjectManager', () => {
     const manager = new UnifiedProjectManager();
     
     // Access private method for testing
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const categorizeTask = (manager as any).categorizeTask.bind(manager);
     
     expect(categorizeTask('Setup project environment')).toBe('setup');

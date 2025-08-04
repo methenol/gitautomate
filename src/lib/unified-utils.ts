@@ -11,7 +11,7 @@ export function updateProjectContext(
   return projectManager.updateContext(context, updates);
 }
 
-export function convertLegacyTasksToEnhanced(tasks: any[]): EnhancedTask[] {
+export function convertLegacyTasksToEnhanced(tasks: { title: string; details?: string }[]): EnhancedTask[] {
   return tasks.map(task => ({
     title: task.title,
     details: task.details || '',
@@ -26,7 +26,7 @@ export function convertLegacyTasksToEnhanced(tasks: any[]): EnhancedTask[] {
   }));
 }
 
-export function convertEnhancedTasksToLegacy(enhancedTasks: EnhancedTask[]): any[] {
+export function convertEnhancedTasksToLegacy(enhancedTasks: EnhancedTask[]): { title: string; details: string }[] {
   return enhancedTasks.map(task => ({
     title: task.title,
     details: task.details,

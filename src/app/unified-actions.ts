@@ -4,18 +4,8 @@ import { UnifiedProjectManager } from '@/lib/unified-project-manager';
 import { 
   UnifiedProjectContext, 
   GenerationOptions, 
-  ValidationResult,
-  EnhancedTask 
+  ValidationResult
 } from '@/types/unified-context';
-
-// Import legacy actions as needed
-import { 
-  runGenerateArchitecture,
-  runGenerateTasks,
-  runGenerateFileStructure,
-  runResearchTask,
-  getModels 
-} from './actions';
 
 // New unified actions
 const projectManager = new UnifiedProjectManager();
@@ -125,7 +115,7 @@ export async function optimizeTaskOrdering(
 export async function refineProjectPlan(
   context: UnifiedProjectContext,
   validation: ValidationResult,
-  options: GenerationOptions = {}
+  _options: GenerationOptions = {}
 ): Promise<UnifiedProjectContext> {
   return await projectManager.refineContextBasedOnValidation(context, validation);
 }
