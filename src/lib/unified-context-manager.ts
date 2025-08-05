@@ -20,6 +20,11 @@ export class UnifiedContextManager {
   private context: UnifiedProjectContext | null = null;
   private projectPlan: ProjectPlan | null = null;
 
+  // Helper to check for prototype-polluting keys
+  private static isForbiddenKey(key: string): boolean {
+    return key === '__proto__' || key === 'constructor' || key === 'prototype';
+  }
+
   /**
    * Initialize the context with PRD and generate initial project components
    */
@@ -150,6 +155,10 @@ export class UnifiedContextManager {
     acceptanceCriteria?: string
   ): Promise<void> {
     if (!this.projectPlan) throw new Error('Project not initialized');
+
+    if (UnifiedContextManager.isForbiddenKey(taskId)) {
+      throw new Error(`Forbidden task ID: ${taskId}`);
+    }
 
     const task = this.projectPlan.dependencyGraph.tasks[taskId];
     if (!task) {
