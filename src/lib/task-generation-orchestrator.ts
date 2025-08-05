@@ -1,6 +1,5 @@
 
 
-'use server';
 
 // Helper function for describing arrays
 const describeArray = <T>(schema: z.ZodType<T>, description: string) => schema;
