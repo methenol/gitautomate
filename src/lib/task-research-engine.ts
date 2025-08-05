@@ -60,7 +60,7 @@ export class TaskResearchEngine implements ITaskResearchEngine {
 
       return researchedTask;
     } catch (error) {
-      console.error(`Error researching task ${taskId}:`, error);
+      console.error('Error researching task %s:', taskId, error);
       
       // Return fallback research
       return await this.generateFallbackResearch(taskId, context, dependencyGraph);
