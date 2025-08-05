@@ -240,9 +240,9 @@ export async function runResearchTask(
     }
 
     // This should not be reachable due to the throw inside loop
-    const error = new Error(`Failed to research task`);
-    error.message += ` ${input.title}.`;
-    throw error;
+    const finalError = new Error(`Failed to research task`);
+    finalError.message += ` ${input.title}.`;
+    throw finalError;
   }
 }
 
