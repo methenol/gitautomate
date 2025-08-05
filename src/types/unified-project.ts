@@ -137,7 +137,7 @@ export interface ResearchTaskOutput {
 // Task generation orchestrator interfaces
 export interface TaskGenerationOrchestrator {
   generateProjectPlan(context: UnifiedProjectContext): Promise<ProjectPlan>;
-  validateTaskConsistency(plan: ProjectPlan): ValidationResult[];
+  validateTaskConsistency(plan: ProjectPlan): ValidationResultItem[];
   optimizeDependencyOrdering(tasks: EnhancedTask[]): string[]; // Returns task IDs in optimal order
 }
 

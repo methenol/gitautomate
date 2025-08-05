@@ -13,7 +13,8 @@ import {
   EnhancedTask,
   DependencyGraph,
   TaskGenerationOrchestrator as ITaskGenerationOrchestrator,
-  ValidationResult
+  ValidationResult,
+  ValidationResultItem
 } from '@/types/unified-project';
 import { unifiedContextManager } from './unified-context-manager';
 
@@ -95,8 +96,8 @@ export class TaskGenerationOrchestrator implements ITaskGenerationOrchestrator {
   /**
    * Validate task consistency across the entire project plan
    */
-  validateTaskConsistency(plan: ProjectPlan): ValidationResult[] {
-    const results: ValidationResult[] = [];
+  validateTaskConsistency(plan: ProjectPlan): ValidationResultItem[] {
+    const results: ValidationResultItem[] = [];
     
     // Check 1: Architecture-Task Alignment
     if (plan.context.architecture) {
@@ -140,15 +141,27 @@ export class TaskGenerationOrchestrator implements ITaskGenerationOrchestrator {
 
     // Check 3: Dependency Validation
     const dependencyErrors = this.validateDependencies(plan.dependencyGraph);
-    results.push(...dependencyErrors);
+    results.push(...dependencyErrors.map(err => ({
+      type: 'dependency' as const,
+      message: err.message || 'Dependency validation failed',
+      severity: 'error' as const
+    })));
 
     // Check 4: Task Coverage Completeness
     const completenessIssues = this.checkTaskCompleteness(plan);
-    results.push(...completenessIssues);
+    results.push(...completenessIssues.map(err => ({
+      type: 'completeness' as const,
+      message: err.message || 'Completeness check failed',
+      severity: 'error' as const
+    })));
 
     // Check 5: Sequential Logic Validation
     const logicErrors = this.validateSequentialLogic(plan);
-    results.push(...logicErrors);
+    results.push(...logicErrors.map(err => ({
+      type: 'consistency' as const,
+      message: err.message || 'Logic validation failed',
+      severity: 'error' as const
+    })));
 
     return results;
   }
@@ -422,8 +435,8 @@ Generate ${this.estimateTaskCount(context)} comprehensive tasks for this project
   /**
    * Validate dependencies in the graph
    */
-  private validateDependencies(graph: DependencyGraph): ValidationResult[] {
-    const results: ValidationResult[] = [];
+  private validateDependencies(graph: DependencyGraph): ValidationResultItem[] {
+    const results: ValidationResultItem[] = [];
     
     // Check for circular dependencies
     try {
@@ -455,8 +468,8 @@ Generate ${this.estimateTaskCount(context)} comprehensive tasks for this project
   /**
    * Check task completeness
    */
-  private checkTaskCompleteness(plan: ProjectPlan): ValidationResult[] {
-    const results: ValidationResult[] = [];
+  private checkTaskCompleteness(plan: ProjectPlan): ValidationResultItem[] {
+    const results: ValidationResultItem[] = [];
     
     // Check for essential task categories
     const tasksByCategory = Object.values(plan.dependencyGraph.tasks).reduce((acc, task) => {
@@ -493,8 +506,8 @@ Generate ${this.estimateTaskCount(context)} comprehensive tasks for this project
   /**
    * Validate sequential logic in the plan
    */
-  private validateSequentialLogic(plan: ProjectPlan): ValidationResult[] {
-    const results: ValidationResult[] = [];
+  private validateSequentialLogic(plan: ProjectPlan): ValidationResultItem[] {
+    const results: ValidationResultItem[] = [];
     
     // Check for obvious sequencing issues
     const tasksByCategory = Object.values(plan.dependencyGraph.tasks).reduce((acc, task) => {
@@ -631,7 +644,7 @@ Generate ${this.estimateTaskCount(context)} comprehensive tasks for this project
    * Generate dependency edges for the graph
    */
   private generateDependencyEdges(enhancedTasks: EnhancedTask[]): any[] {
-    const edges = [];
+    const edges: any[] = [];
     
     enhancedTasks.forEach(task => {
       task.dependencies.forEach(depId => {

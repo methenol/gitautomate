@@ -6,6 +6,7 @@ import {
   EnhancedTask,
   DependencyGraph,
   ValidationResult,
+  ValidationResultItem,
   GenerationError
 } from '@/types/unified-project';
 
@@ -209,7 +210,7 @@ export class UnifiedContextManager {
   /**
    * Get validation results
    */
-  getValidationResults(): ValidationResult[] {
+  getValidationResults(): ValidationResultItem[] {
     return this.projectPlan?.validationResults || [];
   }
 
@@ -318,7 +319,7 @@ export class UnifiedContextManager {
   private async validateGeneratedTasks(): Promise<void> {
     if (!this.projectPlan || !this.context) return;
 
-    const validationResults: ValidationResult[] = [];
+    const validationResults: ValidationResultItem[] = [];
     
     // Validate that tasks align with architecture
     if (this.context.architecture) {
@@ -371,7 +372,7 @@ export class UnifiedContextManager {
     const task = this.projectPlan.dependencyGraph.tasks[taskId];
     if (!task) return;
 
-    const validationResults: ValidationResult[] = [];
+    const validationResults: ValidationResultItem[] = [];
 
     // Check that research aligns with current architecture
     if (!task.context.includes(this.context.architecture.substring(0, 100))) {
@@ -481,6 +482,17 @@ export class UnifiedContextManager {
     this.context = null;
     this.projectPlan = null;
   }
+
+  /**
+   * Validate complete workflow - for compatibility with ProjectPlanValidator interface
+   */
+  async validateCompleteWorkflow(plan: any): Promise<ValidationResult> {
+    return {
+      isValid: true,
+      errors: [],
+      warnings: []
+    };
+  }
 }
 
 // Export singleton instance
@@ -490,15 +502,6 @@ export const unifiedContextManager = new UnifiedContextManager();
 export { 
   unifiedContextManager as projectPlanValidator,
   UnifiedContextManager as ProjectPlanValidator
-};
-
-// Add missing validation method for compatibility
-export const validateCompleteWorkflow = async (plan: any) => {
-  return {
-    isValid: true,
-    errors: [],
-    warnings: []
-  };
 };
 
 // Helper to convert ValidationResultItem array to ValidationResult

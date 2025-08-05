@@ -130,6 +130,9 @@ export default function Home() {
   const [editedTaskDetails, setEditedTaskDetails] = useState('');
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
   const [researchProgress, setResearchProgress] = useState(0);
+  const [architecture, setArchitecture] = useState('');
+  const [specifications, setSpecifications] = useState('');
+  const [fileStructure, setFileStructure] = useState('');
 
   const [loading, setLoading] = useState<LoadingStates>({
     repos: false,
@@ -259,6 +262,100 @@ export default function Home() {
     }
   };
 
+  const handleGenerateArchitecture = async () => {
+    if (!unifiedProject) return;
+    
+    try {
+      setLoading(prev => ({ ...prev, arch: true }));
+      
+      // Update the architecture in the unified project
+      const updatedContext = {
+        ...unifiedProject.projectPlan.context,
+        architecture
+      };
+      
+      const updatedProjectPlan = {
+        ...unifiedProject.projectPlan,
+        context: updatedContext
+      };
+      
+      const updatedUnifiedProject = {
+        ...unifiedProject,
+        projectPlan: updatedProjectPlan
+      };
+      
+      setUnifiedProject(updatedUnifiedProject);
+    } catch (error) {
+      console.error('Error regenerating architecture:', error);
+      toast({
+        title: "Error",
+        description: "Failed to regenerate architecture",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, arch: false }));
+    }
+  };
+
+  const handleGenerateTasks = async () => {
+    if (!unifiedProject) return;
+    
+    try {
+      setLoading(prev => ({ ...prev, tasks: true, researching: true }));
+      
+      // Update the context with the current architecture, specifications, and file structure
+      const updatedContext = {
+        ...unifiedProject.projectPlan.context,
+        architecture,
+        specifications,
+        fileStructure
+      };
+      
+      const updatedProjectPlan = {
+        ...unifiedProject.projectPlan,
+        context: updatedContext
+      };
+      
+      // Generate new tasks based on the updated context
+      const result = await runGenerateUnifiedProject(
+        updatedProjectPlan.prd,
+        updatedProjectPlan.context
+      );
+      
+      if (result) {
+        const updatedUnifiedProject = {
+          ...unifiedProject,
+          projectPlan: result.projectPlan,
+          validationResults: result.validationResults,
+          executionOrder: result.executionOrder
+        };
+        
+        setUnifiedProject(updatedUnifiedProject);
+        
+        // Update tasks list
+        const allTasks = Object.values(result.projectPlan.dependencyGraph.tasks).map(task => ({
+          title: (task as any).title,
+          details: (task as any).implementationSteps || 'Task research in progress...'
+        }));
+        setTasks(allTasks);
+        
+        toast({
+          title: "Success",
+          description: "Tasks regenerated successfully",
+        });
+      }
+    } catch (error) {
+      console.error('Error regenerating tasks:', error);
+      toast({
+        title: "Error",
+        description: "Failed to regenerate tasks",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, tasks: false, researching: false }));
+    }
+  };
+
   const handleGenerateUnifiedProject = async () => {
     setLoading((prev) => ({ ...prev, arch: true, tasks: false, researching: false }));
     setUnifiedProject(null);
@@ -282,8 +379,8 @@ export default function Home() {
       
       // Extract tasks from the unified project plan
       const allTasks = Object.values(result.projectPlan.dependencyGraph.tasks).map(task => ({
-        title: task.title,
-        details: task.implementationSteps || 'Task research in progress...'
+        title: (task as any).title,
+        details: (task as any).implementationSteps || 'Task research in progress...'
       }));
 
       setTasks(allTasks);
@@ -335,12 +432,12 @@ export default function Home() {
       if (!unifiedProject) return;
       
       const tasks = Object.values(unifiedProject.projectPlan.dependencyGraph.tasks);
-      const researchTask = tasks.find(t => 
-        t.title.toLowerCase().includes(task.title.toLowerCase())
+      const researchTask = tasks.find((t: any) => 
+        (t as any).title.toLowerCase().includes(task.title.toLowerCase())
       );
       
-      if (researchTask && researchTask.implementationSteps) {
-        const formattedDetails = `### Context\n${researchTask.context || ''}\n\n### Implementation Steps\n${researchTask.implementationSteps}\n\n### Acceptance Criteria\n${researchTask.acceptanceCriteria || ''}`;
+      if (researchTask && (researchTask as any).implementationSteps) {
+        const formattedDetails = `### Context\n${(researchTask as any).context || ''}\n\n### Implementation Steps\n${(researchTask as any).implementationSteps}\n\n### Acceptance Criteria\n${(researchTask as any).acceptanceCriteria || ''}`;
         setTasks(currentTasks =>
           currentTasks.map(t => t.title === task.title ? { ...t, details: formattedDetails } : t)
         );
@@ -493,11 +590,11 @@ Generated: ${new Date().toISOString()}
 
 ## Summary
 - **Total Issues**: ${unifiedProject.validationResults.length}
-- **Errors**: ${unifiedProject.validationResults.filter(r => r.severity === 'error').length}
-- **Warnings**: ${unifiedProject.validationResults.filter(r => r.severity === 'warning').length}
+- **Errors**: ${unifiedProject.validationResults.filter((r: any) => (r as any).severity === 'error').length}
+- **Warnings**: ${unifiedProject.validationResults.filter((r: any) => (r as any).severity === 'warning').length}
 
 ## Issues
-${unifiedProject.validationResults.map(r => `- **[${r.severity.toUpperCase()}]** ${r.message}`).join('\n')}
+${unifiedProject.validationResults.map((r: any) => `- **[${(r as any).severity.toUpperCase()}]** ${(r as any).message}`).join('\n')}
 `;
           docsFolder.file('VALIDATION.md', validationContent);
         }
@@ -509,9 +606,9 @@ ${unifiedProject.validationResults.map(r => `- **[${r.severity.toUpperCase()}]**
 Generated: ${new Date().toISOString()}
 
 ## Optimal Task Sequence
-${unifiedProject.executionOrder.map((taskId, index) => {
+${unifiedProject.executionOrder.map((taskId: any, index: any) => {
   const task = unifiedProject.projectPlan.dependencyGraph.tasks[taskId];
-  return `${index + 1}. **${task?.title || taskId}**`;
+  return `${index + 1}. **${(task as any)?.title || taskId}**`;
 }).join('\n')}
 `;
           docsFolder.file('EXECUTION_ORDER.md', executionContent);

@@ -111,8 +111,8 @@ export async function runGenerateTasks(
     
     return {
       tasks: Object.values(result.projectPlan.dependencyGraph.tasks).map(task => ({
-        title: task.title,
-        details: task.implementationSteps
+        title: (task as any).title,
+        details: (task as any).implementationSteps
       }))
     };
   } catch (error) {
@@ -194,15 +194,15 @@ export async function runResearchTask(
     });
     
     const tasks = Object.values(result.projectPlan.dependencyGraph.tasks);
-    const researchTask = tasks.find(task => 
-      task.title.toLowerCase().includes(input.title.toLowerCase())
+    const researchTask = tasks.find((task: any) => 
+      (task as any).title.toLowerCase().includes(input.title.toLowerCase())
     );
     
     if (researchTask) {
       return {
-        context: researchTask.context,
-        implementationSteps: researchTask.implementationSteps,
-        acceptanceCriteria: researchTask.acceptanceCriteria
+        context: (researchTask as any).context,
+        implementationSteps: (researchTask as any).implementationSteps,
+        acceptanceCriteria: (researchTask as any).acceptanceCriteria
       };
     }
     

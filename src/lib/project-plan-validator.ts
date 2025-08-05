@@ -496,7 +496,7 @@ export class ProjectPlanValidator {
     let maxChainLength = 0;
     let longestsDependency: string[] = [];
 
-    task.dependencies.forEach(depId => {
+    task.dependencies.forEach((depId: string) => {
       const depChain = this.getDependencyChain(depId, dependencyGraph);
       
       if (depChain.length > maxChainLength) {

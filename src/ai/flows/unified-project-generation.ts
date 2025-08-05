@@ -18,7 +18,8 @@ import {
   UnifiedProjectContext,
   ProjectPlan,
   EnhancedTask,
-  ValidationResult
+  ValidationResult,
+  ValidationResultItem
 } from '@/types/unified-project';
 import { taskGenerationOrchestrator } from '@/lib/task-generation-orchestrator';
 import { taskResearchEngine } from '@/lib/task-research-engine';
@@ -338,7 +339,7 @@ README.md`,
 export async function validateProjectPlan(
   context: UnifiedProjectContext,
   plan: ProjectPlan
-): Promise<ValidationResult[]> {
+): Promise<ValidationResultItem[]> {
   
   try {
     const validation = await projectPlanValidator.validateCompleteWorkflow(plan);
@@ -358,9 +359,9 @@ export async function validateProjectPlan(
     ];
   } catch (error) {
     return [{
-      type: 'consistency',
+      type: 'consistency' as const,
       message: error instanceof Error ? error.message : 'Validation failed',
-      severity: 'error'
+      severity: 'error' as const
     }];
   }
 }
@@ -454,7 +455,7 @@ export async function getProjectStatus(planId?: string): Promise<{
     
     return {
       isValid: !validationResults.some(r => r.severity === 'error'),
-      taskCount: Object.keys(projectPlan.dependencyGraph.tasks).length,
+      taskCount: (projectPlan as any).dependencyGraph ? Object.keys((projectPlan as any).dependencyGraph.tasks).length : 0,
       validationResults,
       contextVersion: projectPlan.id
     };
