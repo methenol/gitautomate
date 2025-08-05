@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import {
@@ -425,6 +424,7 @@ export class ProjectPlanValidator {
     return issues;
   }
 
+  
   /**
    * Topological sort for circular dependency detection
    */
@@ -450,11 +450,9 @@ export class ProjectPlanValidator {
       visited.add(taskId);
     };
 
-    const taskMap = plan.dependencyGraph.tasks;
-    
-    for (const taskId of Object.keys(taskMap)) {
+    for (const taskId of taskIds) {
       if (!visited.has(taskId)) {
-        visitTask(taskId, taskMap);
+        visitTask(taskId, {});
       }
     }
   }

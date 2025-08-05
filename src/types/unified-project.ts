@@ -1,25 +1,30 @@
 import { z } from 'zod';
 
 // Dependency types
-export enum DependencyType {
-  REQUIRES = 'requires',
-  BLOCKS = 'blocks',
-  ENABLED_BY = 'enabled_by'
-}
+export const DependencyType = z.enum(['requires', 'blocks', 'enabled_by']);
+export type DependencyType = z.infer<typeof DependencyType>;
 
-export enum DependencyPriority {
-  CRITICAL = 'critical',
-  HIGH = 'high', 
-  MEDIUM = 'medium',
-  LOW = 'low'
-}
+// Priority types
+export const DependencyPriority = z.enum(['critical', 'high', 'medium', 'low']);
+export type DependencyPriority = z.infer<typeof DependencyPriority>;
 
 export interface Dependency {
   id: string;
-  type: DependencyType;
-  priority: DependencyPriority;
+  type: z.infer<typeof DependencyType>;
+  priority: z.infer<typeof DependencyPriority>;
   description?: string;
 }
+
+export const TaskDependencySchema = z.object({
+  taskId: z.string(),
+  dependsOnTaskId: z.string(),
+  dependency: z.object({
+    id: z.string(),
+    type: DependencyType,
+    priority: DependencyPriority,
+    description: z.string().optional()
+  })
+});
 
 export interface TaskDependency {
   taskId: string;
@@ -57,8 +62,8 @@ export const EnhancedTaskSchema = z.object({
   ]).default('feature'),
   
   // Dependency management
-  dependencies: z.array(z.string()).describeArray('Task IDs this task depends on'),
-  dependents: z.array(z.string()).describeArray('Tasks that depend on this task'),
+  dependencies: z.array(z.string()).describe('Task IDs this task depends on'),
+  dependents: z.array(z.string()).describe('Tasks that depend on this task'),
   
   // Context information
   context: z.string().describe('How this task fits into the overall architecture'),
@@ -113,6 +118,20 @@ export interface ValidationResult {
   isValid: boolean;
   errors: string[];
   warnings: string[];
+}
+
+// Simplified validation result for direct usage
+export interface ValidationResultItem {
+  message: string;
+  type: 'consistency' | 'completeness' | 'dependency';
+  severity: 'info' | 'warning' | 'error';
+}
+
+// Legacy types for compatibility
+export interface ResearchTaskOutput {
+  context: string;
+  implementationSteps: string;
+  acceptanceCriteria: string;
 }
 
 // Task generation orchestrator interfaces

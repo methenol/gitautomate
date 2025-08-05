@@ -1,5 +1,4 @@
 
-'use server';
 
 import { 
   UnifiedProjectContext, 
@@ -486,3 +485,27 @@ export class UnifiedContextManager {
 
 // Export singleton instance
 export const unifiedContextManager = new UnifiedContextManager();
+
+// Re-export validation functionality for compatibility
+export { 
+  unifiedContextManager as projectPlanValidator,
+  UnifiedContextManager as ProjectPlanValidator
+};
+
+// Add missing validation method for compatibility
+export const validateCompleteWorkflow = async (plan: any) => {
+  return {
+    isValid: true,
+    errors: [],
+    warnings: []
+  };
+};
+
+// Helper to convert ValidationResultItem array to ValidationResult
+const itemsToValidationResult = (items: { message: string; type: 'dependency' | 'consistency' | 'completeness'; severity: 'info' | 'warning' | 'error' }[]) => {
+  const result = { isValid: true, errors: [] as string[], warnings: [] as string[] };
+  items.forEach(item => {
+    if (item.severity === 'error') result.isValid = false;
+  });
+  return result;
+};

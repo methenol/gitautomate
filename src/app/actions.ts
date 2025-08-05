@@ -7,6 +7,32 @@ import {
 } from '@/ai/flows/unified-project-generation';
 import { listAvailableModels } from '@/ai/genkit';
 
+// Legacy type definitions for compatibility
+export interface GenerateTasksInput {
+  architecture: string;
+  specifications: string;
+  fileStructure: string;
+}
+
+export interface GenerateFileStructureInput {
+  prd: string;
+  architecture: string;
+  specifications: string;
+}
+
+export interface ResearchTaskInput {
+  title: string;
+  architecture: string;
+  specifications: string;
+  fileStructure: string;
+}
+
+export interface ResearchTaskOutput {
+  context: string;
+  implementationSteps: string;
+  acceptanceCriteria: string;
+}
+
 type ActionOptions = {
   apiKey?: string;
   model?: string;

@@ -2,6 +2,9 @@
 
 'use server';
 
+// Helper function for describing arrays
+const describeArray = <T>(schema: z.ZodType<T>, description: string) => schema;
+
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import {
@@ -228,7 +231,7 @@ export class TaskGenerationOrchestrator implements ITaskGenerationOrchestrator {
               title: z.string(),
               description: z.string().default(''),
               category: z.enum(['setup', 'architecture', 'feature', 'testing', 'documentation', 'deployment', 'optimization']).default('feature'),
-              dependencies: z.array(z.string()).describeArray('Task IDs this task depends on').default([]),
+              dependencies: z.array(z.string()).describe('Task IDs this task depends on').default([]),
               context: z.string().describe('How this task fits into the overall architecture'),
               estimatedDuration: z.number().positive().optional(),
               priority: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
