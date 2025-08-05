@@ -1,0 +1,13 @@
+
+> nextn@0.1.0 dev
+> next dev --turbopack -p 9002
+
+   ▲ Next.js 15.3.3 (Turbopack)
+   - Local:        http://localhost:9002
+   - Network:      http://172.17.0.4:9002
+
+ ✓ Starting...
+ ✓ Ready in 1057ms
+ ○ Compiling /_not-found/page ...
+ ✓ Compiled /_not-found/page in 1826ms
+ GET /api/models 404 in 2054ms

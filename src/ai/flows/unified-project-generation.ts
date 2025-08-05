@@ -71,6 +71,9 @@ export async function generateUnifiedProject(
   
   const { prd, apiKey = '', model = 'googleai/gemini-1.5-flash-latest', useTDD } = input;
   
+  // Ensure model name has the correct prefix
+  const modelName = model.startsWith('googleai/') ? model : `googleai/${model}`;
+  
   try {
     // Step 1: Initialize unified context manager and generate core components
     console.log('Initializing project context...');
@@ -105,7 +108,7 @@ Respond with ONLY a valid JSON object containing:
 }`;
 
     const { output: archOutput } = await ai.generate({
-      model,
+      model: modelName,
       prompt: architecturePrompt,
       config: apiKey ? { apiKey } : undefined
     });
@@ -148,7 +151,7 @@ Respond with ONLY a valid JSON object containing:
 }`;
 
     const { output: fsOutput } = await ai.generate({
-      model,
+      model: modelName,
       prompt: fileStructurePrompt, 
       config: apiKey ? { apiKey } : undefined
     });

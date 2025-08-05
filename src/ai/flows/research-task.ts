@@ -104,7 +104,7 @@ export async function researchTask(
   useTDD?: boolean
 ): Promise<ResearchTaskOutput> {
   const modelName = model
-    ? `googleai/${model}`
+    ? (model.startsWith('googleai/') ? model : `googleai/${model}`)
     : 'googleai/gemini-1.5-pro-latest';
   
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
