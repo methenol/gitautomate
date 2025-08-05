@@ -221,14 +221,18 @@ export async function runResearchTask(
         return result;
       } catch (fallbackError) {
         console.error(
-          `Fallback error researching task "${input.title}" (Attempt ${i + 1}/${MAX_RETRIES}):`,
+          `Fallback error researching task`,
+          input.title,
+          `(Attempt ${i + 1}/${MAX_RETRIES}):`,
           fallbackError
         );
         
         if (i === MAX_RETRIES - 1) {
-          throw new Error(
-            `Failed to research task "${input.title}" after ${MAX_RETRIES} attempts. The AI may have refused to answer or returned an invalid format. Please try a different model if the issue persists.`
+          const error = new Error(
+            `Failed to research task`
           );
+          error.message += ` ${input.title} after ${MAX_RETRIES} attempts. The AI may have refused to answer or returned an invalid format. Please try a different model if the issue persists.`;
+          throw error;
         }
         
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -236,7 +240,9 @@ export async function runResearchTask(
     }
 
     // This should not be reachable due to the throw inside loop
-    throw new Error(`Failed to research task "${input.title}".`);
+    const error = new Error(`Failed to research task`);
+    error.message += ` ${input.title}.`;
+    throw error;
   }
 }
 
