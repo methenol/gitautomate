@@ -8,10 +8,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import {
-  runGenerateArchitecture,
-  runGenerateTasks,
-  runResearchTask,
-  runGenerateFileStructure,
+  runGenerateUnifiedProject,
   getModels,
 } from './actions';
 import type { Task } from '@/types';
@@ -125,10 +122,7 @@ export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [repositories, setRepositories] = useState<Repository[]>([LOCAL_MODE_REPO]);
   const [selectedRepo, setSelectedRepo] = useState<string>(LOCAL_MODE_REPO_ID);
-  const [prd, setPrd] = useState<string>('');
-  const [architecture, setArchitecture] = useState<string>('');
-  const [specifications, setSpecifications] = useState<string>('');
-  const [fileStructure, setFileStructure] = useState<string>('');
+  const [prd, setPrd] = useState<string>('');  const [unifiedProject, setUnifiedProject] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [finalIssueURL, setFinalIssueURL] = useState('');
 
@@ -265,114 +259,148 @@ export default function Home() {
     }
   };
 
-  const handleGenerateArchitecture = async () => {
-    setLoading((prev) => ({ ...prev, arch: true }));
-    setArchitecture('');
-    setSpecifications('');
-    setFileStructure('');
+  const handleGenerateUnifiedProject = async () => {
+    setLoading((prev) => ({ ...prev, arch: true, tasks: false, researching: false }));
+    setUnifiedProject(null);
     setTasks([]);
     setFinalIssueURL('');
-    try {
-      const result = await runGenerateArchitecture({ prd }, { apiKey: googleApiKey, model: selectedModel });
-      setArchitecture(result.architecture);
-      setSpecifications(result.specifications);
+    setResearchProgress(0);
 
-      // Automatically generate file structure after architecture/specs
-      const fileStructResult = await runGenerateFileStructure(
-        { prd, architecture: result.architecture, specifications: result.specifications },
-        { apiKey: googleApiKey, model: selectedModel }
+    try {
+      const result = await runGenerateUnifiedProject(
+        { prd },
+        { 
+          apiKey: googleApiKey, 
+          model: selectedModel, 
+          useTDD,
+          researchTasks: true,
+          validatePlan: true
+        }
       );
-      setFileStructure(fileStructResult.fileStructure || '');
+
+      setUnifiedProject(result);
+      
+      // Extract tasks from the unified project plan
+      const allTasks = Object.values(result.projectPlan.dependencyGraph.tasks).map(task => ({
+        title: task.title,
+        details: task.implementationSteps || 'Task research in progress...'
+      }));
+
+      setTasks(allTasks);
+      
+      // Show validation results
+      if (result.validationResults.length > 0) {
+        const warnings = result.validationResults.filter(r => r.severity === 'warning');
+        const errors = result.validationResults.filter(r => r.severity === 'error');
+        
+        if (warnings.length > 0) {
+          toast({
+            title: `${warnings.length} warnings generated`,
+            description: 'Review the validation results for recommendations.',
+          });
+        }
+        
+        if (errors.length > 0) {
+          toast({
+            variant: 'destructive',
+            title: `${errors.length} validation errors`,
+            description: 'Some issues were found in the generated project plan.',
+          });
+        }
+      }
+
+      toast({ 
+        title: 'Project generation complete!', 
+        description: `Generated ${allTasks.length} tasks with full context and dependencies.` 
+      });
+
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Architecture/File Structure Generation Failed',
+        title: 'Project Generation Failed',
         description: (error as Error).message,
       });
+      setUnifiedProject(null);
+      setTasks([]);
     } finally {
       setLoading((prev) => ({ ...prev, arch: false }));
     }
   };
 
-  // REMOVED: handleGenerateFileStructure and all fileStruct loading logic, as file structure is now generated automatically after architecture/specs.
-
   const researchSingleTask = useCallback(async (task: Task) => {
     setTaskLoading(prev => ({ ...prev, [task.title]: true }));
+    
     try {
-      const result = await runResearchTask(
-        { title: task.title, architecture, fileStructure, specifications },
-        { apiKey: googleApiKey, model: selectedModel, useTDD }
+      // Check if we have a unified project context
+      if (!unifiedProject) return;
+      
+      const tasks = Object.values(unifiedProject.projectPlan.dependencyGraph.tasks);
+      const researchTask = tasks.find(t => 
+        t.title.toLowerCase().includes(task.title.toLowerCase())
       );
-      const formattedDetails = `### Context\n${result.context}\n\n### Implementation Steps\n${result.implementationSteps}\n\n### Acceptance Criteria\n${result.acceptanceCriteria}`;
-      setTasks(currentTasks =>
-        currentTasks.map(t => t.title === task.title ? { ...t, details: formattedDetails } : t)
-      );
-      if (selectedTask?.title === task.title) {
-        setEditedTaskDetails(formattedDetails);
+      
+      if (researchTask && researchTask.implementationSteps) {
+        const formattedDetails = `### Context\n${researchTask.context || ''}\n\n### Implementation Steps\n${researchTask.implementationSteps}\n\n### Acceptance Criteria\n${researchTask.acceptanceCriteria || ''}`;
+        setTasks(currentTasks =>
+          currentTasks.map(t => t.title === task.title ? { ...t, details: formattedDetails } : t)
+        );
+        
+        if (selectedTask?.title === task.title) {
+          setEditedTaskDetails(formattedDetails);
+        }
+      } else {
+        // Fallback research if not available in unified project
+        const result = await fetch('/api/research-task', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: task.title,
+            architecture: unifiedProject.projectPlan.context.architecture,
+            fileStructure: unifiedProject.projectPlan.context.fileStructure, 
+            specifications: unifiedProject.projectPlan.context.specifications
+          })
+        });
+        
+        if (result.ok) {
+          const researchResult = await result.json();
+          const formattedDetails = `### Context\n${researchResult.context}\n\n### Implementation Steps\n${researchResult.implementationSteps}\n\n### Acceptance Criteria\n${researchResult.acceptanceCriteria}`;
+          setTasks(currentTasks =>
+            currentTasks.map(t => t.title === task.title ? { ...t, details: formattedDetails } : t)
+          );
+          
+          if (selectedTask?.title === task.title) {
+            setEditedTaskDetails(formattedDetails);
+          }
+        } else {
+          const errorMessage = `Failed to research task: ${task.title}`;
+          setTasks(currentTasks =>
+            currentTasks.map(t => t.title === task.title ? { ...t, details: errorMessage } : t)
+          );
+          
+          if (selectedTask?.title === task.title) {
+            setEditedTaskDetails(errorMessage);
+          }
+        }
       }
     } catch (researchError) {
       const errorMessage = `Failed to research task: ${(researchError as Error).message}`;
       setTasks(currentTasks =>
         currentTasks.map(t => t.title === task.title ? { ...t, details: errorMessage } : t)
       );
-       if (selectedTask?.title === task.title) {
+      
+      if (selectedTask?.title === task.title) {
         setEditedTaskDetails(errorMessage);
       }
     } finally {
       setTaskLoading(prev => ({ ...prev, [task.title]: false }));
     }
-  }, [architecture, fileStructure, specifications, googleApiKey, selectedModel, useTDD, selectedTask?.title]);
-
-
-  const handleGenerateTasks = async () => {
-    setLoading((prev) => ({ ...prev, tasks: true, researching: false }));
-    setTasks([]);
-    setFinalIssueURL('');
-    setResearchProgress(0);
-
-    try {
-      const result = await runGenerateTasks(
-        { architecture, specifications, fileStructure },
-        { apiKey: googleApiKey, model: selectedModel, useTDD }
-      );
-      const initialTasks = result.tasks;
-
-      if (!initialTasks || initialTasks.length === 0) {
-        toast({
-          title: 'No tasks generated',
-          description: 'The AI could not generate a task list. Try adjusting the PRD or architecture.',
-        });
-        setLoading((prev) => ({ ...prev, tasks: false }));
-        return;
-      }
-      
-      const tasksWithPlaceholders = initialTasks.map((t) => ({ ...t, details: 'Researching...' }));
-      setTasks(tasksWithPlaceholders);
-      setLoading((prev) => ({ ...prev, tasks: false, researching: true }));
-      
-      for (let i = 0; i < initialTasks.length; i++) {
-        await researchSingleTask(initialTasks[i]);
-        setResearchProgress(((i + 1) / initialTasks.length) * 100);
-      }
-      
-      toast({ title: 'Task research complete!', description: 'All tasks have been detailed.' });
-
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Task Generation Failed',
-        description: (error as Error).message,
-      });
-      setTasks([]);
-    } finally {
-      setLoading((prev) => ({ ...prev, tasks: false, researching: false }));
-    }
-  };
+  }, [unifiedProject, selectedTask?.title]);
 
 
   const handleCreateIssue = async () => {
     setLoading((prev) => ({ ...prev, issue: true }));
     setFinalIssueURL('');
+    
     try {
       if (!githubToken || !selectedRepo || tasks.length === 0 || selectedRepo === LOCAL_MODE_REPO_ID) {
         toast({
@@ -383,10 +411,21 @@ export default function Home() {
         setLoading((prev) => ({ ...prev, issue: false }));
         return;
       }
-      
+
+      // Use unified project data if available
+      let architecture = '';
+      let specifications = ''; 
+      let fileStructure = '';
+
+      if (unifiedProject) {
+        architecture = unifiedProject.projectPlan.context.architecture;
+        specifications = unifiedProject.projectPlan.context.specifications;
+        fileStructure = unifiedProject.projectPlan.context.fileStructure;
+      }
+
       const result = await createImplementationPlanIssues(
         githubToken,
-        selectedRepo,
+        selectedRepo, 
         prd,
         architecture,
         specifications,
@@ -407,7 +446,7 @@ export default function Home() {
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Issue Creation Failed',
+        title: 'Issue Creation Failed', 
         description: (error as Error).message,
       });
     } finally {
@@ -419,7 +458,7 @@ export default function Home() {
     if (tasks.length === 0) {
       toast({
         variant: 'destructive',
-        title: 'Nothing to Export',
+        title: 'Nothing to Export', 
         description: 'Please generate tasks first.',
       });
       return;
@@ -436,20 +475,81 @@ export default function Home() {
         throw new Error('Could not create folders in zip file.');
       }
 
-      // Add docs
-      docsFolder.file('PRD.md', prd);
-      docsFolder.file('ARCHITECTURE.md', architecture);
-      docsFolder.file('SPECIFICATION.md', specifications);
-      docsFolder.file('FILE_STRUCTURE.md', fileStructure);
+      // Use unified project data if available, otherwise fall back to individual components
+      let architecture = '';
+      let specifications = ''; 
+      let fileStructure = '';
 
-      // Create main tasks file
-      const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
-      tasksFolder.file('tasks.md', `# Task List\n\n${mainTasksContent}`);
+      if (unifiedProject) {
+        architecture = unifiedProject.projectPlan.context.architecture;
+        specifications = unifiedProject.projectPlan.context.specifications;
+        fileStructure = unifiedProject.projectPlan.context.fileStructure;
+
+        // Add validation results to docs if available
+        if (unifiedProject.validationResults.length > 0) {
+          const validationContent = `# Project Validation Results
+
+Generated: ${new Date().toISOString()}
+
+## Summary
+- **Total Issues**: ${unifiedProject.validationResults.length}
+- **Errors**: ${unifiedProject.validationResults.filter(r => r.severity === 'error').length}
+- **Warnings**: ${unifiedProject.validationResults.filter(r => r.severity === 'warning').length}
+
+## Issues
+${unifiedProject.validationResults.map(r => `- **[${r.severity.toUpperCase()}]** ${r.message}`).join('\n')}
+`;
+          docsFolder.file('VALIDATION.md', validationContent);
+        }
+
+        // Add execution order information
+        if (unifiedProject.executionOrder.length > 0) {
+          const executionContent = `# Task Execution Order
+
+Generated: ${new Date().toISOString()}
+
+## Optimal Task Sequence
+${unifiedProject.executionOrder.map((taskId, index) => {
+  const task = unifiedProject.projectPlan.dependencyGraph.tasks[taskId];
+  return `${index + 1}. **${task?.title || taskId}**`;
+}).join('\n')}
+`;
+          docsFolder.file('EXECUTION_ORDER.md', executionContent);
+        }
+      } else {
+        // Fallback to individual components
+        docsFolder.file('PRD.md', prd);
+      }
+
+      // Add core documents  
+      if (architecture) docsFolder.file('ARCHITECTURE.md', architecture);
+      if (specifications) docsFolder.file('SPECIFICATION.md', specifications);
+      if (fileStructure) docsFolder.file('FILE_STRUCTURE.md', fileStructure);
+
+      // Create main tasks file  
+      const mainTasksContent = `# Task List
+
+Generated: ${new Date().toISOString()}
+
+${tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n')}
+
+## Task Summary
+- **Total Tasks**: ${tasks.length}
+- **Researched**: ${tasks.filter(t => t.details && !t.details.startsWith('Failed to research')).length}
+- **Pending Research**: ${tasks.filter(t => t.details && t.details.startsWith('Failed to research')).length}
+`;
+      tasksFolder.file('tasks.md', mainTasksContent);
 
       // Create individual task files
       tasks.forEach((task, index) => {
         const taskNumber = (index + 1).toString().padStart(3, '0');
-        tasksFolder.file(`task-${taskNumber}.md`, `# ${task.title}\n\n${task.details}`);
+        const taskContent = `# ${task.title}
+
+**Generated**: ${new Date().toISOString()}
+
+${task.details || 'No detailed information available for this task.'}
+`;
+        tasksFolder.file(`task-${taskNumber}.md`, taskContent);
       });
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -457,12 +557,12 @@ export default function Home() {
 
       toast({
         title: 'Export Successful',
-        description: 'Your project data has been downloaded as a zip file.',
+        description: `Your project data with ${tasks.length} tasks has been downloaded as a zip file.`,
       });
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Export Failed',
+        title: 'Export Failed', 
         description: 'There was an error creating the zip file.',
       });
       console.error('Export error:', error);
@@ -695,7 +795,7 @@ export default function Home() {
                   </CardContent>
                   <CardFooter>
                     <Button
-                      onClick={handleGenerateArchitecture}
+                      onClick={handleGenerateUnifiedProject}
                       disabled={!prd || loading.arch}
                       className="ml-auto"
                     >
@@ -706,7 +806,7 @@ export default function Home() {
                         </>
                       ) : (
                         <>
-                          Generate Architecture <ChevronRight className="ml-2 h-4 w-4" />
+                          Generate Complete Project Plan <ChevronRight className="ml-2 h-4 w-4" />
                         </>
                       )}
                     </Button>
