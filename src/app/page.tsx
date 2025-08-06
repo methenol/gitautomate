@@ -122,6 +122,7 @@ export default function Home() {
   const [googleApiKey, setGoogleApiKey] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<string>(UI_DEFAULT_MODEL);
   const [useTDD, setUseTDD] = useState<boolean>(false);
+  const [useUnifiedWorkflow, setUseUnifiedWorkflow] = useState<boolean>(true);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
