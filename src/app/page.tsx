@@ -871,7 +871,7 @@ export default function Home() {
                       {loading.arch ? 'Regenerating...' : 'Regenerate'}
                     </Button>
                     {/* HIDE Generate Tasks button when using unified workflow */}
-                    {architecture && !loading.unified && (
+                    {architecture && !useUnifiedWorkflow && !loading.unified && (
                       <Button onClick={handleGenerateTasks} disabled={loading.tasks || loading.researching}>
                         {loading.tasks || loading.researching ? (
                           <>
