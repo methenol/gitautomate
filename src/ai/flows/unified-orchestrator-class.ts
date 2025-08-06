@@ -1,6 +1,80 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
+// Helper function to compute critical path
+function computeCriticalPath(dependencyGraph: any, tasks: any[]): string[] {
+  if (!dependencyGraph || !tasks) return [];
+  
+  try {
+    // Extract nodes and edges from dependency graph
+    const { nodes, edges } = dependencyGraph;
+    
+    // Build adjacency list for topological sort
+    const adjList: Map<string, string[]> = new Map();
+    
+    // Initialize adjacency list
+    nodes.forEach((node: string) => {
+      adjList.set(node, []);
+    });
+    
+    // Add edges to adjacency list
+    edges.forEach((edge: any) => {
+      const currentDeps = adjList.get(edge.from) || [];
+      if (!currentDeps.includes(edge.to)) {
+        currentDeps.push(edge.to);
+        adjList.set(edge.from, currentDeps);
+      }
+    });
+    
+    // Kahn's algorithm for topological sort
+    const inDegree: Map<string, number> = new Map();
+    
+    // Initialize in-degree
+    nodes.forEach((node: string) => {
+      inDegree.set(node, 0);
+    });
+    
+    // Calculate in-degree
+    edges.forEach((edge: any) => {
+      const currentDegree = (inDegree.get(edge.to) || 0) + 1;
+      inDegree.set(edge.to, currentDegree);
+    });
+    
+    // Find nodes with no incoming edges
+    const queue: string[] = [];
+    nodes.forEach((node: string) => {
+      if (inDegree.get(node) === 0) {
+        queue.push(node);
+      }
+    });
+    
+    // Perform topological sort
+    const criticalPath: string[] = [];
+    while (queue.length > 0) {
+      // Process node with no dependencies first
+      const node = queue.shift()!;
+      criticalPath.push(node);
+      
+      // Reduce in-degree for neighbors
+      const neighbors = adjList.get(node) || [];
+      neighbors.forEach((neighbor: string) => {
+        const newDegree = (inDegree.get(neighbor) || 0) - 1;
+        inDegree.set(neighbor, newDegree);
+        
+        // If neighbor has no more dependencies, add to queue
+        if (newDegree === 0) {
+          queue.push(neighbor);
+        }
+      });
+    }
+    
+    return criticalPath;
+  } catch (error) {
+    console.warn('Error computing critical path:', error);
+    return [];
+  }
+}
+
 // Import the new unified components
 import {
   ProjectContextManager,
@@ -105,16 +179,24 @@ export const UnifiedOrchestratorOutputSchema = z.object({
 
 export type UnifiedOrchestratorOutput = z.infer<typeof UnifiedOrchestratorOutputSchema>;
 
+// Interface abstraction for the validator to avoid circular dependency
+export interface IProjectPlanValidator {
+    validate(plan: any): Promise<any>; // Replace 'any' with the actual types if available
+}
+
 // Main Unified Orchestrator class
 export class UnifiedProjectOrchestrator {
     private contextManager: ProjectContextManager;
     private taskGenerator: TaskGenerationOrchestrator;
-    private validator: unknown; // Using any type temporarily to avoid circular dependency
+    private validator: IProjectPlanValidator;
     
-    constructor(contextManager?: ProjectContextManager) {
+    constructor(
+      contextManager?: ProjectContextManager,
+      validator?: IProjectPlanValidator
+    ) {
       this.contextManager = contextManager || getGlobalContextManager();
       this.taskGenerator = new TaskGenerationOrchestrator(this.contextManager);
-      // Initialize validator with proper type later
+      this.validator = validator || new ProjectPlanValidator();
     }
 
     async generateCompleteProject(
@@ -207,7 +289,7 @@ export class UnifiedProjectOrchestrator {
 
           dependencyGraph: taskGenerationResult.dependencyGraph,
 
-          criticalPath: [], // Temporary fix
+          criticalPath: computeCriticalPath(taskGenerationResult.dependencyGraph, taskGenerationResult.tasks || []),
 
           validationReport: {
             overallStatus: 'passed',
@@ -282,7 +364,7 @@ export class UnifiedProjectOrchestrator {
 
         dependencyGraph: { nodes: [], edges: [] },
 
-        criticalPath: [],
+        criticalPath: computeCriticalPath({ nodes: [], edges: [] }, []),
 
         validationReport: {
           overallStatus: 'warning',
