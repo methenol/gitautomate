@@ -181,7 +181,7 @@ export type UnifiedOrchestratorOutput = z.infer<typeof UnifiedOrchestratorOutput
 
 // Interface abstraction for the validator to avoid circular dependency
 export interface IProjectPlanValidator {
-    validate(plan: any): Promise<any>; // Replace 'any' with the actual types if available
+    validateProjectPlan(plan: any): Promise<any>; // Replace 'any' with the actual types if available
 }
 
 // Main Unified Orchestrator class
