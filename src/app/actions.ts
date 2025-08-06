@@ -7,6 +7,7 @@ import {
 import { generateTasks, GenerateTasksInput } from '@/ai/flows/generate-tasks';
 import { researchTask, ResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
 import { generateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
+import { generateCompleteProject, UnifiedOrchestratorInput } from '@/ai/flows/unified-orchestrator';
 import { listAvailableModels } from '@/ai/genkit';
 
 type ActionOptions = {
@@ -152,5 +153,41 @@ export async function getModels(options?: ActionOptions): Promise<string[]> {
       throw new Error(`Failed to fetch models: ${error.message}`);
     }
     throw new Error('An unknown error occurred while fetching models.');
+  }
+}
+
+// NEW: Unified orchestrator action - COMPLETE REPLACEMENT for the old siloed workflow
+export async function runUnifiedOrchestrator(
+  input: UnifiedOrchestratorInput,
+  options?: ActionOptions
+): Promise<any> {
+  try {
+    console.log('🚀 Starting unified orchestrator with input:', JSON.stringify(input, null, 2));
+    
+    const result = await generateCompleteProject(
+      input,
+      options?.apiKey,
+      options?.model
+    );
+    
+    console.log('✅ Unified orchestrator completed successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Error in unified orchestrator:', error);
+    
+    if (
+      error instanceof Error &&
+      (error.message.includes('API key not found') ||
+        error.message.includes('API key is invalid') ||
+        error.message.includes('Please check your Google AI API key'))
+    ) {
+      throw new Error(
+        'Unified orchestrator failed: Your Google AI API key is missing or invalid. Please check it in settings.'
+      );
+    }
+    
+    throw new Error(
+      `Unified orchestrator failed: ${(error as Error).message}. This may indicate issues with the AI model or network connectivity.`
+    );
   }
 }

@@ -12,6 +12,7 @@ import {
   runGenerateTasks,
   runResearchTask,
   runGenerateFileStructure,
+  runUnifiedOrchestrator,
   getModels,
 } from './actions';
 import type { Task } from '@/types';
@@ -99,6 +100,7 @@ type LoadingStates = {
   issue: boolean;
   exporting: boolean;
   models: boolean;
+  unified: boolean; // New loading state for unified orchestrator
 };
 
 type TaskLoadingStates = {
@@ -145,6 +147,7 @@ export default function Home() {
     issue: false,
     exporting: false,
     models: false,
+    unified: false, // New loading state for unified orchestrator
   });
   
   const [taskLoading, setTaskLoading] = useState<TaskLoadingStates>({});
@@ -265,6 +268,81 @@ export default function Home() {
     }
   };
 
+  // NEW: Unified orchestrator handler - COMPLETE REPLACEMENT for the old siloed workflow
+  const handleGenerateUnifiedProject = async () => {
+    setLoading((prev) => ({ ...prev, unified: true }));
+    
+    // Clear all previous results
+    setArchitecture('');
+    setSpecifications('');
+    setFileStructure('');
+    setTasks([]);
+    setFinalIssueURL('');
+    
+    try {
+      console.log('🚀 Starting unified project generation...');
+      
+      const result = await runUnifiedOrchestrator(
+        {
+          prd,
+          // Let the orchestrator generate these components automatically
+          generateArchitecture: true,
+          generateFileStructure: true, 
+          
+          // Configuration options
+          useTDD,
+          optimizationStrategy: 'sequential' as const, // Can be changed by user preference
+          
+          // Validation enabled with reasonable limits
+          enableValidation: true,
+          maxIterations: 3
+        },
+        { apiKey: googleApiKey, model: selectedModel }
+      );
+      
+      console.log('✅ Unified orchestrator completed successfully');
+      toast({
+        title: '🎉 Project Generation Complete!',
+        description: `Generated ${result.tasks.length} tasks with full dependency analysis and validation.`,
+      });
+      
+      // Update the UI with the unified results
+      setArchitecture(result.projectContext.architecture);
+      setSpecifications(result.projectContext.specifications);
+      setFileStructure(result.projectContext.fileStructure);
+      
+      // Convert unified tasks to legacy Task format for compatibility
+      const legacyTasks = result.tasks.map(task => ({
+        title: task.title,
+        details: task.details
+      }));
+      
+      setTasks(legacyTasks);
+      
+      // Show validation results if available
+      if (result.validationReport.overallStatus !== 'passed') {
+        toast({
+          variant: result.validationReport.overallStatus === 'failed' ? 'destructive' : 'default',
+          title: `Validation ${result.validationReport.overallStatus.toUpperCase()}`,
+          description: result.validationReport.summary,
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Unified orchestrator error:', error);
+      
+      toast({
+        variant: 'destructive',
+        title: 'Project Generation Failed',
+        description: (error as Error).message || 'The unified orchestrator encountered an error. Please try again.',
+      });
+      
+    } finally {
+      setLoading((prev) => ({ ...prev, unified: false }));
+    }
+  };
+
+  // LEGACY: Old architecture handler - kept for fallback compatibility
   const handleGenerateArchitecture = async () => {
     setLoading((prev) => ({ ...prev, arch: true }));
     setArchitecture('');
@@ -693,11 +771,34 @@ export default function Home() {
                       rows={10}
                     />
                   </CardContent>
-                  <CardFooter>
+                  <CardFooter className="flex flex-col gap-2">
+                    {/* NEW: Unified Project Generation Button */}
+                    <Button
+                      onClick={handleGenerateUnifiedProject}
+                      disabled={!prd || loading.unified}
+                      className="w-full"
+                    >
+                      {loading.unified ? (
+                        <>
+                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                          Generating Complete Project...
+                        </>
+                      ) : (
+                        <>
+                          🚀 Generate Complete Project <ChevronRight className="ml-2 h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                    
+                    {/* LEGACY: Old architecture button - kept for compatibility */}
+                    <div className="text-xs text-muted-foreground mb-2">
+                      Or use legacy workflow:
+                    </div>
                     <Button
                       onClick={handleGenerateArchitecture}
                       disabled={!prd || loading.arch}
-                      className="ml-auto"
+                      variant="outline"
+                      className="w-full"
                     >
                       {loading.arch ? (
                         <>
@@ -769,15 +870,17 @@ export default function Home() {
                     >
                       {loading.arch ? 'Regenerating...' : 'Regenerate'}
                     </Button>
-                    <Button onClick={handleGenerateTasks} disabled={loading.tasks || loading.researching}>
-                      {loading.tasks || loading.researching ? (
-                        <>
-                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          Generate Tasks <ChevronRight className="ml-2 h-4 w-4" />
+                    {/* HIDE Generate Tasks button when using unified workflow */}
+                    {architecture && !loading.unified && (
+                      <Button onClick={handleGenerateTasks} disabled={loading.tasks || loading.researching}>
+                        {loading.tasks || loading.researching ? (
+                          <>
+                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            Generate Tasks <ChevronRight className="ml-2 h-4 w-4" />
                         </>
                       )}
                     </Button>
@@ -786,10 +889,41 @@ export default function Home() {
               </motion.div>
             )}
 
+            {loading.unified && (
+               <motion.div key="loading-unified" {...cardAnimation}>
+                   <LoadingSpinner text="Generating complete project with unified orchestrator..." />
+               </motion.div>
+            )}
+            
             {loading.arch && (
                <motion.div key="loading-arch" {...cardAnimation}>
                    <LoadingSpinner text="Generating architecture & specs..." />
                </motion.div>
+            )}
+
+            {/* Unified Workflow Benefits */}
+            {architecture && tasks.length > 0 && (
+              <motion.div key="unified-benefits" {...cardAnimation}>
+                <Card className="border-green-200 bg-green-50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-green-800">
+                      <CheckCircle2 className="h-6 w-6" />
+                      🎉 Unified Workflow Complete
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-green-700">
+                    <div className="space-y-2 text-sm">
+                      <p>✅ <strong>Architecture & Tasks Generated Together</strong></p>
+                      <p>✅ <strong>Dependency Analysis Applied</strong> - Tasks know about their dependencies</p>
+                      <p>✅ <strong>Cross-Component Validation</strong> - Architecture, file structure, and tasks are consistent</p>
+                      <p>✅ <strong>Iterative Refinement</strong> - System automatically improves based on validation feedback</p>
+                      <div className="mt-3 p-2 bg-white rounded border">
+                        <p className="text-xs text-gray-600">🚀 This new unified workflow fixes the architectural flaws identified in Issue #7!</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             )}
 
             {/* Step 4: Task List */}
