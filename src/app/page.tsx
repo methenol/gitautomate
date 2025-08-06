@@ -14,6 +14,10 @@ import {
   runGenerateFileStructure,
   getModels,
 } from './actions';
+import {
+  runGenerateUnifiedProject,
+  validateUnifiedReadiness,
+} from './actions';
 import type { Task } from '@/types';
 import {
   getRepositories,
@@ -81,6 +85,7 @@ import {
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Label } from '@/components/ui/label';
+import UnifiedProjectGenerator from '@/components/unified-project-generator';
 
 const settingsSchema = z.object({
   githubToken: z.string().optional(),
@@ -116,6 +121,10 @@ const UI_DEFAULT_MODEL = 'gemini-1.5-flash-latest';
 
 export default function Home() {
   const { toast } = useToast();
+  
+  // Active tab state
+  const [activeTab, setActiveTab] = useState<'legacy' | 'unified'>('legacy');
+  
   const [githubToken, setGithubToken] = useState<string>('');
   const [googleApiKey, setGoogleApiKey] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<string>(UI_DEFAULT_MODEL);
@@ -617,6 +626,37 @@ export default function Home() {
       </header>
 
       <main className="container mx-auto p-4 md:p-8">
+        
+        {/* Tab Navigation */}
+        <div className="mb-6 border-b pb-4">
+          <nav className="flex space-x-1" role="tablist">
+            <button
+              onClick={() => setActiveTab('legacy')}
+              className={`px-4 py-2 rounded-t-lg font-medium text-sm transition-colors ${
+                activeTab === 'legacy'
+                  ? 'bg-background border-t border-x border-primary/20 text-primary -mb-px'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Legacy Workflow
+            </button>
+            <button
+              onClick={() => setActiveTab('unified')}
+              className={`px-4 py-2 rounded-t-lg font-medium text-sm transition-colors flex items-center gap-1 ${
+                activeTab === 'unified'
+                  ? 'bg-background border-t border-x border-primary/20 text-primary -mb-px'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <span>✨ Unified Architecture</span>
+            </button>
+          </nav>
+        </div>
+
+      {/* Tab Content */}
+      {activeTab === 'unified' ? (
+        <UnifiedProjectGenerator />
+      ) : (
         <div className="mx-auto max-w-3xl space-y-8">
           <AnimatePresence>
             {/* Step 1: Configuration & Repo Selection */}
@@ -1007,6 +1047,9 @@ export default function Home() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        {/* Close conditional for legacy tab content */}
+      )}
+      
     </div>
   );
 }
