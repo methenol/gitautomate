@@ -49,7 +49,7 @@ export const ValidationResultSchema = z.object({
   warningChecks: z.number(),
   results: z.array(z.object({
     id: z.string(),
-    type: z.enum(['architecture_consistency', 'task_dependency_validation', 'file_structure_alignment']),
+    type: z.enum(['architecture_consistency', 'task_dependency_validation', 'file_structure_alignment', 'prd_coverage_validation']),
     status: z.enum(['passed', 'failed', 'warning']),
     severity: z.enum(['low', 'medium', 'high']),
     message: z.string(),
@@ -378,7 +378,7 @@ export class ProjectPlanValidator {
 
       return {
         id: 'prd_coverage_validation',
-        type: 'file_structure_alignment' as const, // Using existing enum for compatibility
+        type: 'prd_coverage_validation' as const,
         status,
         severity: issues.length > 1 ? 'high' : (issues.length > 0 || coverageRatio < 0.7 ? 'medium' : 'low'),
         message: issues.length > 0 
