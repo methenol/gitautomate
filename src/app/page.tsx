@@ -312,7 +312,7 @@ export default function Home() {
       setFileStructure(result.projectContext.fileStructure);
       
       // Convert unified tasks to legacy Task format for compatibility
-      const legacyTasks = result.tasks.map(task => ({
+      const legacyTasks = result.tasks.map((task: any) => ({
         title: task.title,
         details: task.details
       }));
@@ -881,9 +881,10 @@ export default function Home() {
                         ) : (
                           <>
                             Generate Tasks <ChevronRight className="ml-2 h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </CardFooter>
                 </Card>
               </motion.div>
