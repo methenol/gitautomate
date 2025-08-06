@@ -1,13 +1,22 @@
 'use server';
 
+// Import both old and new unified systems for migration
 import {
   generateArchitecture,
-  GenerateArchitectureInput,
+  GenerateArchitectureInput as OldGenerateArchitectureInput,
 } from '@/ai/flows/generate-architecture';
-import { generateTasks, GenerateTasksInput } from '@/ai/flows/generate-tasks';
-import { researchTask, ResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
-import { generateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
+import { generateTasks, GenerateTasksInput as OldGenerateTasksInput } from '@/ai/flows/generate-tasks';
+import { researchTask, ResearchTaskInput as OldResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
+import { generateFileStructure, GenerateFileStructureInput as OldGenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
 import { listAvailableModels } from '@/ai/genkit';
+
+// Import new unified system
+import {
+  generateUnifiedProjectPlan,
+} from '@/ai/flows/task-generation-orchestrator';
+import {
+  generateUnifiedTasksWithResearch,
+} from '@/ai/flows/unified-actions';
 
 type ActionOptions = {
   apiKey?: string;
@@ -15,13 +24,44 @@ type ActionOptions = {
   useTDD?: boolean;
 };
 
+// Feature flag to control which system is used
+const USE_UNIFIED_SYSTEM = true; // Set to false to use old system during development/testing
+
 export async function runGenerateArchitecture(
-  input: GenerateArchitectureInput,
+  input: OldGenerateArchitectureInput,
   options?: ActionOptions
 ) {
   if (!input.prd) {
     throw new Error('PRD is required to generate architecture.');
   }
+
+  if (USE_UNIFIED_SYSTEM) {
+    try {
+      const projectPlanInput = {
+        prd: input.prd,
+        apiKey: options?.apiKey,
+        model: options?.model || 'gemini-1.5-flash-latest',
+      };
+
+      const projectPlan = await generateUnifiedProjectPlan(projectPlanInput);
+      
+      if (!projectPlan.context.architecture) {
+        throw new Error('Failed to generate architecture');
+      }
+
+      return {
+        architecture: projectPlan.context.architecture.architecture,
+        specifications: projectPlan.context.architecture.specifications
+      };
+    } catch (error) {
+      console.error('Error generating architecture with unified system:', error);
+      throw new Error(
+        `Unified architecture generation failed: ${(error as Error).message}`
+      );
+    }
+  }
+
+  // Old system (fallback)
   try {
     const result = await generateArchitecture(
       input,
@@ -48,7 +88,7 @@ export async function runGenerateArchitecture(
 }
 
 export async function runGenerateTasks(
-  input: GenerateTasksInput,
+  input: OldGenerateTasksInput,
   options?: ActionOptions
 ) {
   if (!input.architecture || !input.specifications || !input.fileStructure) {
@@ -56,6 +96,26 @@ export async function runGenerateTasks(
       'Architecture, specifications, and file structure are required to generate tasks.'
     );
   }
+
+  if (USE_UNIFIED_SYSTEM) {
+    try {
+      const projectPlanInput = {
+        prd: `Architecture:\n${input.architecture}\n\nSpecifications:\n${input.specifications}`,
+        apiKey: options?.apiKey,
+        model: options?.model || 'gemini-1.5-flash-latest',
+        useTDD: options?.useTDD || false,
+      };
+
+      return await generateUnifiedTasksWithResearch(projectPlanInput);
+    } catch (error) {
+      console.error('Error generating tasks with unified system:', error);
+      throw new Error(
+        `Unified task generation failed: ${(error as Error).message}`
+      );
+    }
+  }
+
+  // Old system (fallback)
   try {
     const result = await generateTasks(input, options?.apiKey, options?.model, options?.useTDD);
     return result;
@@ -69,12 +129,9 @@ export async function runGenerateTasks(
 
 /**
  * Generates a proposed file/folder structure for a software project.
- * @param input - { prd, architecture, specifications }
- * @param options - { apiKey, model }
- * @returns { fileStructure: string }
  */
 export async function runGenerateFileStructure(
-  input: GenerateFileStructureInput,
+  input: OldGenerateFileStructureInput,
   options?: ActionOptions
 ) {
   if (!input.prd || !input.architecture || !input.specifications) {
@@ -82,6 +139,33 @@ export async function runGenerateFileStructure(
       'PRD, architecture, and specifications are required to generate the file structure.'
     );
   }
+
+  if (USE_UNIFIED_SYSTEM) {
+    try {
+      const projectPlanInput = {
+        prd: input.prd,
+        apiKey: options?.apiKey,
+        model: options?.model || 'gemini-1.5-flash-latest',
+      };
+
+      const projectPlan = await generateUnifiedProjectPlan(projectPlanInput);
+      
+      if (!projectPlan.context.fileStructure) {
+        throw new Error('Failed to generate file structure');
+      }
+
+      return {
+        fileStructure: projectPlan.context.fileStructure.fileStructure
+      };
+    } catch (error) {
+      console.error('Error generating file structure with unified system:', error);
+      throw new Error(
+        `Unified file structure generation failed: ${(error as Error).message}`
+      );
+    }
+  }
+
+  // Old system (fallback)
   try {
     const result = await generateFileStructure(
       input,
@@ -108,7 +192,7 @@ export async function runGenerateFileStructure(
 }
 
 export async function runResearchTask(
-  input: ResearchTaskInput,
+  input: OldResearchTaskInput,
   options?: ActionOptions
 ): Promise<ResearchTaskOutput> {
   if (!input.title || !input.architecture || !input.specifications || !input.fileStructure) {
@@ -117,6 +201,39 @@ export async function runResearchTask(
     );
   }
 
+  if (USE_UNIFIED_SYSTEM) {
+    try {
+      const projectPlanInput = {
+        prd: `Architecture:\n${input.architecture}\n\nSpecifications:\n${input.specifications}`,
+        apiKey: options?.apiKey,
+        model: options?.model || 'gemini-1.5-flash-latest',
+        useTDD: options?.useTDD || false,
+      };
+
+      const projectPlan = await generateUnifiedProjectPlan(projectPlanInput);
+      
+      // Find the research result for this specific task
+      const task = projectPlan.tasks.find(t => t.title === input.title);
+      if (!task) {
+        throw new Error(`Task not found: ${input.title}`);
+      }
+
+      const researchResult = projectPlan.researchResults.get(task.id);
+      
+      if (!researchResult) {
+        throw new Error(`Failed to research task: ${input.title}`);
+      }
+
+      return researchResult;
+    } catch (error) {
+      console.error(`Error researching task "${input.title}" with unified system:`, error);
+      throw new Error(
+        `Unified task research failed: ${(error as Error).message}`
+      );
+    }
+  }
+
+  // Old system (fallback)
   const MAX_RETRIES = 3;
   for (let i = 0; i < MAX_RETRIES; i++) {
     try {
@@ -153,4 +270,64 @@ export async function getModels(options?: ActionOptions): Promise<string[]> {
     }
     throw new Error('An unknown error occurred while fetching models.');
   }
+
+  // NEW: Add unified system validation endpoint
 }
+
+export async function validateUnifiedProjectPlan(
+  prd: string,
+  options?: ActionOptions
+): Promise<{
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}> {
+  try {
+    const projectPlanInput = {
+      prd,
+      apiKey: options?.apiKey,
+      model: options?.model || 'gemini-1.5-flash-latest',
+    };
+
+    const projectPlan = await generateUnifiedProjectPlan(projectPlanInput);
+    
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Check validation results
+    projectPlan.validationResults.forEach((result) => {
+      if (!result.passed && result.severity === 'error') {
+        errors.push(result.message);
+      } else if (!result.passed && result.severity === 'warning') {
+        warnings.push(result.message);
+      }
+    });
+
+    // Additional consistency checks
+    if (!projectPlan.context.architecture) {
+      errors.push('Could not generate project architecture');
+    }
+
+    if (!projectPlan.context.fileStructure) {
+      errors.push('Could not generate file structure');
+    }
+
+    if (projectPlan.tasks.length === 0) {
+      errors.push('No tasks were generated');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  } catch (error) {
+    return {
+      isValid: false,
+      errors: [`Validation failed: ${(error as Error).message}`],
+      warnings: []
+    };
+  }
+}
+
+
