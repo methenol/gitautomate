@@ -90,7 +90,7 @@ export type UnifiedWorkflowInput = z.infer<typeof UnifiedWorkflowInputSchema>;
 
 // Complete project plan output
 const ProjectPlanOutputSchema = z.object({
-  tasks: z.array(z.record(TaskSchema)).describe('Tasks with full implementation details'),
+  tasks: z.array(TaskSchema).describe('Tasks with full implementation details'),
   executionOrder: z.array(z.string()).describe('Sequential task execution order based on dependencies'),
   validationResults: z.array(z.object({
     isValid: z.boolean(),
@@ -281,7 +281,7 @@ async function generateTasksWithContext(
         fileStructure: z.string().describe('Generated file structure'),
       }),
       outputSchema: z.object({
-        tasks: z.array(z.record(TaskSchema)),
+        tasks: z.array(TaskSchema),
         dependencyGraph: z.array(z.object({
           source: z.string(),
           target: z.string(), 
@@ -335,11 +335,9 @@ async function generateTasksWithContext(
       title: task.title,
       details: task.details
     })),
-    executionOrder: [], // Will be populated by the final orchestration
-    validationResults: [],
-    estimatedDuration: undefined,
+    dependencyGraph: flowResult.dependencyGraph || [],
   };
-
+}
 
 /**
  * Step 4: Research Tasks with Dependency Awareness
@@ -649,27 +647,6 @@ async function validatePRDCoverage(prd: string, tasks: Task[]): Promise<Validati
     warnings: [],
     timestamp: new Date().toISOString(),
   };
-}
-
-}
-
-/**
- * Helper function stubs
- */
-function enhanceArchitectureForConsistency(architecture: string, prd: string): string {
-  return architecture;
-}
-
-function enhanceFileStructureForTaskGeneration(fileStructure: string, architecture: string): string {
-  return fileStructure;
-}
-
-function enhanceTaskGenerationPrompt(input: any): string {
-  return "Generate tasks with dependency information";
-}
-
-function extractDependencyGraph(tasks: any[]): any[] {
-  return [];
 }
 
 function formatTaskResearchResult(result: any, context: any): string {
