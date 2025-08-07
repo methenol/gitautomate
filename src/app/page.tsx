@@ -16,6 +16,15 @@ import {
   getModels,
 } from './actions';
 import type { Task } from '@/types';
+
+/**
+ * Stub function for researching a single task
+ */
+function researchSingleTask(task: any) {
+  console.log('Researching task:', task);
+  alert(`Research functionality for "${task.title}" not yet implemented`);
+}
+
 import {
   getRepositories,
   createImplementationPlanIssues,
@@ -312,12 +321,22 @@ export default function Home() {
         // For now, we'll display the tasks directly
         // The unified workflow handles architecture, file structure, and task research internally
         
-        setTasks(result.tasks);
+
         
-        console.log(`Unified workflow generated ${result.tasks.length} tasks with validation results`);
+        // Convert Record<string, Task>[] to Task[]
+        const tasksArray = Object.values(result.tasks).map(task => ({
+          title: task.title,
+          details: task.details
+        }));
+        
+
+        setTasks(Array.isArray(tasksArray) ? tasksArray : Object.values(tasksArray).map((item: any) => ({ title: item.title || 'Unknown Task', details: item.details || '' })) as any);
+
+        
+        console.log(`Unified workflow generated ${tasksArray.length} tasks with validation results`);
         
         // Check validation results
-        const hasErrors = result.validationResults.some(v => !v.isValid);
+        const hasErrors = result.validationResults.some((v: any) => !v.isValid);
         if (hasErrors) {
           const errorMessages = result.validationResults
             .filter(v => !v.isValid)

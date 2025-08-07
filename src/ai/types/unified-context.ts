@@ -10,6 +10,9 @@
 import { z } from 'genkit';
 import type { Task } from '@/types';
 
+// Get the schema reference for Task
+import { TaskSchema } from '@/types';
+
 // Dependency graph edge definition
 const DependencyEdgeSchema = z.object({
   source: z.string().describe('Source task title'),
@@ -59,7 +62,7 @@ export type TaskResearchContext = z.infer<typeof TaskResearchContextSchema>;
 
 // Complete project plan output
 const ProjectPlanOutputSchema = z.object({
-  tasks: z.array(z.record(Task.schema)).describe('Tasks with full implementation details'),
+  tasks: z.array(z.record(TaskSchema)).describe('Tasks with full implementation details'),
   executionOrder: z.array(z.string()).describe('Sequential task execution order based on dependencies'),
   validationResults: z.array(ValidationResultSchema).describe('Cross-consistency validation results'),
   estimatedDuration: z.number().optional().describe('Estimated implementation duration in hours')
