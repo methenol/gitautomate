@@ -114,30 +114,20 @@ export async function researchTask(
     .replace('{{{specifications}}}', input.specifications)
     .replace('{{{title}}}', input.title);
 
-  const researchTaskFlow = ai.defineFlow(
-    {
-      name: 'researchTaskFlow',
-      inputSchema: z.string(),
-      outputSchema: ResearchTaskOutputSchema,
+  const {output} = await ai.generate({
+    model: modelName,
+    prompt: prompt,
+    output: {
+      schema: ResearchTaskOutputSchema,
     },
-    async (prompt) => {
-      const {output} = await ai.generate({
-        model: modelName,
-        prompt: prompt,
-        output: {
-          schema: ResearchTaskOutputSchema,
-        },
-        config: apiKey ? {apiKey} : undefined,
-      });
+    config: apiKey ? {apiKey} : undefined,
+  });
 
-      if (!output) {
-        throw new Error(
-          'An unexpected response was received from the server.'
-        );
-      }
-      return output;
-    }
-  );
+  if (!output) {
+    throw new Error(
+      'An unexpected response was received from the server.'
+    );
+  }
 
-  return await researchTaskFlow(prompt);
+  return output;
 }

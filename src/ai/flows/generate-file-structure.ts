@@ -72,30 +72,20 @@ export async function generateFileStructure(
     .replace('{{{architecture}}}', input.architecture)
     .replace('{{{specifications}}}', input.specifications);
 
-  const generateFileStructureFlow = ai.defineFlow(
-    {
-      name: 'generateFileStructureFlow',
-      inputSchema: GenerateFileStructureInputSchema,
-      outputSchema: GenerateFileStructureOutputSchema,
+  const { output } = await ai.generate({
+    model: modelName,
+    prompt: prompt,
+    output: {
+      schema: GenerateFileStructureOutputSchema,
     },
-    async (_input) => {
-      const { output } = await ai.generate({
-        model: modelName,
-        prompt: prompt,
-        output: {
-          schema: GenerateFileStructureOutputSchema,
-        },
-        config: apiKey ? { apiKey } : undefined,
-      });
+    config: apiKey ? { apiKey } : undefined,
+  });
 
-      if (!output) {
-        throw new Error(
-          'An unexpected response was received from the server.'
-        );
-      }
-      return output;
-    }
-  );
+  if (!output) {
+    throw new Error(
+      'An unexpected response was received from the server.'
+    );
+  }
 
-  return await generateFileStructureFlow(input);
+  return output;
 }
