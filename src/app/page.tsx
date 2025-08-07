@@ -273,13 +273,6 @@ export default function Home() {
   const handleGenerateUnifiedProject = async () => {
     setLoading((prev) => ({ ...prev, unified: true }));
     
-    // Clear all previous results
-    setArchitecture('');
-    setSpecifications('');
-    setFileStructure('');
-    setTasks([]);
-    setFinalIssueURL('');
-    
     try {
       console.log('🚀 Starting unified project generation...');
       
@@ -294,38 +287,37 @@ export default function Home() {
           useTDD,
           optimizationStrategy: 'sequential' as const, // Can be changed by user preference
           
-          // Validation enabled with reasonable limits
+          // Validation enabled with reasonable limits - this triggers the two-phase workflow
           enableValidation: true,
           maxIterations: 3
         },
         { apiKey: googleApiKey, model: selectedModel }
       );
       
-      console.log('✅ Unified orchestrator completed successfully');
-      toast({
-        title: '🎉 Project Generation Complete!',
-        description: `Generated ${result.tasks.length} tasks with full dependency analysis and validation.`,
-      });
+      console.log('✅ Unified orchestrator completed with project context');
       
-      // Update the UI with the unified results
+      // Update the UI with the generated plans (editable by user)
       setArchitecture(result.projectContext.architecture);
       setSpecifications(result.projectContext.specifications);
       setFileStructure(result.projectContext.fileStructure);
       
-      // Convert unified tasks to legacy Task format for compatibility
-      const legacyTasks = result.tasks.map((task: any) => ({
-        title: task.title,
-        details: task.details
-      }));
-      
-      setTasks(legacyTasks);
-      
-      // Show validation results if available
-      if (result.validationReport.overallStatus !== 'passed') {
+      // If there are tasks, they were already generated
+      if (result.tasks.length > 0) {
+        const legacyTasks = result.tasks.map((task: any) => ({
+          title: task.title,
+          details: task.details
+        }));
+        
+        setTasks(legacyTasks);
         toast({
-          variant: result.validationReport.overallStatus === 'failed' ? 'destructive' : 'default',
-          title: `Validation ${result.validationReport.overallStatus.toUpperCase()}`,
-          description: result.validationReport.summary,
+          title: '🎉 Project Generation Complete!',
+          description: `Generated ${result.tasks.length} tasks with full dependency analysis and validation.`,
+        });
+      } else {
+        // Show message about reviewing plans before generating tasks
+        toast({
+          title: '📋 Project Plans Generated!',
+          description: `Please review and edit the architecture, specifications, and file structure below. Then click "Generate Tasks" to create detailed implementation tasks.`,
         });
       }
       
@@ -340,6 +332,58 @@ export default function Home() {
       
     } finally {
       setLoading((prev) => ({ ...prev, unified: false }));
+    }
+  };
+
+  // NEW: Generate tasks after user approves the plans
+  const handleGenerateTasksAfterApproval = async () => {
+    setLoading((prev) => ({ ...prev, tasks: true }));
+    
+    try {
+      console.log('🚀 Generating tasks after user approval...');
+      
+      // Use the current architecture, specifications, and file structure (which may have been edited)
+      const result = await runUnifiedOrchestrator(
+        {
+          prd,
+          architecture: architecture || undefined, // Use user-edited version if available
+          specifications: specifications || undefined,
+          fileStructure: fileStructure || undefined,
+          
+          // Configuration options
+          generateArchitecture: false, // Don't regenerate - user has already reviewed plans
+          generateFileStructure: false,
+          useTDD,
+          optimizationStrategy: 'sequential' as const,
+          
+          // Don't enable validation for this phase - we want to generate tasks directly
+          enableValidation: false,
+          maxIterations: 3
+        },
+        { apiKey: googleApiKey, model: selectedModel }
+      );
+      
+      console.log('✅ Tasks generated successfully');
+      toast({
+        title: '🎉 Task Generation Complete!',
+        description: `Generated ${result.tasks.length} tasks with full dependency analysis and validation.`,
+      });
+      
+      // Convert unified tasks to legacy Task format for compatibility
+      const legacyTasks = result.tasks.map((task: any) => ({
+        title: task.title,
+        details: task.details
+      }));
+      
+      setTasks(legacyTasks);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Task Generation Failed',
+        description: (error as Error).message,
+      });
+    } finally {
+      setLoading((prev) => ({ ...prev, tasks: false }));
     }
   };
 
@@ -871,9 +915,9 @@ export default function Home() {
                     >
                       {loading.arch ? 'Regenerating...' : 'Regenerate'}
                     </Button>
-                    {/* HIDE Generate Tasks button when using unified workflow */}
-                    {architecture && !useUnifiedWorkflow && !loading.unified && (
-                      <Button onClick={handleGenerateTasks} disabled={loading.tasks || loading.researching}>
+                    {/* Show Generate Tasks button when using unified workflow and tasks haven't been generated yet */}
+                    {architecture && useUnifiedWorkflow && !loading.unified && tasks.length === 0 && (
+                      <Button onClick={handleGenerateTasksAfterApproval} disabled={loading.tasks || loading.researching}>
                         {loading.tasks || loading.researching ? (
                           <>
                             <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />

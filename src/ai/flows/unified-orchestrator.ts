@@ -1,4 +1,5 @@
 
+
 'use server';
 
 /**
@@ -23,6 +24,7 @@ import {
 export const UnifiedOrchestratorInputSchema = z.object({
   prd: z.string().describe('The Product Requirements Document (PRD) for the project.'),
   architecture: z.string().optional(),
+  specifications: z.string().optional(), 
   fileStructure: z.string().optional(),
   
   // Configuration options
@@ -66,8 +68,8 @@ export const UnifiedOrchestratorOutputSchema = z.object({
     edges: z.array(z.object({
       from: z.string(),
       to: z.string(),
-      type: z.enum(['hard', 'soft']),
-    })),
+      type: z.enum(['hard', 'soft'])
+    }))
   }),
   
   criticalPath: z.array(z.string()),
@@ -92,12 +94,14 @@ export const UnifiedOrchestratorOutputSchema = z.object({
   workflowHistory: z.object({
     stepsCompleted: z.array(z.string()),
     iterationsPerformed: z.number(),
-    finalStatus: z.enum(['success', 'partial_success', 'requires_manual_review']),
+    finalStatus: z.enum(['success', 'partial_success', 'requires_manual_review'])
   }),
   
   exportData: z.object({
     architectureMarkdown: z.string(),
-    tasksMarkdown: z.string(),
+    specificationsMarkdown: z.string().optional(),
+    fileStructureMarkdown: z.string().optional(),
+    tasksMarkdown: z.string().optional(),
     validationSummary: z.string()
   })
 });
