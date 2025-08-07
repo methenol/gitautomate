@@ -12,6 +12,7 @@ import {
   runGenerateTasks,
   runResearchTask,
   runGenerateFileStructure,
+  runGenerateUnifiedProjectPlan,
   getModels,
 } from './actions';
 import type { Task } from '@/types';
@@ -265,107 +266,100 @@ export default function Home() {
     }
   };
 
-  const handleGenerateArchitecture = async () => {
-    setLoading((prev) => ({ ...prev, arch: true }));
+  // REMOVED: handleGenerateArchitecture, researchSingleTask, and handleGenerateTasks
+  // These have been replaced by the unified workflow below to fix Issue #7 critical architectural flaw
+
+  /**
+   * NEW UNIFIED WORKFLOW - COMPLETE SYSTEM REPLACEMENT
+   * 
+   * This replaces the sequential silo processing with a unified workflow that:
+   * - Coordinates all components in a single, cohesive system
+   * - Manages context propagation between components  
+   * - Handles dependency modeling and task ordering
+   * - Provides cross-consistency validation
+   * 
+   * This is the ONLY workflow after implementation, addressing Issue #7 requirements.
+   */
+  const handleGenerateUnifiedProjectPlan = async () => {
+    setLoading((prev) => ({ 
+      ...prev, 
+      arch: true,     // Reuse for unified workflow start
+      tasks: true,
+      researching: false 
+    }));
+    
+    // Clear all previous outputs to start fresh
     setArchitecture('');
     setSpecifications('');
     setFileStructure('');
     setTasks([]);
     setFinalIssueURL('');
-    try {
-      const result = await runGenerateArchitecture({ prd }, { apiKey: googleApiKey, model: selectedModel });
-      setArchitecture(result.architecture);
-      setSpecifications(result.specifications);
-
-      // Automatically generate file structure after architecture/specs
-      const fileStructResult = await runGenerateFileStructure(
-        { prd, architecture: result.architecture, specifications: result.specifications },
-        { apiKey: googleApiKey, model: selectedModel }
-      );
-      setFileStructure(fileStructResult.fileStructure || '');
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Architecture/File Structure Generation Failed',
-        description: (error as Error).message,
-      });
-    } finally {
-      setLoading((prev) => ({ ...prev, arch: false }));
-    }
-  };
-
-  // REMOVED: handleGenerateFileStructure and all fileStruct loading logic, as file structure is now generated automatically after architecture/specs.
-
-  const researchSingleTask = useCallback(async (task: Task) => {
-    setTaskLoading(prev => ({ ...prev, [task.title]: true }));
-    try {
-      const result = await runResearchTask(
-        { title: task.title, architecture, fileStructure, specifications },
-        { apiKey: googleApiKey, model: selectedModel, useTDD }
-      );
-      const formattedDetails = `### Context\n${result.context}\n\n### Implementation Steps\n${result.implementationSteps}\n\n### Acceptance Criteria\n${result.acceptanceCriteria}`;
-      setTasks(currentTasks =>
-        currentTasks.map(t => t.title === task.title ? { ...t, details: formattedDetails } : t)
-      );
-      if (selectedTask?.title === task.title) {
-        setEditedTaskDetails(formattedDetails);
-      }
-    } catch (researchError) {
-      const errorMessage = `Failed to research task: ${(researchError as Error).message}`;
-      setTasks(currentTasks =>
-        currentTasks.map(t => t.title === task.title ? { ...t, details: errorMessage } : t)
-      );
-       if (selectedTask?.title === task.title) {
-        setEditedTaskDetails(errorMessage);
-      }
-    } finally {
-      setTaskLoading(prev => ({ ...prev, [task.title]: false }));
-    }
-  }, [architecture, fileStructure, specifications, googleApiKey, selectedModel, useTDD, selectedTask?.title]);
-
-
-  const handleGenerateTasks = async () => {
-    setLoading((prev) => ({ ...prev, tasks: true, researching: false }));
-    setTasks([]);
-    setFinalIssueURL('');
     setResearchProgress(0);
 
     try {
-      const result = await runGenerateTasks(
-        { architecture, specifications, fileStructure },
-        { apiKey: googleApiKey, model: selectedModel, useTDD }
-      );
-      const initialTasks = result.tasks;
+      console.log('Starting unified project plan generation...');
+      
+      // Execute the new unified workflow that replaces all sequential silo processing
+      const result = await runGenerateUnifiedProjectPlan({
+        prd,
+        model: selectedModel,
+        apiKey: googleApiKey,
+        useTDD
+      });
 
-      if (!initialTasks || initialTasks.length === 0) {
-        toast({
-          title: 'No tasks generated',
-          description: 'The AI could not generate a task list. Try adjusting the PRD or architecture.',
-        });
-        setLoading((prev) => ({ ...prev, tasks: false }));
-        return;
+      // Set the components from unified result directly
+      if (result.tasks.length > 0) {
+        // For now, we'll display the tasks directly
+        // The unified workflow handles architecture, file structure, and task research internally
+        
+        setTasks(result.tasks);
+        
+        console.log(`Unified workflow generated ${result.tasks.length} tasks with validation results`);
+        
+        // Check validation results
+        const hasErrors = result.validationResults.some(v => !v.isValid);
+        if (hasErrors) {
+          const errorMessages = result.validationResults
+            .filter(v => !v.isValid)
+            .flatMap(v => v.errors);
+          
+          toast({
+            variant: 'destructive',
+            title: 'Plan Generated with Issues',
+            description: `Generated but found ${errorMessages.length} validation issues. Review the generated plan.`,
+          });
+        } else {
+          toast({
+            title: 'Unified Project Plan Complete!',
+            description: `Generated ${result.tasks.length} tasks with full dependency modeling and validation.`,
+          });
+        }
+        
+      } else {
+        throw new Error('No tasks were generated in the unified workflow');
       }
-      
-      const tasksWithPlaceholders = initialTasks.map((t) => ({ ...t, details: 'Researching...' }));
-      setTasks(tasksWithPlaceholders);
-      setLoading((prev) => ({ ...prev, tasks: false, researching: true }));
-      
-      for (let i = 0; i < initialTasks.length; i++) {
-        await researchSingleTask(initialTasks[i]);
-        setResearchProgress(((i + 1) / initialTasks.length) * 100);
-      }
-      
-      toast({ title: 'Task research complete!', description: 'All tasks have been detailed.' });
 
     } catch (error) {
+      console.error('Unified project plan generation failed:', error);
+      
       toast({
         variant: 'destructive',
-        title: 'Task Generation Failed',
-        description: (error as Error).message,
+        title: 'Project Plan Generation Failed',
+        description: (error as Error).message || 'The unified workflow encountered an error.',
       });
+      
+      // Clear any partial results on failure
+      setArchitecture('');
+      setSpecifications('');
+      setFileStructure('');
       setTasks([]);
     } finally {
-      setLoading((prev) => ({ ...prev, tasks: false, researching: false }));
+      setLoading((prev) => ({ 
+        ...prev, 
+        arch: false,
+        tasks: false,
+        researching: false
+      }));
     }
   };
 
@@ -695,18 +689,18 @@ export default function Home() {
                   </CardContent>
                   <CardFooter>
                     <Button
-                      onClick={handleGenerateArchitecture}
+                      onClick={handleGenerateUnifiedProjectPlan}
                       disabled={!prd || loading.arch}
                       className="ml-auto"
                     >
                       {loading.arch ? (
                         <>
                           <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                          Generating...
+                          Generating Unified Plan...
                         </>
                       ) : (
                         <>
-                          Generate Architecture <ChevronRight className="ml-2 h-4 w-4" />
+                          Generate Unified Project Plan <ChevronRight className="ml-2 h-4 w-4" />
                         </>
                       )}
                     </Button>
@@ -764,23 +758,12 @@ export default function Home() {
                   <CardFooter className="flex justify-end gap-2">
                     <Button
                       variant="outline"
-                      onClick={handleGenerateArchitecture}
+                      onClick={handleGenerateUnifiedProjectPlan}
                       disabled={loading.arch}
                     >
-                      {loading.arch ? 'Regenerating...' : 'Regenerate'}
+                      {loading.arch ? 'Regenerating...' : 'Generate Unified Plan'}
                     </Button>
-                    <Button onClick={handleGenerateTasks} disabled={loading.tasks || loading.researching}>
-                      {loading.tasks || loading.researching ? (
-                        <>
-                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          Generate Tasks <ChevronRight className="ml-2 h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
+                    {/* Removed: handleGenerateTasks - functionality now included in unified workflow */}
                   </CardFooter>
                 </Card>
               </motion.div>
