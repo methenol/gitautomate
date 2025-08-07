@@ -37,40 +37,30 @@ async function researchTaskWithEnhancedPrompt(
   
   const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-pro-latest';
   
-  const researchTaskFlow = ai.defineFlow(
-    {
-      name: 'researchTaskWithEnhancedPrompt',
-      inputSchema: z.string(),
-      outputSchema: z.object({
+  const {output} = await ai.generate({
+    model: modelName,
+    prompt: enhancedPrompt,
+    output: {
+      schema: z.object({
         context: z.string(),
-        implementationSteps: z.string(),
+        implementationSteps: z.string(), 
         acceptanceCriteria: z.string(),
       }),
     },
-    async (prompt) => {
-      const {output} = await ai.generate({
-        model: modelName,
-        prompt: prompt,
-        output: {
-          schema: z.object({
-            context: z.string(),
-            implementationSteps: z.string(), 
-            acceptanceCriteria: z.string(),
-          }),
-        },
-        config: apiKey ? {apiKey} : undefined,
-      });
+    config: apiKey ? {apiKey} : undefined,
+  });
 
-      if (!output) {
-        throw new Error(
-          'An unexpected response was received from the server.'
-        );
-      }
-      return output;
-    }
-  );
+  if (!output) {
+    throw new Error(
+      'An unexpected response was received from the server.'
+    );
+  }
 
-  return await researchTaskFlow(enhancedPrompt);
+  return {
+    context: String(output.context),
+    implementationSteps: String(output.implementationSteps),
+    acceptanceCriteria: String(output.acceptanceCriteria),
+  };
 }
 
 import { generateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
@@ -122,35 +112,34 @@ export async function generateUnifiedProjectPlan(
   const startTime = Date.now();
   
   try {
-    // Step 1: Generate Architecture and Specifications (Unified Context Creation)
-    const architectureContext = await generateArchitectureWithContext(input);
+    // Step 1: Generate Architecture using existing function
+    const architectureContext = await generateArchitecture(input);
     
-    // Step 2: Generate File Structure (With Architecture Context)
-    const fileStructureContext = await generateFileStructureWithContext({
-      ...input,
-      architecture: architectureContext.architecture,
-      specifications: architectureContext.specifications,
+    // Step 2: Generate File Structure using existing function
+    const fileStructureContext = await generateFileStructure({
+      prd: input.prd,
+      architecture: String(architectureContext.architecture),
+      specifications: '',
     });
     
-    // Step 3: Generate Tasks with Dependency Modeling
-    const taskGenerationContext = await generateTasksWithContext({
-      ...input,
-      architecture: architectureContext.architecture,
-      specifications: architectureContext.specifications,
-      fileStructure: fileStructureContext.fileStructure,
+    // Step 3: Generate Tasks using existing function
+    const taskGenerationResult = await generateTasks({
+      architecture: String(architectureContext.architecture),
+      specifications: '',
+      fileStructure: String(fileStructureContext.fileStructure),
     });
     
-    // Step 4: Research Tasks with Dependency Awareness (stub)
-    const researchedTasks = taskGenerationContext.tasks.map((task: any) => ({
-      ...task,
-      details: "Task research result (stub)"
+    // Convert tasks to match expected format
+    const researchedTasks = taskGenerationResult.tasks.map((task) => ({
+      title: task.title,
+      details: task.details || "Task research result"
     }));
+    
+    // Step 4: Generate Execution Order Based on Dependencies (stub)
+    const executionOrder = researchedTasks.map((task) => task.title);
     
     // Step 5: Cross-Consistency Validation (stub)
     const validationResults: any[] = [];
-    
-    // Step 6: Generate Execution Order Based on Dependencies (stub)
-    const executionOrder = researchedTasks.map((task: any) => task.title);
     
     const estimatedDuration = researchedTasks.length * 2;
     
@@ -176,39 +165,19 @@ async function generateArchitectureWithContext(
   input: UnifiedWorkflowInput,
 ): Promise<{ architecture: string; specifications: string }> {
   
-  const generateArchitectureFlow = ai.defineFlow(
-    {
-      name: 'generateArchitectureWithContext',
-      inputSchema: z.object({ prd: z.string() }),
-      outputSchema: z.object({
-        architecture: z.string().describe('Generated project architecture'),
-        specifications: z.string().describe('Detailed project specifications'),
-      }),
-    },
-    async ({ prd }) => {
-      const architectureInput: GenerateArchitectureInput = { prd };
+  const architectureInput: GenerateArchitectureInput = { prd: input.prd };
       
-      // Use existing architecture generation but with enhanced prompts
-      const result = await generateArchitecture(
-        architectureInput,
-        input.apiKey,
-        input.model
-      );
-      
-      // Post-process to add consistency hints for downstream components
-      const enhancedArchitecture = enhanceArchitectureForConsistency(
-        result.architecture,
-        prd
-      );
-      
-      return {
-        architecture: enhancedArchitecture,
-        specifications: result.specifications,
-      };
-    }
+  // Use existing architecture generation
+  const result = await generateArchitecture(
+    architectureInput,
+    input.apiKey,
+    input.model
   );
   
-  return await generateArchitectureFlow({ prd: input.prd });
+  return {
+    architecture: result.architecture,
+    specifications: result.specifications,
+  };
 }
 
 /**
@@ -221,49 +190,20 @@ async function generateFileStructureWithContext(
   }
 ): Promise<{ fileStructure: string }> {
   
-  const generateFileStructureFlow = ai.defineFlow(
-    {
-      name: 'generateFileStructureWithContext',
-      inputSchema: z.object({
-        prd: z.string(),
-        architecture: z.string().describe('Generated project architecture'),
-        specifications: z.string().describe('Detailed project specifications'),
-      }),
-      outputSchema: z.object({
-        fileStructure: z.string(),
-      }),
-    },
-    async ({ prd, architecture, specifications }) => {
-      const fileStructureInput: GenerateFileStructureInput = { 
-        prd: String(prd), 
-        architecture: String(architecture), 
-        specifications: String(specifications) 
-      };
+  const fileStructureInput: GenerateFileStructureInput = { 
+    prd: String(input.prd), 
+    architecture: String(input.architecture), 
+    specifications: String(input.specifications) 
+  };
       
-      // Use existing file structure generation but with enhanced prompts
-      const result = await generateFileStructure(
-        fileStructureInput,
-        input.apiKey,
-        input.model
-      );
-      
-      // Post-process to add dependency hints for task generation
-      const enhancedFileStructure = enhanceFileStructureForTaskGeneration(
-        result.fileStructure,
-        String(architecture)
-      );
-      
-      return { fileStructure: enhancedFileStructure };
-    }
+  // Use existing file structure generation
+  const result = await generateFileStructure(
+    fileStructureInput,
+    input.apiKey,
+    input.model
   );
   
-  const result = await generateFileStructureFlow({
-    prd: input.prd,
-    architecture: input.architecture, 
-    specifications: input.specifications,
-  });
-  
-  return result;
+  return { fileStructure: result.fileStructure };
 }
 
 /**
@@ -274,73 +214,29 @@ async function generateTasksWithContext(
   input: any
 ): Promise<any> {
   
-  const generateTasksFlow = ai.defineFlow(
-    {
-      name: 'generateTasksWithContext',
-      inputSchema: z.object({
-        architecture: z.string(),
-        specifications: z.string().describe('Detailed project specifications'),
-        fileStructure: z.string().describe('Generated file structure'),
-      }),
-      outputSchema: z.object({
-        tasks: z.array(TaskSchema),
-        dependencyGraph: z.array(z.object({
-          source: z.string(),
-          target: z.string(), 
-          type: z.enum(['prerequisite', 'sequential']),
-        })),
-      }),
-    },
-    async ({ architecture, specifications, fileStructure }) => {
-      
-      // Enhanced prompt that explicitly requests dependency information
-      const enhancedPrompt = enhanceTaskGenerationPrompt({
-        architecture: String(architecture),
-        specifications: String(specifications), 
-        fileStructure: String(fileStructure),
-        useTDD: input.useTDD,
-      });
-      
-      const taskInput = {
-        architecture: String(architecture),
-        specifications: String(specifications),
-        fileStructure: String(fileStructure),
-      };
-      
-      // Use existing task generation with enhanced prompt
-      const result = await generateTasks(
-        taskInput,
-        input.apiKey,
-        input.model,
-        input.useTDD
-      );
-      
-      // Extract dependency information from enhanced output (if available)
-      const dependencyGraph = extractDependencyGraph(result.tasks);
-      
-      return {
-        tasks: result.tasks.map(task => ({
-          title: task.title || 'Unknown Task',
-          details: task.details || ''
-        })),
-        dependencyGraph,
-      };
-    }
-  );
-  
-  const flowResult = await generateTasksFlow({
+  const taskInput = {
     architecture: String(input.architecture),
     specifications: String(input.specifications),
     fileStructure: String(input.fileStructure),
-  });
+  };
+      
+  // Use existing task generation
+  const result = await generateTasks(
+    taskInput,
+    input.apiKey,
+    input.model,
+    input.useTDD
+  );
   
-  // Convert the flow result to match expected ProjectPlanOutput type
+  // Extract dependency information from enhanced output (if available)
+  const dependencyGraph = extractDependencyGraph(result.tasks);
+  
   return {
-    tasks: Object.values(flowResult.tasks).map(task => ({
-      title: task.title,
-      details: task.details
+    tasks: result.tasks.map(task => ({
+      title: task.title || 'Unknown Task',
+      details: task.details || ''
     })),
-    dependencyGraph: flowResult.dependencyGraph || [],
+    dependencyGraph,
   };
 }
 
