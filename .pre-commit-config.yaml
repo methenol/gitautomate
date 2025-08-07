@@ -1,0 +1,46 @@
+
+repos:
+  - repo: local
+    hooks:
+      - id: lint
+        name: Lint Code
+        entry: npm run lint
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: typecheck
+        name: Type Check
+        entry: npm run typecheck
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: build
+        name: Build Project
+        entry: npm run build
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: security-scan
+        name: Security Scan
+        entry: npm audit --audit-level=high --exit-code
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: test
+        name: Run Tests
+        entry: echo "No test files found, skipping test execution"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        files: \.(yaml|yml)$
