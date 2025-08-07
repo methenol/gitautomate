@@ -18,8 +18,8 @@ echo "🔍 Running build check..."
 npm run build
 
 echo "🔍 Running security scan..."
-# Run npm audit but don't fail on vulnerabilities that can't be immediately fixed
-npm audit --audit-level=moderate || echo "⚠️ Security vulnerabilities found, but allowing commit for now"
+# Run npm audit with the same settings as CI
+npm audit --audit-level=high || echo "⚠️ Security vulnerabilities found, but allowing commit for now"
 
 echo "🔍 Running tests..."
 # The CI just echoes this message, so we'll do the same
