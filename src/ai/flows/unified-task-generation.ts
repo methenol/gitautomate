@@ -22,6 +22,8 @@ import {
 import { generateTasks, GenerateTasksInput as OriginalGenerateTasksInput } from '@/ai/flows/generate-tasks';
 import { researchTask, ResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
 
+
+
 /**
  * Enhanced research task function that accepts custom prompts
  */
@@ -317,7 +319,10 @@ async function generateTasksWithContext(
       const dependencyGraph = extractDependencyGraph(result.tasks);
       
       return {
-        tasks: [result.tasks.reduce((acc, task) => ({ ...acc, [task.title]: { title: task.title || 'Unknown Task', details: task.details || '' } }), {})],
+        tasks: result.tasks.map(task => ({
+          title: task.title || 'Unknown Task',
+          details: task.details || ''
+        })),
         dependencyGraph,
       };
     }
@@ -647,36 +652,4 @@ async function validatePRDCoverage(prd: string, tasks: Task[]): Promise<Validati
     warnings: [],
     timestamp: new Date().toISOString(),
   };
-}
-
-function formatTaskResearchResult(result: any, context: any): string {
-  return "Task research result";
-}
-
-function extractTaskInsights(result: any): string {
-  return "Extracted insights";
-}
-
-function generateExecutionOrder(tasks: any[], dependencyGraph: any[]): string[] {
-  return tasks.map(t => t.title);
-}
-
-function calculateEstimatedDuration(tasks: any[]): number {
-  return tasks.length * 2;
-}
-
-async function validateProjectPlan(context: any): Promise<any[]> {
-  return [];
-}
-
-async function validateArchitectureTaskConsistency(architecture: string, tasks: any[]): Promise<any> {
-  return { isValid: true, errors: [], warnings: [], timestamp: new Date().toISOString() };
-}
-
-async function validateFileStructureTaskConsistency(fileStructure: string, tasks: any[]): Promise<any> {
-  return { isValid: true, errors: [], warnings: [], timestamp: new Date().toISOString() };
-}
-
-async function validatePRDCoverage(prd: string, tasks: any[]): Promise<any> {
-  return { isValid: true, errors: [], warnings: [], timestamp: new Date().toISOString() };
 }
