@@ -19,7 +19,7 @@ npm run build
 
 echo "🔍 Running security scan..."
 # Run npm audit with the same settings as CI
-npm audit --audit-level=high
+npm audit --audit-level=high --exit-code
 
 echo "🔍 Running tests..."
 # The CI just echoes this message, so we'll do the same
