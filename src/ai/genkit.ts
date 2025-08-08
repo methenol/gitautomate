@@ -7,16 +7,9 @@
 import { config } from 'dotenv';
 config();
 
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
-
-// Initialize Genkit with the Google AI plugin.
-// This will use the GOOGLE_API_KEY from the .env file by default.
-const ai = genkit({
-  plugins: [googleAI()],
-});
-
-export {ai};
+// IMPORTANT: Removed global ai instance creation to prevent "Cannot define new actions at runtime" errors
+// Individual flows should use direct ai.generate() calls with proper model configurations instead of importing a global instance
+// This prevents Genkit flow registry conflicts during runtime
 
 export async function listAvailableModels(apiKey?: string): Promise<string[]> {
   try {
