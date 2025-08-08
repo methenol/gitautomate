@@ -58,44 +58,45 @@ const fileStructurePrompt = `You are a senior software architect. Your task is t
 Respond with ONLY the proposed file/folder structure as a markdown code block or JSON tree.
 `;
 
+// Define the flow at module level to avoid runtime definition errors
+const generateFileStructureFlow = ai.defineFlow(
+  {
+    name: 'generateFileStructureFlow',
+    inputSchema: GenerateFileStructureInputSchema,
+    outputSchema: GenerateFileStructureOutputSchema,
+  },
+  async (input, { apiKey, model }: { apiKey?: string; model?: string } = {}) => {
+    const modelName = model
+      ? `googleai/${model}`
+      : 'googleai/gemini-1.5-flash-latest';
+
+    const prompt = fileStructurePrompt
+      .replace('{{{prd}}}', input.prd)
+      .replace('{{{architecture}}}', input.architecture)
+      .replace('{{{specifications}}}', input.specifications);
+
+    const { output } = await ai.generate({
+      model: modelName,
+      prompt: prompt,
+      output: {
+        schema: GenerateFileStructureOutputSchema,
+      },
+      config: apiKey ? { apiKey } : undefined,
+    });
+
+    if (!output) {
+      throw new Error(
+        'An unexpected response was received from the server.'
+      );
+    }
+    return output;
+  }
+);
+
 export async function generateFileStructure(
   input: GenerateFileStructureInput,
   apiKey?: string,
   model?: string
 ): Promise<GenerateFileStructureOutput> {
-  const modelName = model
-    ? `googleai/${model}`
-    : 'googleai/gemini-1.5-flash-latest';
-
-  const prompt = fileStructurePrompt
-    .replace('{{{prd}}}', input.prd)
-    .replace('{{{architecture}}}', input.architecture)
-    .replace('{{{specifications}}}', input.specifications);
-
-  const generateFileStructureFlow = ai.defineFlow(
-    {
-      name: 'generateFileStructureFlow',
-      inputSchema: GenerateFileStructureInputSchema,
-      outputSchema: GenerateFileStructureOutputSchema,
-    },
-    async (_input) => {
-      const { output } = await ai.generate({
-        model: modelName,
-        prompt: prompt,
-        output: {
-          schema: GenerateFileStructureOutputSchema,
-        },
-        config: apiKey ? { apiKey } : undefined,
-      });
-
-      if (!output) {
-        throw new Error(
-          'An unexpected response was received from the server.'
-        );
-      }
-      return output;
-    }
-  );
-
-  return await generateFileStructureFlow(input);
+  return await generateFileStructureFlow(input, { apiKey, model });
 }

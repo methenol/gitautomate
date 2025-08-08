@@ -97,16 +97,42 @@ Now, provide the detailed implementation plan as a JSON object for the following
 **Task Title: {{{title}}}**
 `;
 
+// Define the flow at module level to avoid runtime definition errors
+const researchTaskFlow = ai.defineFlow(
+  {
+    name: 'researchTaskFlow',
+    inputSchema: z.string(),
+    outputSchema: ResearchTaskOutputSchema,
+  },
+  async (prompt, { apiKey, model }: { apiKey?: string; model?: string } = {}) => {
+    const modelName = model
+      ? `googleai/${model}`
+      : 'googleai/gemini-1.5-pro-latest';
+
+    const {output} = await ai.generate({
+      model: modelName,
+      prompt: prompt,
+      output: {
+        schema: ResearchTaskOutputSchema,
+      },
+      config: apiKey ? {apiKey} : undefined,
+    });
+
+    if (!output) {
+      throw new Error(
+        'An unexpected response was received from the server.'
+      );
+    }
+    return output;
+  }
+);
+
 export async function researchTask(
   input: ResearchTaskInput,
   apiKey?: string,
   model?: string,
   useTDD?: boolean
 ): Promise<ResearchTaskOutput> {
-  const modelName = model
-    ? `googleai/${model}`
-    : 'googleai/gemini-1.5-pro-latest';
-  
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
   const prompt = promptTemplate
     .replace('{{{architecture}}}', input.architecture)
@@ -114,30 +140,5 @@ export async function researchTask(
     .replace('{{{specifications}}}', input.specifications)
     .replace('{{{title}}}', input.title);
 
-  const researchTaskFlow = ai.defineFlow(
-    {
-      name: 'researchTaskFlow',
-      inputSchema: z.string(),
-      outputSchema: ResearchTaskOutputSchema,
-    },
-    async (prompt) => {
-      const {output} = await ai.generate({
-        model: modelName,
-        prompt: prompt,
-        output: {
-          schema: ResearchTaskOutputSchema,
-        },
-        config: apiKey ? {apiKey} : undefined,
-      });
-
-      if (!output) {
-        throw new Error(
-          'An unexpected response was received from the server.'
-        );
-      }
-      return output;
-    }
-  );
-
-  return await researchTaskFlow(prompt);
+  return await researchTaskFlow(prompt, { apiKey, model });
 }
