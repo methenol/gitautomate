@@ -69,3 +69,13 @@ const ProjectPlanOutputSchema = z.object({
 });
 
 export type ProjectPlanOutput = z.infer<typeof ProjectPlanOutputSchema>;
+
+// Input schema for the unified workflow
+const UnifiedWorkflowInputSchema = z.object({
+  prd: z.string().describe('The Product Requirements Document'),
+  apiKey: z.string().optional().describe('API key for AI services'),
+  model: z.string().optional().describe('Model to use for generation'),
+  useTDD: z.boolean().optional().default(false).describe('Whether to use Test-Driven Development approach')
+});
+
+export type UnifiedWorkflowInput = z.infer<typeof UnifiedWorkflowInputSchema>;

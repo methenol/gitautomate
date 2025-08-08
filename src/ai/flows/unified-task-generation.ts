@@ -21,8 +21,12 @@ import {
 } from '@/ai/flows/generate-architecture';
 import { generateTasks, GenerateTasksInput as OriginalGenerateTasksInput } from '@/ai/flows/generate-tasks';
 import { researchTask, ResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
+import { generateFileStructure as GenerateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
+import type { Task } from '@/types';
+import { TaskSchema } from '@/types';
 
-
+// Import ValidationResult type
+import type { ValidationResult } from '@/ai/types/unified-context';
 
 /**
  * Enhanced research task function that accepts custom prompts
@@ -62,13 +66,6 @@ async function researchTaskWithEnhancedPrompt(
     acceptanceCriteria: String(output.acceptanceCriteria),
   };
 }
-
-import { generateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
-import {
-  UnifiedProjectContext,
-  ValidationResult,
-} from '@/ai/types/unified-context';
-import { Task, TaskSchema } from '@/types';
 
 // Unified workflow input schema
 const UnifiedWorkflowInputSchema = z.object({
@@ -113,21 +110,23 @@ export async function generateUnifiedProjectPlan(
   
   try {
     // Step 1: Generate Architecture using existing function
-    const architectureContext = await generateArchitecture(input);
+    const architectureContext = await generateArchitecture({
+      prd: input.prd,
+    } as GenerateArchitectureInput);
     
     // Step 2: Generate File Structure using existing function
-    const fileStructureContext = await generateFileStructure({
+    const fileStructureContext = await GenerateFileStructure({
       prd: input.prd,
       architecture: String(architectureContext.architecture),
-      specifications: '',
-    });
+      specifications: String(architectureContext.specifications || ''),
+    } as GenerateFileStructureInput);
     
     // Step 3: Generate Tasks using existing function
     const taskGenerationResult = await generateTasks({
       architecture: String(architectureContext.architecture),
-      specifications: '',
+      specifications: String(architectureContext.specifications || ''),
       fileStructure: String(fileStructureContext.fileStructure),
-    });
+    }, input.apiKey, input.model, input.useTDD);
     
     // Convert tasks to match expected format
     const researchedTasks = taskGenerationResult.tasks.map((task) => ({
@@ -197,7 +196,7 @@ async function generateFileStructureWithContext(
   };
       
   // Use existing file structure generation
-  const result = await generateFileStructure(
+  const result = await GenerateFileStructure(
     fileStructureInput,
     input.apiKey,
     input.model
