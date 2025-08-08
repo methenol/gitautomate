@@ -7,7 +7,11 @@ import {
 import { generateTasks, GenerateTasksInput } from '@/ai/flows/generate-tasks';
 import { researchTask, ResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
 import { generateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
+import { 
+  generateUnifiedProjectPlan,
+} from '@/ai/flows/unified-project-orchestrator';
 import { listAvailableModels } from '@/ai/genkit';
+import type { ProjectPlan, UnifiedProjectOrchestrationInput } from '@/types';
 
 type ActionOptions = {
   apiKey?: string;
@@ -152,5 +156,44 @@ export async function getModels(options?: ActionOptions): Promise<string[]> {
       throw new Error(`Failed to fetch models: ${error.message}`);
     }
     throw new Error('An unknown error occurred while fetching models.');
+  }
+}
+
+/**
+ * New unified workflow that replaces the sequential silo processing.
+ * Coordinates architecture, file structure, and task generation with dependency awareness.
+ */
+export async function runUnifiedProjectPlan(
+  input: UnifiedProjectOrchestrationInput,
+  options?: ActionOptions
+): Promise<ProjectPlan> {
+  if (!input.prd) {
+    throw new Error('PRD is required to generate project plan.');
+  }
+  
+  try {
+    const result = await generateUnifiedProjectPlan({
+      ...input,
+      apiKey: options?.apiKey || input.apiKey,
+      model: options?.model || input.model,
+      useTDD: options?.useTDD ?? input.useTDD,
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Error generating unified project plan:', error);
+    if (
+      error instanceof Error &&
+      (error.message.includes('API key not found') ||
+        error.message.includes('API key is invalid') ||
+        error.message.includes('Please check your Google AI API key'))
+    ) {
+      throw new Error(
+        'Failed to generate project plan: Your Google AI API key is missing or invalid. Please check it in settings.'
+      );
+    }
+    throw new Error(
+      'Project plan generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD.'
+    );
   }
 }

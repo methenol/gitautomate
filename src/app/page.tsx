@@ -12,9 +12,10 @@ import {
   runGenerateTasks,
   runResearchTask,
   runGenerateFileStructure,
+  runUnifiedProjectPlan,
   getModels,
 } from './actions';
-import type { Task } from '@/types';
+import type { Task, ProjectPlan } from '@/types';
 import {
   getRepositories,
   createImplementationPlanIssues,
@@ -131,6 +132,7 @@ export default function Home() {
   const [fileStructure, setFileStructure] = useState<string>('');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [finalIssueURL, setFinalIssueURL] = useState('');
+  const [projectPlan, setProjectPlan] = useState<ProjectPlan | null>(null);
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editedTaskDetails, setEditedTaskDetails] = useState('');
@@ -265,13 +267,77 @@ export default function Home() {
     }
   };
 
-  const handleGenerateArchitecture = async () => {
+  const handleGenerateUnifiedPlan = async () => {
+    setLoading((prev) => ({ ...prev, arch: true, tasks: true, researching: true }));
+    setArchitecture('');
+    setSpecifications('');
+    setFileStructure('');
+    setTasks([]);
+    setFinalIssueURL('');
+    setProjectPlan(null);
+    setResearchProgress(0);
+    
+    try {
+      const result = await runUnifiedProjectPlan(
+        { 
+          prd,
+          useTDD,
+        },
+        { 
+          apiKey: googleApiKey, 
+          model: selectedModel,
+        }
+      );
+      
+      setProjectPlan(result);
+      setArchitecture(result.context.architecture);
+      setSpecifications(result.context.specifications);
+      setFileStructure(result.context.fileStructure);
+      setTasks(result.tasks);
+      setResearchProgress(100);
+      
+      // Show validation results
+      if (result.validation.warnings.length > 0) {
+        toast({
+          title: 'Plan Generated with Warnings',
+          description: `Generated successfully but with ${result.validation.warnings.length} warnings. Check the plan for details.`,
+        });
+      } else if (result.validation.isValid) {
+        toast({
+          title: 'Unified Plan Generated Successfully!',
+          description: 'Architecture, file structure, and dependency-aware tasks have been generated and validated.',
+        });
+      }
+      
+      if (!result.validation.isValid) {
+        toast({
+          variant: 'destructive',
+          title: 'Plan Validation Failed',
+          description: `Generated plan has ${result.validation.errors.length} errors. Review and edit before proceeding.`,
+        });
+      }
+      
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Unified Plan Generation Failed',
+        description: (error as Error).message,
+      });
+      setProjectPlan(null);
+    } finally {
+      setLoading((prev) => ({ ...prev, arch: false, tasks: false, researching: false }));
+    }
+  };
+
+  // Legacy architecture generation for regeneration only
+  const handleRegenerateArchitecture = async () => {
     setLoading((prev) => ({ ...prev, arch: true }));
     setArchitecture('');
     setSpecifications('');
     setFileStructure('');
     setTasks([]);
     setFinalIssueURL('');
+    setProjectPlan(null);
     try {
       const result = await runGenerateArchitecture({ prd }, { apiKey: googleApiKey, model: selectedModel });
       setArchitecture(result.architecture);
@@ -286,15 +352,13 @@ export default function Home() {
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Architecture/File Structure Generation Failed',
+        title: 'Architecture/File Structure Regeneration Failed',
         description: (error as Error).message,
       });
     } finally {
       setLoading((prev) => ({ ...prev, arch: false }));
     }
   };
-
-  // REMOVED: handleGenerateFileStructure and all fileStruct loading logic, as file structure is now generated automatically after architecture/specs.
 
   const researchSingleTask = useCallback(async (task: Task) => {
     setTaskLoading(prev => ({ ...prev, [task.title]: true }));
@@ -324,10 +388,19 @@ export default function Home() {
   }, [architecture, fileStructure, specifications, googleApiKey, selectedModel, useTDD, selectedTask?.title]);
 
 
-  const handleGenerateTasks = async () => {
-    setLoading((prev) => ({ ...prev, tasks: true, researching: false }));
+  // Legacy task generation for cases where user wants to regenerate only tasks
+  const handleRegenerateTasks = async () => {
+    if (!projectPlan) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Regenerate Tasks',
+        description: 'Please generate the complete project plan first using the unified workflow.',
+      });
+      return;
+    }
+    
+    setLoading((prev) => ({ ...prev, tasks: true, researching: true }));
     setTasks([]);
-    setFinalIssueURL('');
     setResearchProgress(0);
 
     try {
@@ -342,7 +415,7 @@ export default function Home() {
           title: 'No tasks generated',
           description: 'The AI could not generate a task list. Try adjusting the PRD or architecture.',
         });
-        setLoading((prev) => ({ ...prev, tasks: false }));
+        setLoading((prev) => ({ ...prev, tasks: false, researching: false }));
         return;
       }
       
@@ -360,7 +433,7 @@ export default function Home() {
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Task Generation Failed',
+        title: 'Task Regeneration Failed',
         description: (error as Error).message,
       });
       setTasks([]);
@@ -695,18 +768,18 @@ export default function Home() {
                   </CardContent>
                   <CardFooter>
                     <Button
-                      onClick={handleGenerateArchitecture}
+                      onClick={handleGenerateUnifiedPlan}
                       disabled={!prd || loading.arch}
                       className="ml-auto"
                     >
                       {loading.arch ? (
                         <>
                           <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                          Generating...
+                          Generating Complete Plan...
                         </>
                       ) : (
                         <>
-                          Generate Architecture <ChevronRight className="ml-2 h-4 w-4" />
+                          Generate Complete Project Plan <ChevronRight className="ml-2 h-4 w-4" />
                         </>
                       )}
                     </Button>
@@ -764,12 +837,12 @@ export default function Home() {
                   <CardFooter className="flex justify-end gap-2">
                     <Button
                       variant="outline"
-                      onClick={handleGenerateArchitecture}
+                      onClick={handleRegenerateArchitecture}
                       disabled={loading.arch}
                     >
                       {loading.arch ? 'Regenerating...' : 'Regenerate'}
                     </Button>
-                    <Button onClick={handleGenerateTasks} disabled={loading.tasks || loading.researching}>
+                    <Button onClick={handleRegenerateTasks} disabled={loading.tasks || loading.researching}>
                       {loading.tasks || loading.researching ? (
                         <>
                           <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
@@ -777,7 +850,7 @@ export default function Home() {
                         </>
                       ) : (
                         <>
-                          Generate Tasks <ChevronRight className="ml-2 h-4 w-4" />
+                          Regenerate Tasks Only <ChevronRight className="ml-2 h-4 w-4" />
                         </>
                       )}
                     </Button>
@@ -788,7 +861,7 @@ export default function Home() {
 
             {loading.arch && (
                <motion.div key="loading-arch" {...cardAnimation}>
-                   <LoadingSpinner text="Generating architecture & specs..." />
+                   <LoadingSpinner text="Generating unified project plan (architecture, file structure, dependency-aware tasks)..." />
                </motion.div>
             )}
 
@@ -808,6 +881,25 @@ export default function Home() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
+                    {projectPlan && !projectPlan.validation.isValid && (
+                      <div className="mb-4 p-3 rounded-lg border-destructive bg-destructive/10">
+                        <h4 className="font-semibold text-destructive mb-2">Validation Issues</h4>
+                        {projectPlan.validation.errors.map((error, index) => (
+                          <p key={index} className="text-sm text-destructive">• {error}</p>
+                        ))}
+                        {projectPlan.validation.warnings.map((warning, index) => (
+                          <p key={index} className="text-sm text-yellow-600">⚠ {warning}</p>
+                        ))}
+                      </div>
+                    )}
+                    {projectPlan && projectPlan.validation.isValid && projectPlan.validation.warnings.length > 0 && (
+                      <div className="mb-4 p-3 rounded-lg border-yellow-300 bg-yellow-50">
+                        <h4 className="font-semibold text-yellow-700 mb-2">Warnings</h4>
+                        {projectPlan.validation.warnings.map((warning, index) => (
+                          <p key={index} className="text-sm text-yellow-600">⚠ {warning}</p>
+                        ))}
+                      </div>
+                    )}
                     {loading.researching && (
                       <div className="mb-4 space-y-2">
                         <Progress value={researchProgress} />
@@ -831,6 +923,11 @@ export default function Home() {
                           )}
                           <div className="flex-1 overflow-hidden">
                             <p className='font-medium truncate'>{task.title}</p>
+                            {task.dependencies && task.dependencies.length > 0 && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                Depends on: {task.dependencies.join(', ')}
+                              </p>
+                            )}
                             {taskLoading[task.title] && (
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                   <LoaderCircle className="h-3 w-3 animate-spin" />
@@ -923,9 +1020,12 @@ export default function Home() {
                            setPrd('');
                            setArchitecture('');
                            setSpecifications('');
+                           setFileStructure('');
                            setTasks([]);
                            setFinalIssueURL('');
                            setSelectedTask(null);
+                           setProjectPlan(null);
+                           setResearchProgress(0);
                         }}>Start Over</Button>
                      </CardFooter>
                   </Card>
