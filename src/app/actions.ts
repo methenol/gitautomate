@@ -7,6 +7,7 @@ import {
 import { generateTasks, GenerateTasksInput } from '@/ai/flows/generate-tasks';
 import { researchTask, ResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
 import { generateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
+import { generateUnifiedProjectPlan, type ProjectPlanOutput } from '@/ai/flows/unified-task-generation';
 import { listAvailableModels } from '@/ai/genkit';
 
 type ActionOptions = {
@@ -139,6 +140,47 @@ export async function runResearchTask(
 
   // This should not be reachable due to the throw inside the loop
   throw new Error(`Failed to research task "${input.title}".`);
+}
+
+export async function runGenerateUnifiedProjectPlan(
+  input: {
+    prd: string;
+    model?: string;
+    apiKey?: string;
+    useTDD?: boolean;
+  }
+): Promise<ProjectPlanOutput> {
+  if (!input.prd) {
+    throw new Error('PRD is required to generate a unified project plan.');
+  }
+  
+  try {
+    const result = await generateUnifiedProjectPlan({
+      prd: input.prd,
+      model: input.model,
+      apiKey: input.apiKey,
+      useTDD: input.useTDD || false,
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Error generating unified project plan:', error);
+    
+    if (
+      error instanceof Error &&
+      (error.message.includes('API key not found') ||
+        error.message.includes('API key is invalid') ||
+        error.message.includes('Please check your Google AI API key'))
+    ) {
+      throw new Error(
+        'Failed to generate unified project plan: Your Google AI API key is missing or invalid. Please check it in settings.'
+      );
+    }
+    
+    throw new Error(
+      'Unified project plan generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD.'
+    );
+  }
 }
 
 export async function getModels(options?: ActionOptions): Promise<string[]> {
