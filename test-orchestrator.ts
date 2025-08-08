@@ -2,7 +2,8 @@
  * Simple test script to verify the unified project orchestrator works correctly
  */
 
-import { generateUnifiedProjectPlan } from '../src/ai/flows/unified-project-orchestrator';
+import { generateUnifiedProjectPlan } from './src/ai/flows/unified-project-orchestrator';
+import type { Task } from './src/types';
 
 async function testUnifiedOrchestrator() {
   console.log('🧪 Testing Unified Project Orchestrator...');
@@ -55,7 +56,7 @@ Create a simple e-commerce platform with the following features:
     console.log(`✅ Tasks generated: ${hasTasks ? '✅' : '❌'}`);
     
     // Check for dependency awareness
-    const tasksWithDependencies = result.tasks.filter(task => task.dependencies && task.dependencies.length > 0);
+    const tasksWithDependencies = result.tasks.filter((task: Task) => task.dependencies && task.dependencies.length > 0);
     console.log(`🔗 Tasks with dependencies: ${tasksWithDependencies.length}/${result.tasks.length}`);
     
     // Check execution order
@@ -64,7 +65,7 @@ Create a simple e-commerce platform with the following features:
     
     // Sample output
     console.log('\n📋 Sample Tasks:');
-    result.tasks.slice(0, 3).forEach((task, index) => {
+    result.tasks.slice(0, 3).forEach((task: Task, index: number) => {
       console.log(`${index + 1}. ${task.title}`);
       if (task.dependencies && task.dependencies.length > 0) {
         console.log(`   Dependencies: ${task.dependencies.join(', ')}`);

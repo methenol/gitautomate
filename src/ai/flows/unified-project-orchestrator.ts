@@ -295,7 +295,7 @@ export async function generateUnifiedProjectPlan(
     specifications: '',
     validationHistory: [],
     metadata: {
-      useTDD: input.useTDD,
+      useTDD: input.useTDD || false,
       model: input.model,
       apiKey: input.apiKey,
       timestamp: new Date().toISOString(),
