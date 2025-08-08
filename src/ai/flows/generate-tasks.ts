@@ -12,7 +12,6 @@
 import {ai} from '@/ai/genkit';
 import { TaskSchema } from '@/types';
 import {z} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
 
 
 const _GenerateTasksInputSchema = z.object({
@@ -64,28 +63,39 @@ Specifications:
 
 Generate the complete, exhaustive, and sequentially ordered list of task titles now.`;
 
-export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
-  const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-flash-latest';
-  const options = apiKey ? {apiKey} : {};
-  const _plugins = apiKey ? [googleAI(options)] : [];
+// Define the flow at module level to avoid runtime definition errors
+const generateTasksFlow = ai.defineFlow(
+  {
+    name: 'generateTasksFlow',
+    inputSchema: _GenerateTasksInputSchema,
+    outputSchema: GenerateTasksOutputSchema,
+  },
+  async (input, { apiKey, model, useTDD }: { apiKey?: string; model?: string; useTDD?: boolean } = {}) => {
+    const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-flash-latest';
+    
+    const promptTemplate = useTDD ? tddPrompt : standardPrompt;
 
-  const promptTemplate = useTDD ? tddPrompt : standardPrompt;
+    const prompt = promptTemplate
+      .replace('{{{architecture}}}', input.architecture)
+      .replace('{{{fileStructure}}}', input.fileStructure)
+      .replace('{{{specifications}}}', input.specifications);
 
-  const prompt = promptTemplate
-    .replace('{{{architecture}}}', input.architecture)
-    .replace('{{{fileStructure}}}', input.fileStructure)
-    .replace('{{{specifications}}}', input.specifications);
-
-  const {output} = await ai.generate({
-    model: modelName,
-    prompt: prompt,
-    output: {
-      schema: GenerateTasksOutputSchema
+    const {output} = await ai.generate({
+      model: modelName,
+      prompt: prompt,
+      output: {
+        schema: GenerateTasksOutputSchema
+      },
+      config: apiKey ? { apiKey } : undefined,
+    });
+    
+    if (output?.tasks) {
+      output.tasks = output.tasks.map((task) => ({ ...task, details: '' }));
     }
-  });
-  
-  if (output?.tasks) {
-    output.tasks = output.tasks.map((task) => ({ ...task, details: '' }));
+    return output!;
   }
-  return output!;
+);
+
+export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
+  return await generateTasksFlow(input, { apiKey, model, useTDD });
 }

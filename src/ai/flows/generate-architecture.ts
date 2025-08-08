@@ -32,39 +32,40 @@ export type GenerateArchitectureOutput = z.infer<
   typeof GenerateArchitectureOutputSchema
 >;
 
-export async function generateArchitecture(
-  input: GenerateArchitectureInput,
-  apiKey?: string,
-  model?: string
-): Promise<GenerateArchitectureOutput> {
-  const modelName = model
-    ? `googleai/${model}`
-    : 'googleai/gemini-1.5-flash-latest';
-  
-  const generateArchitectureFlow = ai.defineFlow(
-    {
-      name: 'generateArchitectureFlow',
-      inputSchema: GenerateArchitectureInputSchema,
-      outputSchema: GenerateArchitectureOutputSchema,
-    },
-    async (input) => {
-      const {output} = await ai.generate({
-        model: modelName,
-        prompt: `Generate a software architecture and specifications based on the following Product Requirements Document (PRD).
+// Define the flow at module level to avoid runtime definition errors
+const generateArchitectureFlow = ai.defineFlow(
+  {
+    name: 'generateArchitectureFlow',
+    inputSchema: GenerateArchitectureInputSchema,
+    outputSchema: GenerateArchitectureOutputSchema,
+  },
+  async (input, { apiKey, model }: { apiKey?: string; model?: string } = {}) => {
+    const modelName = model
+      ? `googleai/${model}`
+      : 'googleai/gemini-1.5-flash-latest';
+
+    const {output} = await ai.generate({
+      model: modelName,
+      prompt: `Generate a software architecture and specifications based on the following Product Requirements Document (PRD).
 
 PRD:
 ${input.prd}
 
 Respond with ONLY a valid JSON object that conforms to the output schema. Use markdown formatting for the content of the "architecture" and "specifications" fields.`,
-        output: {
-          schema: GenerateArchitectureOutputSchema,
-        },
-        config: apiKey ? {apiKey} : undefined,
-      });
+      output: {
+        schema: GenerateArchitectureOutputSchema,
+      },
+      config: apiKey ? {apiKey} : undefined,
+    });
 
-      return output!;
-    }
-  );
-  
-  return await generateArchitectureFlow(input);
+    return output!;
+  }
+);
+
+export async function generateArchitecture(
+  input: GenerateArchitectureInput,
+  apiKey?: string,
+  model?: string
+): Promise<GenerateArchitectureOutput> {
+  return await generateArchitectureFlow(input, { apiKey, model });
 }
