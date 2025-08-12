@@ -11,13 +11,16 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const _ResearchTaskInputSchema = z.object({
+const ResearchTaskInputSchema = z.object({
   title: z.string().describe('The title of the development task to research.'),
   architecture: z.string().describe('The overall architecture of the project.'),
   fileStructure: z.string().describe('The file/folder structure of the project.'),
   specifications: z.string().describe('The specifications of the project.'),
+  apiKey: z.string().optional().describe('Optional API key for the AI model'),
+  model: z.string().optional().describe('Optional model name to use'),
+  useTDD: z.boolean().optional().describe('Whether to use Test-Driven Development approach'),
 });
-export type ResearchTaskInput = { title: string; architecture: string; fileStructure: string; specifications: string };
+export type ResearchTaskInput = z.infer<typeof ResearchTaskInputSchema>;
 
 const ResearchTaskOutputSchema = z.object({
   context: z
@@ -101,13 +104,20 @@ Now, provide the detailed implementation plan as a JSON object for the following
 const researchTaskFlow = ai.defineFlow(
   {
     name: 'researchTaskFlow',
-    inputSchema: z.string(),
+    inputSchema: ResearchTaskInputSchema,
     outputSchema: ResearchTaskOutputSchema,
   },
-  async (prompt, { apiKey, model }: { apiKey?: string; model?: string } = {}) => {
-    const modelName = model
-      ? `googleai/${model}`
+  async (input) => {
+    const modelName = input.model
+      ? `googleai/${input.model}`
       : 'googleai/gemini-1.5-pro-latest';
+
+    const promptTemplate = input.useTDD ? tddPrompt : standardPrompt;
+    const prompt = promptTemplate
+      .replace('{{{architecture}}}', input.architecture)
+      .replace('{{{fileStructure}}}', input.fileStructure)
+      .replace('{{{specifications}}}', input.specifications)
+      .replace('{{{title}}}', input.title);
 
     const {output} = await ai.generate({
       model: modelName,
@@ -115,7 +125,7 @@ const researchTaskFlow = ai.defineFlow(
       output: {
         schema: ResearchTaskOutputSchema,
       },
-      config: apiKey ? {apiKey} : undefined,
+      config: input.apiKey ? {apiKey: input.apiKey} : undefined,
     });
 
     if (!output) {
@@ -133,12 +143,10 @@ export async function researchTask(
   model?: string,
   useTDD?: boolean
 ): Promise<ResearchTaskOutput> {
-  const promptTemplate = useTDD ? tddPrompt : standardPrompt;
-  const prompt = promptTemplate
-    .replace('{{{architecture}}}', input.architecture)
-    .replace('{{{fileStructure}}}', input.fileStructure)
-    .replace('{{{specifications}}}', input.specifications)
-    .replace('{{{title}}}', input.title);
-
-  return await researchTaskFlow(prompt, { apiKey, model });
+  return await researchTaskFlow({
+    ...input,
+    apiKey,
+    model,
+    useTDD,
+  });
 }

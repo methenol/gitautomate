@@ -21,6 +21,8 @@ const GenerateFileStructureInputSchema = z.object({
   specifications: z
     .string()
     .describe('The detailed specifications for the project.'),
+  apiKey: z.string().optional().describe('Optional API key for the AI model'),
+  model: z.string().optional().describe('Optional model name to use'),
 });
 export type GenerateFileStructureInput = z.infer<typeof GenerateFileStructureInputSchema>;
 
@@ -65,9 +67,9 @@ const generateFileStructureFlow = ai.defineFlow(
     inputSchema: GenerateFileStructureInputSchema,
     outputSchema: GenerateFileStructureOutputSchema,
   },
-  async (input, { apiKey, model }: { apiKey?: string; model?: string } = {}) => {
-    const modelName = model
-      ? `googleai/${model}`
+  async (input) => {
+    const modelName = input.model
+      ? `googleai/${input.model}`
       : 'googleai/gemini-1.5-flash-latest';
 
     const prompt = fileStructurePrompt
@@ -81,7 +83,7 @@ const generateFileStructureFlow = ai.defineFlow(
       output: {
         schema: GenerateFileStructureOutputSchema,
       },
-      config: apiKey ? { apiKey } : undefined,
+      config: input.apiKey ? { apiKey: input.apiKey } : undefined,
     });
 
     if (!output) {
@@ -98,5 +100,9 @@ export async function generateFileStructure(
   apiKey?: string,
   model?: string
 ): Promise<GenerateFileStructureOutput> {
-  return await generateFileStructureFlow(input, { apiKey, model });
+  return await generateFileStructureFlow({
+    ...input,
+    apiKey,
+    model,
+  });
 }

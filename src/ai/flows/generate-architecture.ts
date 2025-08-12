@@ -17,6 +17,8 @@ const GenerateArchitectureInputSchema = z.object({
     .describe(
       'The Product Requirements Document (PRD) to generate the architecture from.'
     ),
+  apiKey: z.string().optional().describe('Optional API key for the AI model'),
+  model: z.string().optional().describe('Optional model name to use'),
 });
 export type GenerateArchitectureInput = z.infer<
   typeof GenerateArchitectureInputSchema
@@ -39,9 +41,9 @@ const generateArchitectureFlow = ai.defineFlow(
     inputSchema: GenerateArchitectureInputSchema,
     outputSchema: GenerateArchitectureOutputSchema,
   },
-  async (input, { apiKey, model }: { apiKey?: string; model?: string } = {}) => {
-    const modelName = model
-      ? `googleai/${model}`
+  async (input) => {
+    const modelName = input.model
+      ? `googleai/${input.model}`
       : 'googleai/gemini-1.5-flash-latest';
 
     const {output} = await ai.generate({
@@ -55,7 +57,7 @@ Respond with ONLY a valid JSON object that conforms to the output schema. Use ma
       output: {
         schema: GenerateArchitectureOutputSchema,
       },
-      config: apiKey ? {apiKey} : undefined,
+      config: input.apiKey ? {apiKey: input.apiKey} : undefined,
     });
 
     return output!;
@@ -67,5 +69,9 @@ export async function generateArchitecture(
   apiKey?: string,
   model?: string
 ): Promise<GenerateArchitectureOutput> {
-  return await generateArchitectureFlow(input, { apiKey, model });
+  return await generateArchitectureFlow({
+    ...input,
+    apiKey,
+    model,
+  });
 }

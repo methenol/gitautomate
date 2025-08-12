@@ -94,7 +94,7 @@ Respond with a JSON object containing "errors" (critical issues) and "warnings" 
         errors.push(...output.errors);
         warnings.push(...output.warnings);
       }
-    } catch (validationError) {
+    } catch {
       warnings.push('Could not perform advanced consistency validation');
     }
   }
@@ -204,7 +204,7 @@ Suggest any task dependencies (by exact title from the task list) this task requ
             validTaskTitles.includes(dep) && dep !== task.title
           );
         }
-      } catch (error) {
+      } catch {
         // If dependency analysis fails, continue without dependencies
         console.warn(`Could not analyze dependencies for task: ${task.title}`);
       }

@@ -18,6 +18,9 @@ const _GenerateTasksInputSchema = z.object({
   architecture: z.string().describe('The architecture of the project.'),
   specifications: z.string().describe('The specifications of the project.'),
   fileStructure: z.string().describe('The file structure of the project.'),
+  apiKey: z.string().optional().describe('Optional API key for the AI model'),
+  model: z.string().optional().describe('Optional model name to use'),
+  useTDD: z.boolean().optional().describe('Whether to use Test-Driven Development approach'),
 });
 export type GenerateTasksInput = z.infer<typeof _GenerateTasksInputSchema>;
 
@@ -70,10 +73,10 @@ const generateTasksFlow = ai.defineFlow(
     inputSchema: _GenerateTasksInputSchema,
     outputSchema: GenerateTasksOutputSchema,
   },
-  async (input, { apiKey, model, useTDD }: { apiKey?: string; model?: string; useTDD?: boolean } = {}) => {
-    const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-flash-latest';
+  async (input) => {
+    const modelName = input.model ? `googleai/${input.model}` : 'googleai/gemini-1.5-flash-latest';
     
-    const promptTemplate = useTDD ? tddPrompt : standardPrompt;
+    const promptTemplate = input.useTDD ? tddPrompt : standardPrompt;
 
     const prompt = promptTemplate
       .replace('{{{architecture}}}', input.architecture)
@@ -86,7 +89,7 @@ const generateTasksFlow = ai.defineFlow(
       output: {
         schema: GenerateTasksOutputSchema
       },
-      config: apiKey ? { apiKey } : undefined,
+      config: input.apiKey ? { apiKey: input.apiKey } : undefined,
     });
     
     if (output?.tasks) {
@@ -97,5 +100,10 @@ const generateTasksFlow = ai.defineFlow(
 );
 
 export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
-  return await generateTasksFlow(input, { apiKey, model, useTDD });
+  return await generateTasksFlow({
+    ...input,
+    apiKey,
+    model,
+    useTDD,
+  });
 }
