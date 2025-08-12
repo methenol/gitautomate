@@ -323,24 +323,18 @@ export default function Home() {
         
 
         
-        // Convert Record<string, Task>[] to Task[]
-        const tasksArray = Object.values(result.tasks).map(task => ({
-          title: task.title,
-          details: task.details
-        }));
-        
-
-        setTasks(Array.isArray(tasksArray) ? tasksArray : Object.values(tasksArray).map((item: any) => ({ title: item.title || 'Unknown Task', details: item.details || '' })) as any);
+        // result.tasks is already an array of Task objects
+        const tasksArray = Array.isArray(result.tasks) ? result.tasks : [];
 
         
         console.log(`Unified workflow generated ${tasksArray.length} tasks with validation results`);
         
         // Check validation results
-        const hasErrors = result.validationResults.some((v: any) => !v.isValid);
+        const hasErrors = Array.isArray(result.validationResults) && result.validationResults.some((v: any) => !v.isValid);
         if (hasErrors) {
           const errorMessages = result.validationResults
             .filter(v => !v.isValid)
-            .flatMap(v => v.errors);
+            .flatMap((v: any) => v.errors || []);
           
           toast({
             variant: 'destructive',
@@ -350,7 +344,7 @@ export default function Home() {
         } else {
           toast({
             title: 'Unified Project Plan Complete!',
-            description: `Generated ${result.tasks.length} tasks with full dependency modeling and validation.`,
+            description: `Generated ${tasksArray.length} tasks with full dependency modeling and validation.`,
           });
         }
         
