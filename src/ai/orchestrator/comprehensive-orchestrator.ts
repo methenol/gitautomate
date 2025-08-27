@@ -13,11 +13,8 @@ import { generateArchitecture } from '@/ai/flows/generate-architecture';
 import { generateFileStructure } from '@/ai/flows/generate-file-structure';
 import { generateTasks } from '@/ai/flows/generate-tasks';
 
-export interface ResearchResult {
-  context: string;
-  implementationSteps: string[];
-  acceptanceCriteria: string[];
-}
+// Import the type from enhanced-task-research
+import { EnhancedResearchOutput } from '@/ai/engines/enhanced-task-research';
 
 export interface ComprehensiveGenerationResult {
   context: UnifiedProjectContext;
@@ -234,7 +231,7 @@ export class ComprehensiveOrchestrator {
     for (const task of orderedTasks) {
       try {
         // Enhanced research with full context
-        const researchResult = await this.researchEngine.researchWithFullContext(
+        const enhancedResearchResult = await this.researchEngine.researchWithFullContext(
           task,
           context,
           completedTaskIds,
@@ -246,11 +243,11 @@ export class ComprehensiveOrchestrator {
         const consistencyIssues = await this.researchEngine.validateTaskConsistency(
           task,
           context,
-          researchResult
+          enhancedResearchResult
         );
 
         // Format enhanced details
-        const enhancedDetails = this.formatEnhancedTaskDetails(researchResult, consistencyIssues);
+        const enhancedDetails = this.formatEnhancedTaskDetails(enhancedResearchResult, consistencyIssues);
         
         // Update task with research results
         const taskIndex = updatedTasks.findIndex(t => t.id === task.id);
@@ -261,7 +258,7 @@ export class ComprehensiveOrchestrator {
           // Update dependencies based on discoveries
           dependencies: [
             ...task.dependencies,
-            ...researchResult.discoveredDependencies.filter(dep => 
+            ...enhancedResearchResult.discoveredDependencies.filter(dep => 
               context.tasks.some(t => t.id === dep || t.title.toLowerCase().includes(dep.toLowerCase()))
             )
           ]
@@ -270,7 +267,7 @@ export class ComprehensiveOrchestrator {
         completedTaskIds.push(task.id);
         debugInfo?.dependencyResolutions.push(
           `Researched ${task.title}: ${consistencyIssues.length} consistency issues, ` +
-          `${researchResult.discoveredDependencies.length} new dependencies`
+          `${enhancedResearchResult.discoveredDependencies.length} new dependencies`
         );
 
       } catch (error) {
@@ -497,7 +494,7 @@ export class ComprehensiveOrchestrator {
    * Format enhanced task details with rich context
    */
   private formatEnhancedTaskDetails(
-    researchResult: ResearchResult,
+    researchResult: EnhancedResearchOutput,
     consistencyIssues: string[]
   ): string {
     const sections = [
