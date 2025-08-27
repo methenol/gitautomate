@@ -453,14 +453,13 @@ export default function Home() {
       });
 
       // Generate and add AGENTS.md file at the root of zip
-      const tasksContent = tasks.map((task, index) => `### Task ${index + 1}: ${task.title}\n${task.details}`).join('\n\n');
       const agentsMdResult = await runGenerateAgentsMd(
         {
           prd,
           architecture, 
           specifications,
           fileStructure,
-          tasks: JSON.stringify(tasks)
+          tasks: tasks.map((task, index) => `### Task ${index + 1}: ${task.title}\n${task.details}`).join('\n\n')
         },
         { apiKey: googleApiKey, model: selectedModel }
       );

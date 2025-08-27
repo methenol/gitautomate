@@ -96,9 +96,7 @@ The AGENTS.md file should be 20-50 lines and include:
 6. **Key Conventions**: Important patterns and conventions used
 7. **Development Rules**: General rules for the project
 
-Content should be concise but comprehensive, providing valuable guidance for AI coding assistants. Use clear markdown formatting with appropriate section headers.
-
-Respond with ONLY a valid JSON object that conforms to the output schema. The "agentsMdContent" field should contain the complete AGENTS.md content as a string.`,
+Content should be concise but comprehensive, providing valuable guidance for AI coding assistants. Use clear markdown formatting with appropriate section headers.`,
         output: {
           schema: GenerateAgentsMdOutputSchema,
         },
