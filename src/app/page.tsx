@@ -12,8 +12,8 @@ import {
   runGenerateTasks,
   runResearchTask,
   runGenerateFileStructure,
-  getModels,
 } from './actions';
+import { getModels, runGenerateAgentsMd } from '@/app/actions';
 import type { Task } from '@/types';
 import {
   getRepositories,
@@ -452,18 +452,34 @@ export default function Home() {
         tasksFolder.file(`task-${taskNumber}.md`, `# ${task.title}\n\n${task.details}`);
       });
 
+      // Generate and add AGENTS.md file at the root of zip
+      const tasksContent = tasks.map((task, index) => `### Task ${index + 1}: ${task.title}\n${task.details}`).join('\n\n');
+      const agentsMdResult = await runGenerateAgentsMd(
+        {
+          prd,
+          architecture, 
+          specifications,
+          fileStructure,
+          tasks: JSON.stringify(tasks)
+        },
+        { apiKey: googleApiKey, model: selectedModel }
+      );
+      
+      // Add AGENTS.md at the root level (not inside any subfolder)
+      zip.file('AGENTS.md', agentsMdResult.agentsMdContent);
+
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       saveAs(zipBlob, 'gitautomate-export.zip');
 
       toast({
         title: 'Export Successful',
-        description: 'Your project data has been downloaded as a zip file.',
+        description: 'Your project data has been downloaded as a zip file with AGENTS.md.',
       });
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Export Failed',
-        description: 'There was an error creating the zip file.',
+        title: 'Export Failed', 
+        description: error instanceof Error && error.message.includes('AGENTS.md generation') ? error.message : 'There was an error creating the zip file.',
       });
       console.error('Export error:', error);
     } finally {
