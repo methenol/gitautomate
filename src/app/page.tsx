@@ -14,6 +14,7 @@ import {
   runGenerateFileStructure,
   getModels,
 } from './actions';
+import { runGenerateAgentsMd } from '@/app/actions';
 import type { Task } from '@/types';
 import {
   getRepositories,
@@ -415,7 +416,19 @@ export default function Home() {
     }
   };
 
-  const handleExportData = async () => {
+  /**
+ * Helper function to get descriptive error message for export failures
+ */
+const getExportErrorDescription = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message.includes('AGENTS.md generation') 
+      ? error.message 
+      : 'There was an error creating the zip file.';
+  }
+  return 'An unknown error occurred during export.';
+};
+
+const handleExportData = async () => {
     if (tasks.length === 0) {
       toast({
         variant: 'destructive',
@@ -452,18 +465,37 @@ export default function Home() {
         tasksFolder.file(`task-${taskNumber}.md`, `# ${task.title}\n\n${task.details}`);
       });
 
+      // Generate and add AGENTS.md file at the root of zip
+      const agentsMdResult = await runGenerateAgentsMd(
+        {
+          prd,
+          architecture, 
+          specifications,
+          fileStructure,
+          tasks: tasks.map((task, index) => `### Task ${index + 1}: ${task.title}\n${task.details}`).join('\n\n')
+        },
+        { apiKey: googleApiKey, model: selectedModel }
+      );
+      
+      // Add AGENTS.md at the root level (not inside any subfolder)
+      zip.file('AGENTS.md', agentsMdResult.agentsMdContent);
+      
+      // Add additional copies of AGENTS.md to specified locations
+      zip.file('.openhands/microagents/repo.md', agentsMdResult.agentsMdContent);
+      zip.file('.github/copilot-instructions.md', agentsMdResult.agentsMdContent);
+
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       saveAs(zipBlob, 'gitautomate-export.zip');
 
       toast({
         title: 'Export Successful',
-        description: 'Your project data has been downloaded as a zip file.',
+        description: 'Your project data has been downloaded as a zip file with AGENTS.md.',
       });
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Export Failed',
-        description: 'There was an error creating the zip file.',
+        title: 'Export Failed', 
+        description: getExportErrorDescription(error),
       });
       console.error('Export error:', error);
     } finally {

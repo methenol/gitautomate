@@ -7,6 +7,7 @@ import {
 import { generateTasks, GenerateTasksInput } from '@/ai/flows/generate-tasks';
 import { researchTask, ResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
 import { generateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
+import { generateAgentsMd, GenerateAgentsMdInput } from '@/ai/flows/generate-agents-md';
 import { listAvailableModels } from '@/ai/genkit';
 
 type ActionOptions = {
@@ -139,6 +140,40 @@ export async function runResearchTask(
 
   // This should not be reachable due to the throw inside the loop
   throw new Error(`Failed to research task "${input.title}".`);
+}
+
+export async function runGenerateAgentsMd(
+  input: GenerateAgentsMdInput,
+  options?: ActionOptions
+) {
+  if (!input.prd || !input.architecture || !input.specifications || !input.fileStructure) {
+    throw new Error(
+      'PRD, architecture, specifications, and file structure are required to generate AGENTS.md content.'
+    );
+  }
+  try {
+    const result = await generateAgentsMd(
+      input,
+      options?.apiKey,
+      options?.model
+    );
+    return result;
+  } catch (error) {
+    console.error('Error generating AGENTS.md content:', error);
+    if (
+      error instanceof Error &&
+      (error.message.includes('API key not found') ||
+        error.message.includes('API key is invalid') ||
+        error.message.includes('Please check your Google AI API key'))
+    ) {
+      throw new Error(
+        'Failed to generate AGENTS.md content: Your Google AI API key is missing or invalid. Please check it in settings.'
+      );
+    }
+    throw new Error(
+      'AGENTS.md generation failed. The model may have returned an unexpected response.'
+    );
+  }
 }
 
 export async function getModels(options?: ActionOptions): Promise<string[]> {
