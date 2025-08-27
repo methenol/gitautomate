@@ -6,7 +6,70 @@ import { generateComprehensiveProject } from '@/app/comprehensive-actions';
 import { ContextValidator } from '@/ai/validation/context-validator';
 import { ComprehensiveOrchestrator } from '@/ai/orchestrator/comprehensive-orchestrator';
 
-// Test constants
+// Mock the external dependencies first to avoid hoisting issues
+jest.mock('@/ai/flows/generate-architecture', () => ({
+  generateArchitecture: jest.fn().mockResolvedValue({
+    architecture: `# Test Architecture
+
+This is a React-based web application with:
+- Component-based UI architecture
+- RESTful API backend
+- Database persistence layer
+- Authentication system`,
+    specifications: `# Test Specifications
+
+## Features
+- User authentication and registration
+- Task management interface
+- Data persistence
+- Responsive design
+
+## Technical Requirements
+- React frontend
+- Node.js backend
+- PostgreSQL database
+- JWT authentication`
+  })
+}));
+
+jest.mock('@/ai/flows/generate-file-structure', () => ({
+  generateFileStructure: jest.fn().mockResolvedValue({
+    fileStructure: `src/
+├── components/
+│   ├── ui/
+│   ├── auth/
+│   └── tasks/
+├── pages/
+│   ├── login.tsx
+│   ├── dashboard.tsx
+│   └── tasks.tsx
+├── api/
+│   ├── auth/
+│   └── tasks/
+├── lib/
+│   ├── auth.ts
+│   └── database.ts
+└── types/
+    └── index.ts`
+  })
+}));
+
+jest.mock('@/ai/flows/generate-tasks', () => ({
+  generateTasks: jest.fn().mockResolvedValue({
+    tasks: [
+      { title: 'Setup project infrastructure', details: '' },
+      { title: 'Configure database schema', details: '' },
+      { title: 'Implement authentication system', details: '' },
+      { title: 'Create user registration page', details: '' },
+      { title: 'Build task management interface', details: '' },
+      { title: 'Add user authentication to tasks', details: '' },
+      { title: 'Implement data persistence', details: '' },
+      { title: 'Add testing framework', details: '' }
+    ]
+  })
+}));
+
+// Test constants - now defined after mocks
 const MOCK_ARCHITECTURE = `# Test Architecture
 
 This is a React-based web application with:
@@ -55,28 +118,8 @@ const MOCK_TASKS = [
   { title: 'Build task management interface', details: '' },
   { title: 'Add user authentication to tasks', details: '' },
   { title: 'Implement data persistence', details: '' },
-  { title: 'Add testing framework', details: '' },
+  { title: 'Add testing framework', details: '' }
 ];
-
-// Mock the external dependencies
-jest.mock('@/ai/flows/generate-architecture', () => ({
-  generateArchitecture: jest.fn().mockResolvedValue({
-    architecture: MOCK_ARCHITECTURE,
-    specifications: MOCK_SPECIFICATIONS
-  })
-}));
-
-jest.mock('@/ai/flows/generate-file-structure', () => ({
-  generateFileStructure: jest.fn().mockResolvedValue({
-    fileStructure: MOCK_FILE_STRUCTURE
-  })
-}));
-
-jest.mock('@/ai/flows/generate-tasks', () => ({
-  generateTasks: jest.fn().mockResolvedValue({
-    tasks: MOCK_TASKS
-  })
-}));
 
 jest.mock('@/ai/genkit', () => ({
   ai: {
@@ -246,14 +289,24 @@ Build a web-based task management application that allows users to create, manag
     console.log('✅ Iterative refinement test passed');
   });
 
-  // Note: With mocked dependencies, empty PRD succeeds. In real implementation this would fail.
-  test('Error handling', async () => {
-    // Test with invalid PRD
+  // Test proper input validation - empty PRD should be rejected
+  test('Input validation', async () => {
+    // Test with invalid PRD (empty)
     const result = await generateComprehensiveProject('');
     
-    // With mocked dependencies, this succeeds. In real implementation it would fail gracefully
+    expect(result.success).toBe(false);
+    expect(result.consistencyScore).toBe(0);
+    expect(result.errors.length).toBeGreaterThan(0);
+    
+    console.log('✅ Input validation test passed - empty PRD correctly rejected');
+  });
+
+  // Test with minimal valid PRD
+  test('Minimal valid input', async () => {
+    const result = await generateComprehensiveProject('Simple project with basic features');
+    
     expect(result.success).toBe(true);
-    console.log('✅ Error handling test passed (mocked dependencies)');
+    console.log('✅ Minimal valid input test passed');
   });
 
   test('Performance benchmarking', async () => {
