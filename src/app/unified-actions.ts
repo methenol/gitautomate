@@ -28,7 +28,7 @@ export interface UnifiedGenerationResult {
  */
 export async function generateUnifiedProject(
   prd: string,
-  options: UnifiedGenerationOptions = {}
+  _options: UnifiedGenerationOptions = {}
 ): Promise<UnifiedGenerationResult> {
   const orchestrator = new UnifiedProjectOrchestrator();
   
@@ -89,7 +89,7 @@ export async function generateUnifiedProject(
  */
 export async function researchUnifiedTasks(
   context: UnifiedProjectContext,
-  options: UnifiedGenerationOptions = {}
+  _options: UnifiedGenerationOptions = {}
 ): Promise<UnifiedGenerationResult> {
   const orchestrator = new UnifiedProjectOrchestrator();
   
@@ -132,7 +132,7 @@ export async function researchUnifiedTasks(
 export async function updateUnifiedContext(
   context: UnifiedProjectContext,
   updates: Partial<Pick<UnifiedProjectContext, 'architecture' | 'specifications' | 'fileStructure'>>,
-  options: UnifiedGenerationOptions = {}
+  _options: UnifiedGenerationOptions = {}
 ): Promise<UnifiedGenerationResult> {
   const orchestrator = new UnifiedProjectOrchestrator();
   

@@ -4,7 +4,7 @@
  * @fileOverview Iterative refinement system that continuously improves project consistency
  */
 
-import { UnifiedProjectContext, ValidationResult } from '@/types/unified-context';
+import { UnifiedProjectContext } from '@/types/unified-context';
 import { ContextValidator } from '@/ai/validation/context-validator';
 import { generateTasks } from '@/ai/flows/generate-tasks';
 import { generateArchitecture } from '@/ai/flows/generate-architecture';
@@ -319,7 +319,7 @@ Provide refined specifications that address these issues.`;
     // Improved heuristics
     if (lowerTitle.includes('test') && !lowerTitle.includes('setup')) {
       // Testing tasks depend on the feature they test
-      const featureTasks = allTasks.slice(0, currentIndex).filter((t, idx) => 
+      const featureTasks = allTasks.slice(0, currentIndex).filter((t) => 
         !t.title.toLowerCase().includes('test') && !t.title.toLowerCase().includes('setup')
       );
       if (featureTasks.length > 0) {

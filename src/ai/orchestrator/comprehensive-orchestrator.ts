@@ -5,13 +5,19 @@
  * with proper context propagation, dependency management, and iterative refinement.
  */
 
-import { UnifiedProjectContext, ValidationResult } from '@/types/unified-context';
+import { UnifiedProjectContext } from '@/types/unified-context';
 import { EnhancedTaskResearchEngine } from '@/ai/engines/enhanced-task-research';
 import { IterativeRefinementEngine } from '@/ai/orchestrator/iterative-refinement';
 import { ContextValidator } from '@/ai/validation/context-validator';
 import { generateArchitecture } from '@/ai/flows/generate-architecture';
 import { generateFileStructure } from '@/ai/flows/generate-file-structure';
 import { generateTasks } from '@/ai/flows/generate-tasks';
+
+export interface ResearchResult {
+  context: string;
+  implementationSteps: string[];
+  acceptanceCriteria: string[];
+}
 
 export interface ComprehensiveGenerationResult {
   context: UnifiedProjectContext;
@@ -491,7 +497,7 @@ export class ComprehensiveOrchestrator {
    * Format enhanced task details with rich context
    */
   private formatEnhancedTaskDetails(
-    researchResult: any,
+    researchResult: ResearchResult,
     consistencyIssues: string[]
   ): string {
     const sections = [

@@ -12,7 +12,7 @@
 
 import { ComprehensiveOrchestrator } from '@/ai/orchestrator/comprehensive-orchestrator';
 import type { UnifiedProjectContext } from '@/types/unified-context';
-import { getModels } from './actions';
+
 
 export interface ComprehensiveGenerationOptions {
   apiKey?: string;
@@ -227,7 +227,6 @@ function extractComplexity(taskDetails: string): string {
  * LEGACY COMPATIBILITY - re-export existing functions that don't need changes
  * ============================================================================
  */
-export { getModels } from './actions';
 
 /**
  * ============================================================================

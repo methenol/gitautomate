@@ -239,7 +239,7 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
     
     // Authentication dependencies
     if (lowerTitle.includes('login') || lowerTitle.includes('auth') || lowerTitle.includes('user') && !lowerTitle.includes('setup')) {
-      const authTasks = allTasks.slice(0, currentIndex).filter((t, idx) => 
+      const authTasks = allTasks.slice(0, currentIndex).filter((t) => 
         t.title.toLowerCase().includes('auth') || t.title.toLowerCase().includes('user setup')
       );
       if (authTasks.length > 0) {
@@ -249,7 +249,7 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
     
     // UI/Component dependencies
     if (lowerTitle.includes('page') || lowerTitle.includes('component')) {
-      const setupTasks = allTasks.slice(0, currentIndex).filter((t, idx) => 
+      const setupTasks = allTasks.slice(0, currentIndex).filter((t) => 
         t.title.toLowerCase().includes('setup') || t.title.toLowerCase().includes('configure')
       );
       if (setupTasks.length > 0) {
@@ -296,7 +296,7 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
     return issues;
   }
 
-  private validateTaskFileAlignment(tasks: UnifiedProjectContext['tasks'], fileStructure: string): string[] {
+  private validateTaskFileAlignment(_tasks: UnifiedProjectContext['tasks'], _fileStructure: string): string[] {
     const issues: string[] = [];
     // This would check if tasks reference files that exist in the structure
     // Implementation would depend on specific file structure format

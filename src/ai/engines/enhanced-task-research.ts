@@ -167,8 +167,8 @@ Generate your research results as a JSON object conforming to the output schema.
 
   private extractFileReferences(text: string): string[] {
     const patterns = [
-      /(?:create|modify|update)\s+(?:file\s+)?(?:[\w\/]+\/)?(\w+\.\w+)/gi,
-      /(\w+\/[\w\/]*\.\w+)/gi,
+      /(?:create|modify|update)\s+(?:file\s+)?([\w/]+\/)?(\w+\.\w+)/gi,
+      /(\w+[\w/]*\.\w+)/gi,
       /(\w+\.\w+)/gi
     ];
     
