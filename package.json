@@ -11,7 +11,9 @@
     "start": "next start -p 9002",
     "prod:start": "npm run genkit:start & npm run start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.13.0",
@@ -63,6 +65,7 @@
   },
   "devDependencies": {
     "@types/file-saver": "^2.0.7",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
@@ -70,8 +73,10 @@
     "@typescript-eslint/parser": "^8.38.0",
     "eslint": "^8.57.1",
     "genkit-cli": "^0.0.2",
+    "jest": "^30.0.5",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "ts-jest": "^29.4.1",
     "typescript": "^5"
   }
 }
