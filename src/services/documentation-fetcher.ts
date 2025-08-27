@@ -35,7 +35,7 @@ export class DocumentationFetcher {
     const libraryDocs = [];
     let completedLibraries = 0;
     let successCount = 0;
-    const errorCount = 0;
+    let errorCount = 0;
 
     const progress: DocumentationFetchProgress = {
       totalLibraries: libraries.length,
@@ -132,11 +132,13 @@ export class DocumentationFetcher {
           break;
         }
         
+        // Increment error count for this library
+        errorCount++;
       } finally {
         completedLibraries++;
         progress.completedLibraries = completedLibraries;
         progress.successCount = successCount; 
-        progress.errorCount = errorCount + (libraryDocs.length === libraryDocs.filter(d => d.libraryName !== library.name).length ? 1 : 0);
+        progress.errorCount = errorCount;
         
         // Notify progress update
         if (onProgressUpdate) {

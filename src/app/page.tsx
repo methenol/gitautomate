@@ -484,8 +484,6 @@ const handleExportData = async () => {
       if (specifications) docsFolder.file('SPECIFICATION.md', specifications); 
       if (fileStructure) docsFolder.file('FILE_STRUCTURE.md', fileStructure);
 
-
-
       // Create main tasks file
       const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
       tasksFolder.file('tasks.md', `# Task List\n\n${mainTasksContent}`);
