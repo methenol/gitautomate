@@ -135,7 +135,7 @@ export class LibraryIdentifier {
     potentialLibraries.push(...content.match(packagePattern) || []);
     
     // Pattern 2: Capitalized words that could be library names (3+ chars)
-    const capitalizedPattern = /\b[A-Z][a-z]{2,}(?:\s+[A-Za-z]*)*\b/g;
+    const capitalizedPattern = /\b[A-Z][a-z]{2,}(?:\s+[A-Za-z]+)*\b/g;
     const matches = content.match(capitalizedPattern) || [];
     
     for (const match of matches) {
