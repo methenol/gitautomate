@@ -1,5 +1,3 @@
-'use server';
-
 /**
  * @fileOverview This file defines a Genkit flow for generating an AGENTS.md file with project-specific instructions for AI agents.
  *

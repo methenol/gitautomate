@@ -12,8 +12,9 @@ import {
   runGenerateTasks,
   runResearchTask,
   runGenerateFileStructure,
+  getModels,
 } from './actions';
-import { getModels, runGenerateAgentsMd } from '@/app/actions';
+import { runGenerateAgentsMd } from '@/app/actions';
 import type { Task } from '@/types';
 import {
   getRepositories,
@@ -415,7 +416,19 @@ export default function Home() {
     }
   };
 
-  const handleExportData = async () => {
+  /**
+ * Helper function to get descriptive error message for export failures
+ */
+const getExportErrorDescription = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message.includes('AGENTS.md generation') 
+      ? error.message 
+      : 'There was an error creating the zip file.';
+  }
+  return 'An unknown error occurred during export.';
+};
+
+const handleExportData = async () => {
     if (tasks.length === 0) {
       toast({
         variant: 'destructive',
@@ -466,6 +479,10 @@ export default function Home() {
       
       // Add AGENTS.md at the root level (not inside any subfolder)
       zip.file('AGENTS.md', agentsMdResult.agentsMdContent);
+      
+      // Add additional copies of AGENTS.md to specified locations
+      zip.file('.openhands/microagents/repo.md', agentsMdResult.agentsMdContent);
+      zip.file('.github/copilot-instructions.md', agentsMdResult.agentsMdContent);
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       saveAs(zipBlob, 'gitautomate-export.zip');
@@ -478,7 +495,7 @@ export default function Home() {
       toast({
         variant: 'destructive',
         title: 'Export Failed', 
-        description: error instanceof Error && error.message.includes('AGENTS.md generation') ? error.message : 'There was an error creating the zip file.',
+        description: getExportErrorDescription(error),
       });
       console.error('Export error:', error);
     } finally {
