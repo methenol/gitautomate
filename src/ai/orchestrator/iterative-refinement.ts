@@ -4,7 +4,7 @@
  * @fileOverview Iterative refinement system that continuously improves project consistency
  */
 
-import { UnifiedProjectContext } from '@/types/unified-context';
+import { UnifiedProjectContext, ValidationResult } from '@/types/unified-context';
 import { ContextValidator } from '@/ai/validation/context-validator';
 import { generateTasks } from '@/ai/flows/generate-tasks';
 import { generateArchitecture } from '@/ai/flows/generate-architecture';
@@ -32,6 +32,116 @@ export type RefinementAnalysis = z.infer<typeof RefinementAnalysisSchema>;
 
 export class IterativeRefinementEngine {
   
+  /**
+   * Build consistency analysis prompt in manageable sections
+   */
+  private buildConsistencyAnalysisPrompt(
+    context: UnifiedProjectContext,
+    validationResults: ValidationResult[]
+  ): string[] {
+    
+    const sections = [
+      // Introduction section
+      `PROJECT COMPONENTS:
+==================`,
+
+      // PRD section
+      `PRD (Product Requirements Document):
+${context.prd}`,
+
+      // Architecture section  
+      `ARCHITECTURE:
+${context.architecture}`,
+
+      // Specifications section
+      `SPECIFICATIONS:
+${context.specifications}`,
+
+      // File structure section
+      `FILE STRUCTURE:
+${context.fileStructure}`,
+
+      // Tasks section with formatted output
+      `TASKS (${context.tasks.length} total):
+${this.formatTasksForAnalysis(context.tasks)}`,
+
+      // Validation issues section
+      `VALIDATION ISSUES FOUND:
+========================
+${this.formatValidationResults(validationResults)}`,
+
+      // Analysis requirements section
+      `ANALYSIS REQUIREMENTS:
+=====================`,
+
+      // Consistency scoring sub-section
+      this.buildConsistencyScoringSection(),
+
+      // Critical issues section  
+      `2. CRITICAL ISSUES: Identify issues that would prevent successful implementation:
+   - Missing essential components
+   - Logical contradictions
+   - Impossible dependencies
+   - Architecture-implementation mismatches`,
+
+      // Refinement suggestions section
+      `3. REFINEMENT SUGGESTIONS: For each identified issue, provide:
+   - Specific component to modify
+   - Clear description of the problem
+   - Actionable suggestion for improvement
+   - Priority level and reasoning`,
+
+      // Recommended action section
+      `4. RECOMMENDED ACTION: Choose the most appropriate next step:
+   - accept: Project is sufficiently consistent
+   - refine_architecture: Architecture needs revision
+   - refine_tasks: Task breakdown needs improvement
+   - refine_specifications: Specifications need clarification
+   - major_revision: Fundamental issues require major changes`
+    ];
+
+    return sections;
+  }
+
+  /**
+   * Format tasks for analysis display
+   */
+  private formatTasksForAnalysis(tasks: UnifiedProjectContext['tasks']): string {
+    return tasks.map(t => 
+      `${t.id} (order: ${t.order}): ${this.truncateText(t.title, 50)}
+Dependencies: [${t.dependencies.join(', ') || 'none'}]
+Details: ${this.truncateText(t.details, 200)}...`
+    ).join('\n\n');
+  }
+
+  /**
+   * Format validation results for analysis display
+   */
+  private formatValidationResults(results: ValidationResult[]): string {
+    return results.map(v => 
+      `${v.severity.toUpperCase()}: ${this.truncateText(v.issues.join(', '), 100)}`
+    ).join('\n');
+  }
+
+  /**
+   * Build consistency scoring section
+   */
+  private buildConsistencyScoringSection(): string {
+    return `1. CONSISTENCY SCORING: Rate overall consistency 0-100 considering:
+   - PRD requirements coverage in architecture
+   - Architecture reflection in file structure  
+   - Task completeness for implementing specifications
+   - Logical task ordering and dependencies
+   - Technical feasibility of the proposed solution`;
+  }
+
+  /**
+   * Truncate text to specified length
+   */
+  private truncateText(text: string, maxLength: number): string {
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+  }
+
   async analyzeProjectConsistency(
     context: UnifiedProjectContext,
     apiKey?: string,
@@ -42,58 +152,12 @@ export class IterativeRefinementEngine {
     const validationResults = ContextValidator.validateFullContext(context);
     
     // Then perform AI-powered consistency analysis
+    const promptSections = this.buildConsistencyAnalysisPrompt(context, validationResults);
+    
+    // Combine all sections for the final prompt
     const prompt = `You are an expert software architect conducting a comprehensive consistency analysis of a project plan. Analyze the following project components for logical consistency, completeness, and alignment.
 
-PROJECT COMPONENTS:
-==================
-
-PRD (Product Requirements Document):
-${context.prd}
-
-ARCHITECTURE:
-${context.architecture}
-
-SPECIFICATIONS:
-${context.specifications}
-
-FILE STRUCTURE:
-${context.fileStructure}
-
-TASKS (${context.tasks.length} total):
-${context.tasks.map(t => `${t.id} (order: ${t.order}): ${t.title}\nDependencies: [${t.dependencies.join(', ') || 'none'}]\nDetails: ${t.details.substring(0, 200)}...`).join('\n\n')}
-
-VALIDATION ISSUES FOUND:
-========================
-${validationResults.map(v => `${v.severity.toUpperCase()}: ${v.issues.join(', ')}`).join('\n')}
-
-ANALYSIS REQUIREMENTS:
-=====================
-
-1. CONSISTENCY SCORING: Rate overall consistency 0-100 considering:
-   - PRD requirements coverage in architecture
-   - Architecture reflection in file structure  
-   - Task completeness for implementing specifications
-   - Logical task ordering and dependencies
-   - Technical feasibility of the proposed solution
-
-2. CRITICAL ISSUES: Identify issues that would prevent successful implementation:
-   - Missing essential components
-   - Logical contradictions
-   - Impossible dependencies
-   - Architecture-implementation mismatches
-
-3. REFINEMENT SUGGESTIONS: For each identified issue, provide:
-   - Specific component to modify
-   - Clear description of the problem
-   - Actionable suggestion for improvement
-   - Priority level and reasoning
-
-4. RECOMMENDED ACTION: Choose the most appropriate next step:
-   - accept: Project is sufficiently consistent
-   - refine_architecture: Architecture needs revision
-   - refine_tasks: Task breakdown needs improvement
-   - refine_specifications: Specifications need clarification
-   - major_revision: Fundamental issues require major changes
+${promptSections.join('\n\n')}
 
 Provide your analysis as a JSON object conforming to the schema.`;
 

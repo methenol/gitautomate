@@ -13,6 +13,23 @@
 import { ComprehensiveOrchestrator } from '@/ai/orchestrator/comprehensive-orchestrator';
 import type { UnifiedProjectContext } from '@/types/unified-context';
 
+/**
+ * Create an empty unified project context
+ */
+function createEmptyContext(): UnifiedProjectContext {
+  return {
+    prd: '',
+    architecture: '',
+    fileStructure: '',
+    specifications: '',
+    tasks: [],
+    dependencyGraph: [],
+    validationHistory: [],
+    lastUpdated: new Date().toISOString(),
+    version: 1,
+  };
+}
+
 
 export interface ComprehensiveGenerationOptions {
   apiKey?: string;
@@ -52,6 +69,23 @@ export async function generateComprehensiveProject(
   prd: string,
   options: ComprehensiveGenerationOptions = {}
 ): Promise<ComprehensiveResult> {
+  
+  // Validate input - reject empty or whitespace-only PRD
+  if (!prd || !prd.trim()) {
+    return {
+      context: createEmptyContext(),
+      success: false,
+      consistencyScore: 0,
+      iterationCount: 0,
+      errors: ['Product Requirements Document (PRD) cannot be empty or whitespace-only'],
+      warnings: [],
+      debugInfo: {
+        refinementHistory: ['Input validation failed - empty PRD'],
+        dependencyResolutions: [],
+        validationSteps: ['Validated input requirements', 'Rejected empty PRD'],
+      },
+    };
+  }
   
   const orchestrator = new ComprehensiveOrchestrator();
   
@@ -249,25 +283,46 @@ export function migrateToUnifiedContext(oldState: MigrationState): UnifiedProjec
     return oldState.unifiedContext;
   }
   
-  if (oldState.architecture && oldState.specifications && oldState.fileStructure && oldState.tasks) {
-    return {
-      prd: '', // Will need to be provided
-      architecture: oldState.architecture,
-      specifications: oldState.specifications,
-      fileStructure: oldState.fileStructure,
-      tasks: oldState.tasks.map((task, index) => ({
-        ...task,
-        id: `task-${(index + 1).toString().padStart(3, '0')}`,
-        order: index + 1,
-        dependencies: [],
-        status: 'completed' as const,
-      })),
-      dependencyGraph: [],
-      validationHistory: [],
-      lastUpdated: new Date().toISOString(),
-      version: 1,
-    };
+  // Early return if tasks is not a valid array or is empty
+  if (
+    !oldState.architecture ||
+    !oldState.specifications ||
+    !oldState.fileStructure ||
+    !Array.isArray(oldState.tasks) ||
+    oldState.tasks.length === 0
+  ) {
+    return null;
   }
-  
-  return null;
+
+  // Use a for-loop for better performance on large arrays
+  const tasks: Array<{
+    title: string;
+    details: string;
+    id: string;
+    order: number;
+    dependencies: any[];
+    status: 'completed';
+  }> = [];
+  for (let i = 0; i < oldState.tasks.length; i++) {
+    const task = oldState.tasks[i];
+    tasks.push({
+      ...task,
+      id: `task-${(i + 1).toString().padStart(3, '0')}`,
+      order: i + 1,
+      dependencies: [],
+      status: 'completed' as const,
+    });
+  }
+
+  return {
+    prd: '', // Will need to be provided
+    architecture: oldState.architecture,
+    specifications: oldState.specifications,
+    fileStructure: oldState.fileStructure,
+    tasks,
+    dependencyGraph: [],
+    validationHistory: [],
+    lastUpdated: new Date().toISOString(),
+    version: 1,
+  };
 }

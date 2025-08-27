@@ -6,13 +6,20 @@
 
 import { UnifiedProjectContext, ValidationResult } from '@/types/unified-context';
 
+export interface ArchitecturePattern {
+  pattern: string;
+  message: string;
+}
+
 export class ContextValidator {
   
-  static validateFullContext(context: UnifiedProjectContext): ValidationResult[] {
+  static validateFullContext(context: UnifiedProjectContext, options?: {
+    architecturePatterns?: ArchitecturePattern[];
+  }): ValidationResult[] {
     const results: ValidationResult[] = [];
     
     // Architecture validation
-    results.push(...this.validateArchitecture(context));
+    results.push(...this.validateArchitecture(context, options));
     
     // File structure validation  
     results.push(...this.validateFileStructure(context));
@@ -29,7 +36,10 @@ export class ContextValidator {
     return results;
   }
 
-  private static validateArchitecture(context: UnifiedProjectContext): ValidationResult[] {
+  private static validateArchitecture(
+    context: UnifiedProjectContext, 
+    options?: { architecturePatterns?: ArchitecturePattern[] }
+  ): ValidationResult[] {
     const results: ValidationResult[] = [];
     
     if (!context.architecture) {
@@ -44,7 +54,7 @@ export class ContextValidator {
 
     // Check for essential architecture components
     const arch = context.architecture.toLowerCase();
-    const requiredPatterns = [
+    const requiredPatterns: ArchitecturePattern[] = options?.architecturePatterns ?? [
       { pattern: 'component', message: 'No component architecture mentioned' },
       { pattern: 'data', message: 'No data flow or storage architecture mentioned' },
       { pattern: 'api|endpoint|service', message: 'No API or service architecture mentioned' }

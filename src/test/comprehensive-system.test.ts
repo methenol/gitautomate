@@ -6,17 +6,16 @@ import { generateComprehensiveProject } from '@/app/comprehensive-actions';
 import { ContextValidator } from '@/ai/validation/context-validator';
 import { ComprehensiveOrchestrator } from '@/ai/orchestrator/comprehensive-orchestrator';
 
-// Mock the external dependencies
-jest.mock('@/ai/flows/generate-architecture', () => ({
-  generateArchitecture: jest.fn().mockResolvedValue({
-    architecture: `# Test Architecture
-    
+// Test constants
+const MOCK_ARCHITECTURE = `# Test Architecture
+
 This is a React-based web application with:
 - Component-based UI architecture
 - RESTful API backend
 - Database persistence layer
-- Authentication system`,
-    specifications: `# Test Specifications
+- Authentication system`;
+
+const MOCK_SPECIFICATIONS = `# Test Specifications
 
 ## Features
 - User authentication and registration
@@ -28,13 +27,9 @@ This is a React-based web application with:
 - React frontend
 - Node.js backend
 - PostgreSQL database
-- JWT authentication`
-  })
-}));
+- JWT authentication`;
 
-jest.mock('@/ai/flows/generate-file-structure', () => ({
-  generateFileStructure: jest.fn().mockResolvedValue({
-    fileStructure: `src/
+const MOCK_FILE_STRUCTURE = `src/
 ├── components/
 │   ├── ui/
 │   ├── auth/
@@ -50,22 +45,36 @@ jest.mock('@/ai/flows/generate-file-structure', () => ({
 │   ├── auth.ts
 │   └── database.ts
 └── types/
-    └── index.ts`
+    └── index.ts`;
+
+const MOCK_TASKS = [
+  { title: 'Setup project infrastructure', details: '' },
+  { title: 'Configure database schema', details: '' },
+  { title: 'Implement authentication system', details: '' },
+  { title: 'Create user registration page', details: '' },
+  { title: 'Build task management interface', details: '' },
+  { title: 'Add user authentication to tasks', details: '' },
+  { title: 'Implement data persistence', details: '' },
+  { title: 'Add testing framework', details: '' },
+];
+
+// Mock the external dependencies
+jest.mock('@/ai/flows/generate-architecture', () => ({
+  generateArchitecture: jest.fn().mockResolvedValue({
+    architecture: MOCK_ARCHITECTURE,
+    specifications: MOCK_SPECIFICATIONS
+  })
+}));
+
+jest.mock('@/ai/flows/generate-file-structure', () => ({
+  generateFileStructure: jest.fn().mockResolvedValue({
+    fileStructure: MOCK_FILE_STRUCTURE
   })
 }));
 
 jest.mock('@/ai/flows/generate-tasks', () => ({
   generateTasks: jest.fn().mockResolvedValue({
-    tasks: [
-      { title: 'Setup project infrastructure', details: '' },
-      { title: 'Configure database schema', details: '' },
-      { title: 'Implement authentication system', details: '' },
-      { title: 'Create user registration page', details: '' },
-      { title: 'Build task management interface', details: '' },
-      { title: 'Add user authentication to tasks', details: '' },
-      { title: 'Implement data persistence', details: '' },
-      { title: 'Add testing framework', details: '' },
-    ]
+    tasks: MOCK_TASKS
   })
 }));
 

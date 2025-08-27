@@ -18,18 +18,22 @@ export const ValidationResultSchema = z.object({
 
 export type ValidationResult = z.infer<typeof ValidationResultSchema>;
 
+export const EnhancedTaskSchema = z.object({
+  ...TaskSchema.shape,
+  id: z.string(),
+  order: z.number(),
+  dependencies: z.array(z.string()).default([]),
+  status: z.enum(['pending', 'researching', 'completed', 'failed']).default('pending'),
+});
+
+export type EnhancedTask = z.infer<typeof EnhancedTaskSchema>;
+
 export const UnifiedProjectContextSchema = z.object({
   prd: z.string(),
   architecture: z.string(),
   fileStructure: z.string(), 
   specifications: z.string(),
-  tasks: z.array(z.object({
-    ...TaskSchema.shape,
-    id: z.string(),
-    order: z.number(),
-    dependencies: z.array(z.string()).default([]),
-    status: z.enum(['pending', 'researching', 'completed', 'failed']).default('pending'),
-  })),
+  tasks: z.array(EnhancedTaskSchema),
   dependencyGraph: z.array(DependencySchema).default([]),
   validationHistory: z.array(ValidationResultSchema).default([]),
   lastUpdated: z.string(),
