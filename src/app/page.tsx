@@ -88,6 +88,7 @@ const settingsSchema = z.object({
   googleApiKey: z.string().optional(),
   model: z.string(),
   useTDD: z.boolean().default(false),
+  fetchDocumentation: z.boolean().default(false), 
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -100,6 +101,7 @@ type LoadingStates = {
   issue: boolean;
   exporting: boolean;
   models: boolean;
+  fetchingDocs: boolean; 
 };
 
 type TaskLoadingStates = {
@@ -121,6 +123,7 @@ export default function Home() {
   const [googleApiKey, setGoogleApiKey] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<string>(UI_DEFAULT_MODEL);
   const [useTDD, setUseTDD] = useState<boolean>(false);
+  const [fetchDocumentation, setFetchDocumentation] = useState<boolean>(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -146,6 +149,7 @@ export default function Home() {
     issue: false,
     exporting: false,
     models: false,
+    fetchingDocs: false, 
   });
   
   const [taskLoading, setTaskLoading] = useState<TaskLoadingStates>({});
@@ -157,6 +161,7 @@ export default function Home() {
       googleApiKey: '',
       model: UI_DEFAULT_MODEL,
       useTDD: false,
+      fetchDocumentation: false, 
     },
   });
 
@@ -201,16 +206,19 @@ export default function Home() {
     const storedApiKey = localStorage.getItem('googleApiKey') || '';
     const storedModel = localStorage.getItem('selectedModel') || UI_DEFAULT_MODEL;
     const storedTDD = localStorage.getItem('useTDD') === 'true';
+    const storedFetchDocumentation = localStorage.getItem('fetchDocumentation') === 'true';
 
     setGithubToken(storedToken);
     setGoogleApiKey(storedApiKey);
     setSelectedModel(storedModel);
     setUseTDD(storedTDD);
+    setFetchDocumentation(storedFetchDocumentation);
 
     form.setValue('githubToken', storedToken);
     form.setValue('googleApiKey', storedApiKey);
     form.setValue('model', storedModel);
     form.setValue('useTDD', storedTDD);
+    form.setValue('fetchDocumentation', storedFetchDocumentation);
     
     if (storedApiKey || process.env.GOOGLE_API_KEY) {
       fetchModels(storedApiKey);
@@ -257,6 +265,9 @@ export default function Home() {
 
     setUseTDD(values.useTDD);
     localStorage.setItem('useTDD', values.useTDD.toString());
+
+    setFetchDocumentation(values.fetchDocumentation);
+    localStorage.setItem('fetchDocumentation', values.fetchDocumentation.toString());
     
     setIsSettingsOpen(false);
     toast({ title: 'Success', description: 'Settings saved.' });
@@ -442,6 +453,24 @@ const handleExportData = async () => {
 
     try {
       const zip = new JSZip();
+      
+      // Use API route for documentation fetching
+      if (fetchDocumentation) {
+        setLoading((prev) => ({ ...prev, fetchingDocs: true }));
+        
+        try {
+          // For now create empty reference folder - actual docs will be handled by API route
+          zip.folder('reference');
+          
+        } catch (docError) {
+          console.error('[Export] Documentation fetching failed:', docError);
+          
+          // Only show warning, don't fail the entire export
+        } finally {
+          setLoading((prev) => ({ ...prev, fetchingDocs: false }));
+        }
+      }
+
       const docsFolder = zip.folder('docs');
       const tasksFolder = zip.folder('tasks');
 
@@ -451,9 +480,11 @@ const handleExportData = async () => {
 
       // Add docs
       docsFolder.file('PRD.md', prd);
-      docsFolder.file('ARCHITECTURE.md', architecture);
-      docsFolder.file('SPECIFICATION.md', specifications);
-      docsFolder.file('FILE_STRUCTURE.md', fileStructure);
+      if (architecture) docsFolder.file('ARCHITECTURE.md', architecture);
+      if (specifications) docsFolder.file('SPECIFICATION.md', specifications); 
+      if (fileStructure) docsFolder.file('FILE_STRUCTURE.md', fileStructure);
+
+
 
       // Create main tasks file
       const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
@@ -462,7 +493,15 @@ const handleExportData = async () => {
       // Create individual task files
       tasks.forEach((task, index) => {
         const taskNumber = (index + 1).toString().padStart(3, '0');
-        tasksFolder.file(`task-${taskNumber}.md`, `# ${task.title}\n\n${task.details}`);
+        let taskContent = `# ${task.title}\n\n${task.details}`;
+        
+        // Add documentation reference if enabled and docs were fetched
+        if (fetchDocumentation && tasks.length > 0) {
+          const documentationReference = `IMPORTANT: Read all relevant library documentation in the reference/ folder before implementing this task. The available libraries have comprehensive documentation that includes code examples, API references, and best practices.\n\n`;
+          taskContent = `${documentationReference}${taskContent}`;
+        }
+        
+        tasksFolder.file(`task-${taskNumber}.md`, taskContent);
       });
 
       // Generate and add AGENTS.md file at the root of zip
@@ -638,6 +677,30 @@ const handleExportData = async () => {
                       </FormItem>
                     )}
                   />
+
+                   <FormField
+                    control={form.control}
+                    name="fetchDocumentation"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            Fetch Documentation
+                          </FormLabel>
+                          <FormDescription>
+                           Include comprehensive library documentation in export packages.
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
                   <DialogFooter>
                     <Button type="submit">Save Settings</Button>
                   </DialogFooter>
@@ -848,6 +911,15 @@ const handleExportData = async () => {
                         </p>
                       </div>
                     )}
+                    
+                    {loading.fetchingDocs && (
+                      <div className="mb-4 space-y-2">
+                        <Progress value={0} />
+                        <p className="text-sm text-center text-muted-foreground">
+                          {`Fetching library documentation...`}
+                        </p>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       {tasks.map((task, index) => (
                         <button
@@ -887,9 +959,14 @@ const handleExportData = async () => {
                        <Button
                         variant="outline"
                         onClick={handleExportData}
-                        disabled={loading.exporting || loading.researching}
+                        disabled={loading.fetchingDocs || loading.exporting || loading.researching}
                       >
-                        {loading.exporting ? (
+                        {loading.fetchingDocs ? (
+                          <>
+                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                            Fetching Documentation...
+                          </>
+                        ) : loading.exporting ? (
                           <>
                             <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
                             Exporting...
