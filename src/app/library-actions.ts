@@ -52,6 +52,20 @@ export async function runIdentifyLibraries(
   ).join('\n\n');
 
   try {
+    // Validate and fallback model if needed
+    let validModel = model || 'gemini-1.5-flash-latest';
+    
+    // Filter out deprecated models
+    const deprecatedModels = [
+      'gemini-2.5-flash-lite-preview-06-17',
+      'gemini-2.0-flash-lite-preview'
+    ];
+    
+    if (deprecatedModels.some(deprecated => validModel.includes(deprecated))) {
+      console.warn(`Deprecated model "${validModel}" detected, falling back to gemini-1.5-flash-latest`);
+      validModel = 'gemini-1.5-flash-latest';
+    }
+
     // Use LLM to identify libraries with advanced pattern matching
     const identificationFlow = ai.defineFlow(
       {
@@ -94,28 +108,57 @@ ${input.taskContent}
 
 Return as JSON with libraries array.`;
 
-        const result = await ai.generate({
-          model: `googleai/${model || 'gemini-1.5-flash-latest'}`,
-          prompt,
-          config: apiKey ? { apiKey } : undefined,
-          output: {
-            schema: z.object({
-              libraries: z.array(z.object({
-                name: z.string(),
-                category: z.enum(['frontend', 'backend', 'database', 'testing', 'auth', 'build-tools', 'ui', 'api', 'deployment', 'monitoring', 'other']),
-                confidence: z.number().min(0).max(1),
-                context: z.string(),
-                taskReferences: z.array(z.string())
-              }))
-            })
+        try {
+          const result = await ai.generate({
+            model: `googleai/${validModel}`,
+            prompt,
+            config: apiKey ? { apiKey } : undefined,
+            output: {
+              schema: z.object({
+                libraries: z.array(z.object({
+                  name: z.string(),
+                  category: z.enum(['frontend', 'backend', 'database', 'testing', 'auth', 'build-tools', 'ui', 'api', 'deployment', 'monitoring', 'other']),
+                  confidence: z.number().min(0).max(1),
+                  context: z.string(),
+                  taskReferences: z.array(z.string())
+                }))
+              })
+            }
+          });
+
+          if (!result.output) {
+            throw new Error('No output received from AI model');
           }
-        });
 
-        if (!result.output) {
-          throw new Error('No output received from AI model');
+          return result.output;
+          
+        } catch (modelError) {
+          // If the model fails, try with a guaranteed working fallback
+          console.warn(`Model ${validModel} failed, trying with gemini-1.5-pro-latest:`, modelError);
+          
+          const fallbackResult = await ai.generate({
+            model: 'googleai/gemini-1.5-pro-latest',
+            prompt,
+            config: apiKey ? { apiKey } : undefined,
+            output: {
+              schema: z.object({
+                libraries: z.array(z.object({
+                  name: z.string(),
+                  category: z.enum(['frontend', 'backend', 'database', 'testing', 'auth', 'build-tools', 'ui', 'api', 'deployment', 'monitoring', 'other']),
+                  confidence: z.number().min(0).max(1),
+                  context: z.string(),
+                  taskReferences: z.array(z.string())
+                }))
+              })
+            }
+          });
+
+          if (!fallbackResult.output) {
+            throw new Error('No output received from fallback AI model');
+          }
+
+          return fallbackResult.output;
         }
-
-        return result.output;
       }
     );
 
