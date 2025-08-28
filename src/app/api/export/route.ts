@@ -3,10 +3,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import JSZip from 'jszip';
 
-// Import the actual documentation services
-const { LibraryIdentifier } = await import('@/services/library-identifier');
-const { DocumentationFetcher, Context7MCPClient } = await import('@/services/documentation-fetcher');
-
 // Types
 type Task = {
   title: string;
@@ -16,6 +12,15 @@ type Task = {
 export async function POST(request: NextRequest) {
   try {
     const { prd, architecture, specifications, fileStructure, tasks, fetchDocumentation } = await request.json();
+    
+    // Import services where needed
+    const LibraryIdentifierModule = await import('@/services/library-identifier');
+    
+    // Import DocumentationFetcher  
+    const DocumentationFetcherModule = await import('@/services/documentation-fetcher');
+    
+    // Import Context7MCPClient
+    const Context7MCPModule = await import('@/services/context7-mcp-client');
 
     if (!tasks || !Array.isArray(tasks)) {
       return NextResponse.json({ error: 'Invalid tasks data' }, { status: 400 });
@@ -24,7 +29,7 @@ export async function POST(request: NextRequest) {
     const zip = new JSZip();
     
     // Add docs folder
-    let referenceFolder: any;
+    let referenceFolder: JSZip.JSZipObject | null = null;
     if (fetchDocumentation) {
       console.log('[Export] Documentation fetching enabled - using Context7 MCP integration');
       
@@ -45,50 +50,53 @@ export async function POST(request: NextRequest) {
           details: task.details
         }));
 
-        const librariesResult = await libraryIdentifier.identifyLibraries(
+        const librariesResult = await LibraryIdentifierModule.default.identifyLibraries(
           architecture || '',
           specifications || '', 
           fileStructure || '',
           libTasks
         );
 
-        console.log(`[Export] Identified ${librariesResult.libraries.length} libraries:`, 
-          librariesResult.libraries.map(lib => lib.name).join(', '));
+        console.log('[Export] Identified', librariesResult.libraries.length, 'libraries:', 
+          (librariesResult.libraries as any[]).map((lib: { name?: string }) => lib?.name || 'Unknown').join(', '));
 
         if (librariesResult.libraries.length === 0) {
           console.log('[Export] No libraries identified, proceeding without documentation');
         } else {
           // Step 2: Fetch real documentation using Context7 MCP client
           
-          const mcpClient = new Context7MCPClient();
+          const mcpClient = new (Context7MCPModule.default)();
           await mcpClient.initialize();
 
           // Filter out empty library names
-          const librariesToFetch = librariesResult.libraries.filter(lib => lib.name && lib.name.trim().length > 0);
+          const librariesToFetch = (librariesResult.libraries as any[]).filter(lib => lib?.name && lib.name.trim().length > 0);
           
           console.log(`[Export] Fetching documentation for ${librariesToFetch.length} libraries using Context7 MCP`);
           
-          const docFetcher = new DocumentationFetcher(mcpClient);
+          const docFetcher = new (DocumentationFetcherModule.default)(mcpClient);
           
           // Fetch all documentation with progress tracking
           const result = await docFetcher.fetchAllDocumentation(
             librariesToFetch,
-            (progress) => {
-              console.log(`[Export] Progress: ${progress.completedLibraries}/${progress.total Libraries} libraries processed, 
-                Success: ${progress.successCount}, Errors: ${progress.errorCount}`);
+            (progress: any) => {
+              console.log('[Export] Progress:', progress.completedLibraries, '/', 
+                progress.totalLibraries, 'libraries processed');
+              console.log('Success:', progress.successCount, ', Errors:', progress.errorCount);
             }
           );
 
-          console.log(`[Export] Successfully fetched documentation for ${result.libraryDocs.length} libraries`);
+          console.log('[Export] Successfully fetched documentation for', result.libraryDocs.length, 'libraries');
 
           // Add the real, contextually relevant documentation to ZIP
-          result.libraryDocs.forEach(doc => {
+          result.libraryDocs.forEach((doc: any) => {
             if (doc.content && doc.filename) {
               referenceFolder.file(doc.filename, doc.content);
               
               // Log the actual fetched content
-              console.log(`[Export] Added real Context7 documentation for: ${doc.libraryName} -> ${doc.filename}`);
-              console.log(`[Export] Content preview (${Math.min(100, doc.content.length)} chars): ${doc.content.substring(0, 100)}`);
+              console.log('[Export] Added real Context7 documentation for:', doc.libraryName, '->', 
+                doc.filename);
+              console.log('[Export] Content preview:', Math.min(100, (doc.content as string).length), 
+                'chars');
             }
           });
 
@@ -98,20 +106,14 @@ export async function POST(request: NextRequest) {
         console.error('[Export] Documentation fetching failed:', error);
         
         // Create reference folder with error message
-        const readmeContent = `# Documentation Fetching Error
-
-The system encountered an error while fetching library documentation using Context7 MCP integration.
-
-Error details: ${error instanceof Error ? error.message : String(error)}
-
-This might be due to:
-- Context7 MCP server not being available
-- Network connectivity issues  
-- Missing or invalid API configuration
-
-Please check your setup and try again.
-
-`;
+        const readmeContent = '# Documentation Fetching Error\n\n' +
+          'The system encountered an error while fetching library documentation using Context7 MCP integration.\n\n' +
+          'Error details: ' + (error instanceof Error ? error.message : String(error)) + '\n\n' +
+          'This might be due to:\n' +
+          '- Context7 MCP server not being available\n' +
+          '- Network connectivity issues  \n' +
+          '- Missing or invalid API configuration\n\n' +
+          'Please check your setup and try again.\n';
         referenceFolder.file('README.md', readmeContent);
       }
     } else {
@@ -179,26 +181,12 @@ This project uses a task-based development system with AI agents to handle diffe
 
     // Add AGENTS.md file at the root of zip
     if (agentsMdResult.success) {
-      const agentsContent = `# Development Agents
-
-## Task Distribution System
-This project uses a task-based development system with AI agents to handle different aspects of implementation.
-
-## Available Agents
-- **Research Agent**: Researches tasks and provides detailed notes, best practices, and implementation approaches.
-- **Implementation Agent** Writes code based on the research findings.
-
-## Development Workflow
-1. Generate tasks with AI planning
-2. Each task gets researched by the Research Agent  
-3. Implementation follows based on research findings
-
-## Best Practices
-- Review each task's detailed notes before implementation
-- Use the provided research as a foundation for development  
-- Update AGENTS.md if you add new agents or modify existing ones
-
-`;
+      const agentsContent = '# Development Agents\n\n' +
+        '## Task Distribution System\nThis project uses a task-based development system with AI agents to handle different aspects of implementation.\n\n' +
+        '## Available Agents\n- **Research Agent**: Researches tasks and provides detailed notes, best practices, and implementation approaches.\n' +
+        '- **Implementation Agent** Writes code based on the research findings.\n\n' +
+        '## Development Workflow\n1. Generate tasks with AI planning\n2. Each task gets researched by the Research Agent  \n3. Implementation follows based on research findings\n\n' +
+        '## Best Practices\n- Review each task\'s detailed notes before implementation\nUse the provided research as a foundation for development  \nUpdate AGENTS.md if you add new agents or modify existing ones\n';
 
       zip.file('AGENTS.md', agentsContent);
     }
