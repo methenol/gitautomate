@@ -8,7 +8,7 @@
  * - Progress tracking for user feedback
  */
 
-import { getContext7MCPClient, LibraryResolution, DocumentationResult } from './context7-mcp-client';
+import { resolveLibraryToContextId, fetchContextDocumentation, LibraryResolution, DocumentationResult } from '@/app/context7-actions';
 import { IdentifiedLibrary } from './library-identifier';
 
 export interface DocumentationFile {
@@ -63,8 +63,6 @@ export class DocumentationFetcherService {
     let successCount = 0;
     let failureCount = 0;
 
-    const mcpClient = getContext7MCPClient();
-
     for (let i = 0; i < libraries.length; i++) {
       const library = libraries[i];
       
@@ -80,7 +78,6 @@ export class DocumentationFetcherService {
         // Step 1: Resolve library to Context7 ID
         const resolutions = await this.resolveLibraryWithRetry(
           library.name, 
-          mcpClient, 
           maxRetries
         );
 
@@ -106,7 +103,6 @@ export class DocumentationFetcherService {
         // Step 2: Fetch documentation
         const documentation = await this.fetchDocumentationWithRetry(
           bestResolution.libraryId,
-          mcpClient,
           maxRetries
         );
 
@@ -158,13 +154,12 @@ export class DocumentationFetcherService {
    */
   private async resolveLibraryWithRetry(
     libraryName: string,
-    mcpClient: ReturnType<typeof getContext7MCPClient>,
     maxRetries: number
   ): Promise<LibraryResolution[]> {
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const resolutions = await mcpClient.resolveLibraryToContextId(libraryName);
+        const resolutions = await resolveLibraryToContextId(libraryName);
         if (resolutions.length > 0) {
           return resolutions;
         }
@@ -173,7 +168,7 @@ export class DocumentationFetcherService {
         if (attempt < maxRetries) {
           const alternativeName = this.generateAlternativeName(libraryName, attempt);
           if (alternativeName !== libraryName) {
-            const altResolutions = await mcpClient.resolveLibraryToContextId(alternativeName);
+            const altResolutions = await resolveLibraryToContextId(alternativeName);
             if (altResolutions.length > 0) {
               return altResolutions;
             }
@@ -198,13 +193,12 @@ export class DocumentationFetcherService {
    */
   private async fetchDocumentationWithRetry(
     contextId: string,
-    mcpClient: ReturnType<typeof getContext7MCPClient>,
     maxRetries: number
   ): Promise<DocumentationResult | null> {
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const documentation = await mcpClient.fetchContextDocumentation(contextId);
+        const documentation = await fetchContextDocumentation(contextId);
         if (documentation && documentation.content) {
           return documentation;
         }

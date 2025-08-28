@@ -300,7 +300,7 @@ export function migrateToUnifiedContext(oldState: MigrationState): UnifiedProjec
     details: string;
     id: string;
     order: number;
-    dependencies: any[];
+    dependencies: string[];
     status: 'completed';
   }> = [];
   for (let i = 0; i < oldState.tasks.length; i++) {

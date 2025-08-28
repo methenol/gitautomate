@@ -3,7 +3,7 @@
  */
 
 import { getLibraryIdentifierService } from '@/services/library-identifier';
-import { getContext7MCPClient } from '@/services/context7-mcp-client';
+import { resolveLibraryToContextId, fetchContextDocumentation } from '@/app/context7-actions';
 import { getDocumentationFetcherService } from '@/services/documentation-fetcher';
 import type { Task } from '@/types';
 
@@ -11,23 +11,19 @@ describe('Context7 MCP Integration', () => {
   const mockTasks: Task[] = [
     {
       title: 'Setup React Frontend',
-      details: 'Create a React application with TypeScript. Use functional components with hooks for state management.',
-      status: 'pending'
+      details: 'Create a React application with TypeScript. Use functional components with hooks for state management.'
     },
     {
       title: 'Configure Tailwind CSS',
-      details: 'Install and configure Tailwind CSS for styling. Set up custom theme configuration.',
-      status: 'pending'
+      details: 'Install and configure Tailwind CSS for styling. Set up custom theme configuration.'
     },
     {
       title: 'Setup PostgreSQL Database',
-      details: 'Configure PostgreSQL database with proper schema. Set up connection pooling.',
-      status: 'pending'
+      details: 'Configure PostgreSQL database with proper schema. Set up connection pooling.'
     },
     {
       title: 'Implement Jest Testing',
-      details: 'Set up Jest for unit testing. Create test utilities and mock configurations.',
-      status: 'pending'
+      details: 'Set up Jest for unit testing. Create test utilities and mock configurations.'
     }
   ];
 
@@ -52,10 +48,8 @@ describe('Context7 MCP Integration', () => {
 
   describe('Context7 MCP Client', () => {
     it('should resolve library names to Context7 IDs', async () => {
-      const client = getContext7MCPClient();
-      
-      // Test with a known library
-      const resolutions = await client.resolveLibraryToContextId('react');
+      // Test with a known library using server action
+      const resolutions = await resolveLibraryToContextId('react');
       
       expect(resolutions).toBeInstanceOf(Array);
       if (resolutions.length > 0) {
@@ -66,10 +60,8 @@ describe('Context7 MCP Integration', () => {
     });
 
     it('should fetch documentation for library IDs', async () => {
-      const client = getContext7MCPClient();
-      
-      // Test with mock data
-      const documentation = await client.fetchContextDocumentation('react-main');
+      // Test with mock data using server action
+      const documentation = await fetchContextDocumentation('react-main');
       
       if (documentation) {
         expect(documentation).toHaveProperty('content');

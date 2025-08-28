@@ -108,8 +108,8 @@ Return as JSON with libraries array.`;
     
     // Filter by minimum confidence and validate
     const filteredLibraries = result.libraries
-      .filter((lib: any) => lib.confidence >= minConfidence)
-      .map((lib: any) => ({
+      .filter((lib) => lib.confidence >= minConfidence)
+      .map((lib) => ({
         name: lib.name,
         category: lib.category as LibraryCategory,
         confidence: Math.min(Math.max(lib.confidence, 0), 1), // Clamp 0-1
