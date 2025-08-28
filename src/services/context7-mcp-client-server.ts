@@ -194,51 +194,88 @@ export class Context7MCPClient {
   }
 
   /**
-   * Send a JSON-RPC request to the MCP server
+   * Send a JSON-RPC request to the MCP server with timeout retry logic
    */
   private async sendRequest(request: MCPRequest): Promise<MCPResponse> {
-    return new Promise((resolve, reject) => {
-      if (!this.serverManager) {
-        reject(new Error('Server manager not initialized'));
-        return;
-      }
+    let timeoutAttempts = 0;
+    const maxTimeoutAttempts = 20;
+    let delay = 1000; // Start with 1 second delay
+    let lastError: Error | null = null;
 
-      const timeout = setTimeout(() => {
-        reject(new Error('Request timeout'));
-      }, 10000);
+    while (timeoutAttempts < maxTimeoutAttempts) {
+      try {
+        // Add delay between timeout retries
+        if (timeoutAttempts > 0) {
+          console.log(`[Context7 MCP] Timeout retry ${timeoutAttempts}/${maxTimeoutAttempts}, waiting ${delay}ms`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
 
-      const requestData = JSON.stringify(request) + '\n';
-      
-      // Set up response listener
-      const onData = (data: Buffer) => {
-        try {
-          const responseText = data.toString('utf8').trim();
-          if (responseText) {
-            const response = safeJsonParse(responseText);
-            if (response && response.id === request.id) {
+        const response = await new Promise<MCPResponse>((resolve, reject) => {
+          if (!this.serverManager) {
+            reject(new Error('Server manager not initialized'));
+            return;
+          }
+
+          const timeout = setTimeout(() => {
+            reject(new Error('Request timeout'));
+          }, 10000);
+
+          const requestData = JSON.stringify(request) + '\n';
+          
+          // Set up response listener
+          const onData = (data: Buffer) => {
+            try {
+              const responseText = data.toString('utf8').trim();
+              if (responseText) {
+                const response = safeJsonParse(responseText);
+                if (response && response.id === request.id) {
+                  clearTimeout(timeout);
+                  this.serverManager?.removeListener('data', onData);
+                  console.log(`[Context7 MCP] Request ${request.id} succeeded`);
+                  resolve(response);
+                }
+              }
+            } catch {
               clearTimeout(timeout);
               this.serverManager?.removeListener('data', onData);
-              console.log(`[Context7 MCP] Request ${request.id} succeeded`);
-              resolve(response);
+              console.error(`[Context7 MCP] Request ${request.id} failed: Invalid response format`);
+              reject(new Error('Invalid response format'));
             }
+          };
+
+          this.serverManager.on('data', onData);
+
+          // Send the request
+          if (!this.serverManager.send(requestData)) {
+            clearTimeout(timeout);
+            this.serverManager.removeListener('data', onData);
+            reject(new Error('Failed to send request'));
           }
-        } catch {
-          clearTimeout(timeout);
-          this.serverManager?.removeListener('data', onData);
-          console.error(`[Context7 MCP] Request ${request.id} failed: Invalid response format`);
-          reject(new Error('Invalid response format'));
+        });
+
+        // Success - return the response
+        return response;
+
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        // Check if it's a timeout error
+        if (errorMessage.includes('timeout') || errorMessage.includes('Request timeout')) {
+          timeoutAttempts++;
+          lastError = error instanceof Error ? error : new Error(errorMessage);
+          
+          // Exponential backoff: 1s → 2s → 4s → 8s → 10s (capped)
+          delay = Math.min(delay * 2, 10000);
+          continue; // Retry
         }
-      };
-
-      this.serverManager.on('data', onData);
-
-      // Send the request
-      if (!this.serverManager.send(requestData)) {
-        clearTimeout(timeout);
-        this.serverManager.removeListener('data', onData);
-        reject(new Error('Failed to send request'));
+        
+        // Non-timeout error - throw immediately
+        throw error;
       }
-    });
+    }
+    
+    // Exhausted all timeout retries
+    throw lastError || new Error(`Request timeout exceeded after ${maxTimeoutAttempts} attempts`);
   }
 
   /**
@@ -431,69 +468,37 @@ export class Context7MCPClient {
 
       console.log(`[Context7 MCP] Resolving library: ${sanitizedLibraryName}`);
       
-      // Use resolve-library-id tool as the PRIMARY method
+      // Use resolve-library-id tool as the PRIMARY and ONLY method - no fallbacks
       console.log(`[Context7 MCP] Using resolve-library-id tool for: ${sanitizedLibraryName}`);
       
-      try {
-        const result = await this.callTool('resolve-library-id', { 
-          libraryName: sanitizedLibraryName 
-        });
+      const result = await this.callTool('resolve-library-id', { 
+        libraryName: sanitizedLibraryName 
+      });
 
-        // Extract response text from MCP response format
-        const responseText = this.extractContentFromMCPResponse(result);
+      // Extract response text from MCP response format
+      const responseText = this.extractContentFromMCPResponse(result);
 
-        if (responseText && !this.isErrorResponse(responseText)) {
-          console.log(`[Context7 MCP] resolve-library-id returned ${responseText.length} characters`);
-          const libraries = this.parseResolveLibraryResponse(responseText, sanitizedLibraryName);
-          
-          if (libraries.length > 0) {
-            console.log(`[Context7 MCP] Successfully resolved ${libraries.length} libraries for ${sanitizedLibraryName}`);
-            return libraries;
-          }
-        } else {
-          console.warn(`[Context7 MCP] resolve-library-id returned error or empty response: ${responseText}`);
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[Context7 MCP] resolve-library-id tool failed: ${errorMessage}`);
+      if (responseText && !this.isErrorResponse(responseText)) {
+        console.log(`[Context7 MCP] resolve-library-id returned ${responseText.length} characters`);
+        const libraries = this.parseResolveLibraryResponse(responseText, sanitizedLibraryName);
         
-        // Check if it's a rate limiting error
-        if (errorMessage.includes('rate limit') || 
-            errorMessage.includes('Rate limit') ||
-            errorMessage.includes('429') ||
-            errorMessage.includes('too many requests') ||
-            errorMessage.includes('quota exceeded') ||
-            errorMessage.includes('throttled')) {
-          throw new Error(`Rate limit: ${errorMessage}`);
+        if (libraries.length > 0) {
+          console.log(`[Context7 MCP] Successfully resolved ${libraries.length} libraries for ${sanitizedLibraryName}`);
+          return libraries;
         }
-        
-        // For non-rate-limit errors, continue to fallback
+      } else {
+        console.warn(`[Context7 MCP] resolve-library-id returned error or empty response: ${responseText}`);
       }
 
-      // Fallback: return a generic result if resolve-library-id fails
-      console.log(`[Context7 MCP] No resolution found, returning fallback for: ${sanitizedLibraryName}`);
-      return [{
-        libraryId: sanitizedLibraryName.toLowerCase(),
-        trustScore: 0.2, // Low trust for fallback
-        codeSnippetsCount: 1,
-        description: `Documentation search for ${sanitizedLibraryName} (no specific library found)`
-      }];
+      // No fallbacks - if resolve-library-id fails, return empty array
+      return [];
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Request failed';
       console.error(`Error resolving library ${libraryName}: ${errorMessage}`);
       
-      // Check if it's a rate limiting error and re-throw with proper classification
-      if (errorMessage.includes('rate limit') || 
-          errorMessage.includes('Rate limit') ||
-          errorMessage.includes('429') ||
-          errorMessage.includes('too many requests') ||
-          errorMessage.includes('quota exceeded') ||
-          errorMessage.includes('throttled')) {
-        throw new Error(`Rate limit: ${errorMessage}`);
-      }
-      
-      return [];
+      // Re-throw all errors - no fallbacks
+      throw error;
     }
   }
 
@@ -517,36 +522,6 @@ export class Context7MCPClient {
 
       console.log(`[Context7 MCP] Fetching documentation for: ${sanitizedLibraryId}`);
       
-      // Validate library ID format - Context7 expects /org/project format
-      if (!sanitizedLibraryId.startsWith('/') && !sanitizedLibraryId.includes('/')) {
-        // Try to construct a valid format
-        const possibleFormats = [
-          `/${sanitizedLibraryId}/${sanitizedLibraryId}`,
-          `/${sanitizedLibraryId}/core`,
-          `/${sanitizedLibraryId}js/${sanitizedLibraryId}`,
-        ];
-        
-        for (const format of possibleFormats) {
-          try {
-            const result = await this.callTool('get-library-docs', {
-              context7CompatibleLibraryID: format
-            });
-            
-            const content = this.extractContentFromMCPResponse(result);
-            if (content && !this.isErrorResponse(content)) {
-              return this.createDocumentationResult(content, format);
-            }
-          } catch (error) {
-            // Continue to next format
-            console.warn(`[Context7 MCP] Format ${format} failed:`, error instanceof Error ? error.message : 'Unknown error');
-          }
-        }
-        
-        // If no format worked, return null
-        console.warn(`[Context7 MCP] No valid format found for library ID: ${sanitizedLibraryId}`);
-        return null;
-      }
-      
       const result = await this.callTool('get-library-docs', {
         context7CompatibleLibraryID: sanitizedLibraryId
       });
@@ -564,17 +539,8 @@ export class Context7MCPClient {
       const errorMessage = error instanceof Error ? error.message : 'Request failed';
       console.error(`Error fetching documentation for ${libraryId}: ${errorMessage}`);
       
-      // Check if it's a rate limiting error and re-throw with proper classification
-      if (errorMessage.includes('rate limit') || 
-          errorMessage.includes('Rate limit') ||
-          errorMessage.includes('429') ||
-          errorMessage.includes('too many requests') ||
-          errorMessage.includes('quota exceeded') ||
-          errorMessage.includes('throttled')) {
-        throw new Error(`Rate limit: ${errorMessage}`);
-      }
-      
-      return null;
+      // Re-throw all errors - no fallbacks
+      throw error;
     }
   }
 
@@ -638,17 +604,6 @@ export class Context7MCPClient {
     };
   }
 
-  /**
-   * Finalize a library resolution object
-   */
-  private finalizeLibraryResolution(partial: Partial<LibraryResolution>, fallbackName: string): LibraryResolution {
-    return {
-      libraryId: partial.libraryId || fallbackName.toLowerCase(),
-      trustScore: Math.max(0, Math.min(1, partial.trustScore || 0.5)),
-      codeSnippetsCount: Math.max(0, partial.codeSnippetsCount || 0),
-      description: (partial.description || `Documentation for ${fallbackName}`).substring(0, 500)
-    };
-  }
   async cleanup(): Promise<void> {
     if (this.serverManager) {
       await this.serverManager.cleanup();
