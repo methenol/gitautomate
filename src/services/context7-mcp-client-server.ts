@@ -62,7 +62,7 @@ interface MCPServerManager {
  */
 function safeJsonParse(text: string): MCPResponse | null {
   try {
-    if (!text || text.length > 10000) { // Prevent very large payloads
+    if (!text || text.length > 100000) { // Allow much larger payloads - Context7 docs can be large
       return null;
     }
     
@@ -431,11 +431,20 @@ export class Context7MCPClient {
         }
       }
       
-      // Sort by trust score and code snippets count (prefer higher scores and more snippets)
+      // Sort by name similarity, trust score and code snippets count
       libraries.sort((a, b) => {
+        // Calculate name similarity (simple contains check and length similarity)
+        const aNameMatch = a.libraryId.toLowerCase().includes(originalLibraryName.toLowerCase()) ? 1 : 0;
+        const bNameMatch = b.libraryId.toLowerCase().includes(originalLibraryName.toLowerCase()) ? 1 : 0;
+        
+        if (aNameMatch !== bNameMatch) {
+          return bNameMatch - aNameMatch; // Prefer name matches
+        }
+        
         if (a.trustScore !== b.trustScore) {
           return b.trustScore - a.trustScore; // Higher trust score first
         }
+        
         return b.codeSnippetsCount - a.codeSnippetsCount; // More snippets first
       });
       

@@ -71,6 +71,9 @@ export class MCPServerManager extends EventEmitter {
   constructor(config: MCPServerConfig) {
     super();
     
+    // Increase max listeners to handle multiple concurrent requests
+    this.setMaxListeners(50);
+    
     // Validate configuration for security
     validateCommandConfig(config);
     
