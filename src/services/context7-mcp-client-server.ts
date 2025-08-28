@@ -285,8 +285,8 @@ export class Context7MCPClient {
         throw new Error('Invalid library name');
       }
       
-      // Sanitize library name to prevent injection
-      const sanitizedLibraryName = libraryName.replace(/[^a-zA-Z0-9_.@/-]/g, '');
+      // Sanitize library name to prevent injection - allow spaces and common punctuation
+      const sanitizedLibraryName = libraryName.replace(/[^a-zA-Z0-9_.@/\-\s+]/g, '');
       if (sanitizedLibraryName !== libraryName) {
         throw new Error('Library name contains invalid characters');
       }
@@ -340,8 +340,8 @@ export class Context7MCPClient {
         throw new Error('Invalid library ID');
       }
       
-      // Sanitize library ID to prevent injection
-      const sanitizedLibraryId = libraryId.replace(/[^a-zA-Z0-9_.@/-]/g, '');
+      // Sanitize library ID to prevent injection - allow spaces and common punctuation  
+      const sanitizedLibraryId = libraryId.replace(/[^a-zA-Z0-9_.@/\-\s+]/g, '');
       if (sanitizedLibraryId !== libraryId) {
         throw new Error('Library ID contains invalid characters');
       }
