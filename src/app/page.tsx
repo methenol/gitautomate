@@ -21,6 +21,9 @@ import {
   createImplementationPlanIssues,
 } from './github-actions';
 import type { Repository } from './github-actions';
+import { getLibraryIdentifierService } from '@/services/library-identifier';
+import { getDocumentationFetcherService } from '@/services/documentation-fetcher';
+import { cleanupMCPServer } from '@/lib/mcp-server-manager';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -88,6 +91,7 @@ const settingsSchema = z.object({
   googleApiKey: z.string().optional(),
   model: z.string(),
   useTDD: z.boolean().default(false),
+  fetchDocumentation: z.boolean().default(false),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -100,6 +104,7 @@ type LoadingStates = {
   issue: boolean;
   exporting: boolean;
   models: boolean;
+  documentation: boolean;
 };
 
 type TaskLoadingStates = {
@@ -121,6 +126,7 @@ export default function Home() {
   const [googleApiKey, setGoogleApiKey] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<string>(UI_DEFAULT_MODEL);
   const [useTDD, setUseTDD] = useState<boolean>(false);
+  const [fetchDocumentation, setFetchDocumentation] = useState<boolean>(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -137,6 +143,12 @@ export default function Home() {
   const [editedTaskDetails, setEditedTaskDetails] = useState('');
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
   const [researchProgress, setResearchProgress] = useState(0);
+  const [documentationProgress, setDocumentationProgress] = useState({
+    current: 0,
+    total: 0,
+    currentLibrary: '',
+    status: 'idle' as 'idle' | 'resolving' | 'fetching' | 'complete' | 'error'
+  });
 
   const [loading, setLoading] = useState<LoadingStates>({
     repos: false,
@@ -146,6 +158,7 @@ export default function Home() {
     issue: false,
     exporting: false,
     models: false,
+    documentation: false,
   });
   
   const [taskLoading, setTaskLoading] = useState<TaskLoadingStates>({});
@@ -157,6 +170,7 @@ export default function Home() {
       googleApiKey: '',
       model: UI_DEFAULT_MODEL,
       useTDD: false,
+      fetchDocumentation: false,
     },
   });
 
@@ -201,16 +215,19 @@ export default function Home() {
     const storedApiKey = localStorage.getItem('googleApiKey') || '';
     const storedModel = localStorage.getItem('selectedModel') || UI_DEFAULT_MODEL;
     const storedTDD = localStorage.getItem('useTDD') === 'true';
+    const storedFetchDocumentation = localStorage.getItem('fetchDocumentation') === 'true';
 
     setGithubToken(storedToken);
     setGoogleApiKey(storedApiKey);
     setSelectedModel(storedModel);
     setUseTDD(storedTDD);
+    setFetchDocumentation(storedFetchDocumentation);
 
     form.setValue('githubToken', storedToken);
     form.setValue('googleApiKey', storedApiKey);
     form.setValue('model', storedModel);
     form.setValue('useTDD', storedTDD);
+    form.setValue('fetchDocumentation', storedFetchDocumentation);
     
     if (storedApiKey || process.env.GOOGLE_API_KEY) {
       fetchModels(storedApiKey);
@@ -257,6 +274,9 @@ export default function Home() {
 
     setUseTDD(values.useTDD);
     localStorage.setItem('useTDD', values.useTDD.toString());
+
+    setFetchDocumentation(values.fetchDocumentation);
+    localStorage.setItem('fetchDocumentation', values.fetchDocumentation.toString());
     
     setIsSettingsOpen(false);
     toast({ title: 'Success', description: 'Settings saved.' });
@@ -459,11 +479,122 @@ const handleExportData = async () => {
       const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
       tasksFolder.file('tasks.md', `# Task List\n\n${mainTasksContent}`);
 
-      // Create individual task files
+      // Create individual task files with documentation instructions
       tasks.forEach((task, index) => {
         const taskNumber = (index + 1).toString().padStart(3, '0');
-        tasksFolder.file(`task-${taskNumber}.md`, `# ${task.title}\n\n${task.details}`);
+        const taskContent = fetchDocumentation 
+          ? `# ${task.title}\n\n**IMPORTANT**: Read all relevant library documentation in the reference/ folder before implementing this task. The available libraries have comprehensive documentation that includes code examples, API references, and best practices.\n\n${task.details}`
+          : `# ${task.title}\n\n${task.details}`;
+        tasksFolder.file(`task-${taskNumber}.md`, taskContent);
       });
+
+      // Fetch documentation if enabled
+      if (fetchDocumentation) {
+        setLoading((prev) => ({ ...prev, documentation: true }));
+        
+        try {
+          // Step 1: Identify libraries from tasks
+          const libraryIdentifier = getLibraryIdentifierService();
+          const identifiedLibraries = await libraryIdentifier.identifyLibrariesFromTasks(
+            tasks,
+            { 
+              apiKey: googleApiKey, 
+              model: selectedModel,
+              minConfidence: 0.6 
+            }
+          );
+
+          if (identifiedLibraries.length > 0) {
+            // Step 2: Fetch documentation for identified libraries
+            const documentationFetcher = getDocumentationFetcherService();
+            const fetchResult = await documentationFetcher.fetchDocumentationForLibraries(
+              identifiedLibraries,
+              {
+                respectDelay: 500,
+                maxRetries: 2,
+                onProgress: (progress) => {
+                  setDocumentationProgress({
+                    current: progress.current,
+                    total: progress.total,
+                    currentLibrary: progress.currentLibrary,
+                    status: progress.status
+                  });
+                }
+              }
+            );
+
+            // Step 3: Add documentation to reference/ folder
+            if (fetchResult.documentationFiles.length > 0) {
+              const referenceFolder = zip.folder('reference');
+              if (referenceFolder) {
+                // Add a README explaining the documentation
+                const readmeContent = `# Library Documentation Reference
+
+This folder contains comprehensive documentation for the libraries and frameworks identified in your project tasks.
+
+## Available Documentation
+
+${fetchResult.documentationFiles.map(doc => `- **${doc.libraryName}** (${doc.filename})`).join('\n')}
+
+## Usage Instructions
+
+Before implementing any task:
+1. Review the relevant library documentation in this folder
+2. Pay attention to code examples and best practices
+3. Follow the API references for accurate implementation
+4. Consult the documentation for troubleshooting common issues
+
+## Fetch Results
+
+- **Successfully fetched**: ${fetchResult.successCount} libraries
+- **Failed to fetch**: ${fetchResult.failureCount} libraries
+${fetchResult.errors.length > 0 ? `\n### Errors:\n${fetchResult.errors.map(e => `- ${e}`).join('\n')}` : ''}
+
+Generated by GitAutomate with Context7 MCP integration.
+`;
+                referenceFolder.file('README.md', readmeContent);
+
+                // Add each documentation file
+                for (const docFile of fetchResult.documentationFiles) {
+                  const formattedContent = documentationFetcher.formatDocumentationContent(docFile);
+                  referenceFolder.file(docFile.filename, formattedContent);
+                }
+              }
+
+              toast({
+                title: 'Documentation Fetched',
+                description: `Successfully fetched documentation for ${fetchResult.successCount} out of ${identifiedLibraries.length} identified libraries.`,
+              });
+            } else {
+              toast({
+                title: 'No Documentation Available',
+                description: 'Could not fetch documentation for any of the identified libraries.',
+                variant: 'destructive',
+              });
+            }
+          } else {
+            toast({
+              title: 'No Libraries Identified',
+              description: 'No libraries were identified in the tasks for documentation fetching.',
+            });
+          }
+        } catch (docError) {
+          console.error('Documentation fetching error:', docError);
+          toast({
+            title: 'Documentation Fetch Failed',
+            description: `Failed to fetch documentation: ${docError instanceof Error ? docError.message : 'Unknown error'}`,
+            variant: 'destructive',
+          });
+        } finally {
+          setLoading((prev) => ({ ...prev, documentation: false }));
+          setDocumentationProgress({
+            current: 0,
+            total: 0,
+            currentLibrary: '',
+            status: 'idle'
+          });
+        }
+      }
 
       // Generate and add AGENTS.md file at the root of zip
       const agentsMdResult = await runGenerateAgentsMd(
@@ -487,9 +618,13 @@ const handleExportData = async () => {
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       saveAs(zipBlob, 'gitautomate-export.zip');
 
+      const exportMessage = fetchDocumentation 
+        ? 'Your project data has been downloaded as a zip file with AGENTS.md and library documentation.'
+        : 'Your project data has been downloaded as a zip file with AGENTS.md.';
+
       toast({
         title: 'Export Successful',
-        description: 'Your project data has been downloaded as a zip file with AGENTS.md.',
+        description: exportMessage,
       });
     } catch (error) {
       toast({
@@ -500,6 +635,14 @@ const handleExportData = async () => {
       console.error('Export error:', error);
     } finally {
       setLoading((prev) => ({ ...prev, exporting: false }));
+      // Cleanup MCP server if it was started
+      if (fetchDocumentation) {
+        try {
+          await cleanupMCPServer();
+        } catch (cleanupError) {
+          console.error('MCP cleanup error:', cleanupError);
+        }
+      }
     }
   };
   
@@ -627,6 +770,28 @@ const handleExportData = async () => {
                           </FormLabel>
                           <FormDescription>
                            Generate tasks and implementation steps using Test-Driven Development.
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="fetchDocumentation"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            Fetch Documentation
+                          </FormLabel>
+                          <FormDescription>
+                            Automatically fetch library documentation using Context7 MCP during export. Documentation will be included in a reference/ folder.
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -884,15 +1049,18 @@ const handleExportData = async () => {
                   {/* Export/Issue buttons only shown after tasks are generated */}
                   {(tasks.length > 0) && (
                     <CardFooter className="flex justify-end gap-2">
-                       <Button
+                      <Button
                         variant="outline"
                         onClick={handleExportData}
-                        disabled={loading.exporting || loading.researching}
+                        disabled={loading.exporting || loading.researching || loading.documentation}
                       >
-                        {loading.exporting ? (
+                        {loading.exporting || loading.documentation ? (
                           <>
                             <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                            Exporting...
+                            {loading.documentation 
+                              ? `Fetching docs... (${documentationProgress.current}/${documentationProgress.total})`
+                              : 'Exporting...'
+                            }
                           </>
                         ) : (
                           <>
