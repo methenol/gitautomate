@@ -296,7 +296,7 @@ export class Context7MCPClient {
       console.log(`[Context7 MCP] Resolving library: ${sanitizedLibraryName}`);
       
       const result = await this.callTool('resolve-library-id', {
-        library_name: sanitizedLibraryName
+        libraryName: sanitizedLibraryName
       });
 
       // Process the result - this depends on the actual Context7 MCP response format
@@ -351,7 +351,7 @@ export class Context7MCPClient {
       console.log(`[Context7 MCP] Fetching documentation for: ${sanitizedLibraryId}`);
       
       const result = await this.callTool('get-library-docs', {
-        library_id: sanitizedLibraryId
+        context7CompatibleLibraryID: sanitizedLibraryId
       });
 
       // Process the result - this depends on the actual Context7 MCP response format
