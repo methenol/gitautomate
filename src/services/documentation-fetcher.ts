@@ -37,8 +37,9 @@ export interface DocumentationFetchResult {
 }
 
 export interface DocumentationFetchOptions {
-  respectDelay?: number; // Delay between requests in ms (default 500)
-  maxRetries?: number; // Max retry attempts per library (default 2)
+  respectDelay?: number; // Delay between requests in ms (default 1000)
+  maxRetries?: number; // Max retry attempts per library for non-rate-limit errors (default 2)
+  maxRateLimitRetries?: number; // Max retry attempts for rate limit errors (default 20)
   onProgress?: (progress: FetchProgress) => void; // Progress callback
 }
 
@@ -53,8 +54,9 @@ export class DocumentationFetcherService {
   ): Promise<DocumentationFetchResult> {
     
     const {
-      respectDelay = 500,
+      respectDelay = 1000, // Changed from 500ms to 1000ms (1 request per second)
       maxRetries = 2,
+      maxRateLimitRetries = 20, // Allow up to 20 retries for rate limiting
       onProgress
     } = options;
 
@@ -78,7 +80,8 @@ export class DocumentationFetcherService {
         // Step 1: Resolve library to Context7 ID
         const resolutions = await this.resolveLibraryWithRetry(
           library.name, 
-          maxRetries
+          maxRetries,
+          maxRateLimitRetries
         );
 
         if (resolutions.length === 0) {
@@ -103,7 +106,8 @@ export class DocumentationFetcherService {
         // Step 2: Fetch documentation
         const documentation = await this.fetchDocumentationWithRetry(
           bestResolution.libraryId,
-          maxRetries
+          maxRetries,
+          maxRateLimitRetries
         );
 
         if (documentation) {
@@ -150,12 +154,15 @@ export class DocumentationFetcherService {
   }
 
   /**
-   * Resolve library with retry logic
+   * Resolve library with retry logic including exponential backoff for rate limits
    */
   private async resolveLibraryWithRetry(
     libraryName: string,
-    maxRetries: number
+    maxRetries: number,
+    maxRateLimitRetries: number
   ): Promise<LibraryResolution[]> {
+    
+    let rateLimitAttempts = 0;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -176,11 +183,30 @@ export class DocumentationFetcherService {
         }
         
       } catch (error) {
-        console.error(`Attempt ${attempt} failed for ${libraryName}:`, error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`Attempt ${attempt} failed for ${libraryName}:`, errorMessage);
+        
+        // Check if this is a rate limiting error
+        if (this.isRateLimitError(errorMessage)) {
+          rateLimitAttempts++;
+          
+          if (rateLimitAttempts <= maxRateLimitRetries) {
+            const backoffDelay = this.calculateExponentialBackoff(rateLimitAttempts);
+            console.log(`Rate limited (attempt ${rateLimitAttempts}/${maxRateLimitRetries}). Waiting ${backoffDelay}ms before retry...`);
+            await this.delay(backoffDelay);
+            
+            // Don't increment the main attempt counter for rate limit retries
+            attempt--;
+            continue;
+          } else {
+            throw new Error(`Rate limit exceeded after ${maxRateLimitRetries} attempts for ${libraryName}`);
+          }
+        }
+        
         if (attempt === maxRetries) {
           throw error;
         }
-        // Wait before retry
+        // Wait before retry for non-rate-limit errors
         await this.delay(1000 * attempt);
       }
     }
@@ -189,12 +215,15 @@ export class DocumentationFetcherService {
   }
 
   /**
-   * Fetch documentation with retry logic
+   * Fetch documentation with retry logic including exponential backoff for rate limits
    */
   private async fetchDocumentationWithRetry(
     contextId: string,
-    maxRetries: number
+    maxRetries: number,
+    maxRateLimitRetries: number
   ): Promise<DocumentationResult | null> {
+    
+    let rateLimitAttempts = 0;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -203,11 +232,30 @@ export class DocumentationFetcherService {
           return documentation;
         }
       } catch (error) {
-        console.error(`Attempt ${attempt} failed for context ${contextId}:`, error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`Attempt ${attempt} failed for context ${contextId}:`, errorMessage);
+        
+        // Check if this is a rate limiting error
+        if (this.isRateLimitError(errorMessage)) {
+          rateLimitAttempts++;
+          
+          if (rateLimitAttempts <= maxRateLimitRetries) {
+            const backoffDelay = this.calculateExponentialBackoff(rateLimitAttempts);
+            console.log(`Rate limited (attempt ${rateLimitAttempts}/${maxRateLimitRetries}). Waiting ${backoffDelay}ms before retry...`);
+            await this.delay(backoffDelay);
+            
+            // Don't increment the main attempt counter for rate limit retries
+            attempt--;
+            continue;
+          } else {
+            throw new Error(`Rate limit exceeded after ${maxRateLimitRetries} attempts for ${contextId}`);
+          }
+        }
+        
         if (attempt === maxRetries) {
           throw error;
         }
-        // Wait before retry
+        // Wait before retry for non-rate-limit errors
         await this.delay(1000 * attempt);
       }
     }
@@ -255,6 +303,36 @@ export class DocumentationFetcherService {
    */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Check if an error message indicates rate limiting
+   */
+  private isRateLimitError(errorMessage: string): boolean {
+    const rateLimitIndicators = [
+      'rate limit',
+      'too many requests',
+      '429',
+      'quota exceeded',
+      'throttled',
+      'rate exceeded',
+      'limit exceeded'
+    ];
+    
+    const lowerMessage = errorMessage.toLowerCase();
+    return rateLimitIndicators.some(indicator => lowerMessage.includes(indicator));
+  }
+
+  /**
+   * Calculate exponential backoff delay with cap at 10 seconds
+   */
+  private calculateExponentialBackoff(attempt: number): number {
+    // Start with 1 second, double each time: 1s, 2s, 4s, 8s, then cap at 10s
+    const baseDelay = 1000; // 1 second
+    const exponentialDelay = baseDelay * Math.pow(2, attempt - 1);
+    const maxDelay = 10000; // 10 seconds cap
+    
+    return Math.min(exponentialDelay, maxDelay);
   }
 
   /**

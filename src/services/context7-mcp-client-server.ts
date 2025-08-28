@@ -269,6 +269,16 @@ export class Context7MCPClient {
       const errorMessage = typeof response.error.message === 'string' 
         ? response.error.message.substring(0, 200) // Limit error message length
         : 'Tool call failed';
+      
+      // Check for rate limiting errors and preserve the original error information
+      if (response.error.code === 429 || 
+          errorMessage.toLowerCase().includes('rate limit') ||
+          errorMessage.toLowerCase().includes('too many requests') ||
+          errorMessage.toLowerCase().includes('quota exceeded') ||
+          errorMessage.toLowerCase().includes('throttled')) {
+        throw new Error(`Rate limit: ${errorMessage}`);
+      }
+      
       throw new Error(`Tool call failed: ${errorMessage}`);
     }
 
@@ -320,6 +330,16 @@ export class Context7MCPClient {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Request failed';
       console.error(`Error resolving library ${libraryName}: ${errorMessage}`);
+      
+      // Check if it's a rate limiting error and re-throw with proper classification
+      if (errorMessage.includes('rate limit') || 
+          errorMessage.includes('Rate limit') ||
+          errorMessage.includes('429') ||
+          errorMessage.includes('too many requests') ||
+          errorMessage.includes('quota exceeded') ||
+          errorMessage.includes('throttled')) {
+        throw new Error(`Rate limit: ${errorMessage}`);
+      }
       
       // Check if it's a network/connectivity issue
       if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('timeout') || errorMessage.includes('connection')) {
@@ -391,6 +411,16 @@ export class Context7MCPClient {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Request failed';
       console.error(`Error fetching documentation for ${libraryId}: ${errorMessage}`);
+      
+      // Check if it's a rate limiting error and re-throw with proper classification
+      if (errorMessage.includes('rate limit') || 
+          errorMessage.includes('Rate limit') ||
+          errorMessage.includes('429') ||
+          errorMessage.includes('too many requests') ||
+          errorMessage.includes('quota exceeded') ||
+          errorMessage.includes('throttled')) {
+        throw new Error(`Rate limit: ${errorMessage}`);
+      }
       
       // Check if it's a network/connectivity issue
       if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('timeout') || errorMessage.includes('connection')) {
