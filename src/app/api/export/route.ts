@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
       try {
         // Step 1: Identify libraries from the project content
-        const libraryIdentifier = new LibraryIdentifier();
+        const _libraryIdentifier = new LibraryIdentifierModule.default();
         
         // Convert tasks to format expected by LibraryIdentifier
         const libTasks = (tasks as Task[]).map(task => ({
