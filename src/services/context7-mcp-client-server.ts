@@ -21,6 +21,7 @@ export interface DocumentationResult {
     source?: string;
     lastUpdated?: string;
     version?: string;
+    libraryId?: string;
   };
 }
 
@@ -333,89 +334,85 @@ export class Context7MCPClient {
   }
 
   /**
-   * Common library name to Context7 ID mappings
-   * Since resolve-library-id tool has issues, we'll use direct mappings for common libraries
+   * Parse Context7 resolve-library-id response to extract library information
    */
-  private getLibraryIdMapping(): Record<string, string[]> {
-    return {
-      // JavaScript Frameworks & Libraries
-      'react': ['/facebook/react', '/react-dev/react'],
-      'react.js': ['/facebook/react'],
-      'reactjs': ['/facebook/react'],
-      'vue': ['/vuejs/core', '/vuejs/vue'],
-      'vue.js': ['/vuejs/core'],
-      'vuejs': ['/vuejs/core'],
-      'angular': ['/angular/angular', '/angular/core'],
-      'angularjs': ['/angular/angular'],
-      'svelte': ['/sveltejs/svelte'],
-      'next': ['/vercel/next.js'],
-      'next.js': ['/vercel/next.js'],
-      'nextjs': ['/vercel/next.js'],
-      'nuxt': ['/nuxt/nuxt'],
-      'nuxt.js': ['/nuxt/nuxt'],
-      'express': ['/expressjs/express'],
-      'express.js': ['/expressjs/express'],
-      'node': ['/nodejs/node'],
-      'node.js': ['/nodejs/node'],
-      'nodejs': ['/nodejs/node'],
+  private parseResolveLibraryResponse(responseText: string, originalLibraryName: string): LibraryResolution[] {
+    const libraries: LibraryResolution[] = [];
+    
+    try {
+      console.log(`[Context7 MCP] Parsing resolve response for ${originalLibraryName}`);
       
-      // CSS Frameworks
-      'tailwind': ['/tailwindlabs/tailwindcss'],
-      'tailwindcss': ['/tailwindlabs/tailwindcss'],
-      'tailwind css': ['/tailwindlabs/tailwindcss'],
-      'bootstrap': ['/twbs/bootstrap'],
-      'material-ui': ['/mui/material-ui'],
-      'mui': ['/mui/material-ui'],
+      // Split response into individual library entries
+      const entries = responseText.split('----------').filter(entry => entry.trim());
       
-      // Build Tools & Bundlers
-      'webpack': ['/webpack/webpack'],
-      'vite': ['/vitejs/vite'],
-      'rollup': ['/rollup/rollup'],
-      'parcel': ['/parcel-bundler/parcel'],
-      'babel': ['/babel/babel'],
+      for (const entry of entries) {
+        const lines = entry.split('\n').map(line => line.trim()).filter(line => line);
+        
+        let libraryId = '';
+        let description = '';
+        let codeSnippetsCount = 0;
+        let trustScore = 0;
+        
+        for (const line of lines) {
+          // Extract Context7-compatible library ID
+          const idMatch = line.match(/^-?\s*Context7-compatible library ID:\s*(\/[\w\-_/]+)/);
+          if (idMatch) {
+            libraryId = idMatch[1];
+            continue;
+          }
+          
+          // Extract description
+          const descMatch = line.match(/^-?\s*Description:\s*(.+)/);
+          if (descMatch) {
+            description = descMatch[1];
+            continue;
+          }
+          
+          // Extract code snippets count
+          const snippetsMatch = line.match(/^-?\s*Code Snippets:\s*(\d+)/);
+          if (snippetsMatch) {
+            codeSnippetsCount = parseInt(snippetsMatch[1], 10) || 0;
+            continue;
+          }
+          
+          // Extract trust score
+          const trustMatch = line.match(/^-?\s*Trust Score:\s*(\d+(?:\.\d+)?)/);
+          if (trustMatch) {
+            trustScore = parseFloat(trustMatch[1]) / 10; // Normalize to 0-1 range
+            continue;
+          }
+        }
+        
+        // Add library if we found a valid ID
+        if (libraryId) {
+          libraries.push({
+            libraryId,
+            trustScore: Math.max(0, Math.min(1, trustScore)),
+            codeSnippetsCount,
+            description: description || `Documentation for ${originalLibraryName}`
+          });
+        }
+      }
       
-      // TypeScript & Languages
-      'typescript': ['/microsoft/typescript'],
-      'ts': ['/microsoft/typescript'],
-      'javascript': ['/javascript/javascript'],
-      'js': ['/javascript/javascript'],
+      // Sort by trust score and code snippets count (prefer higher scores and more snippets)
+      libraries.sort((a, b) => {
+        if (a.trustScore !== b.trustScore) {
+          return b.trustScore - a.trustScore; // Higher trust score first
+        }
+        return b.codeSnippetsCount - a.codeSnippetsCount; // More snippets first
+      });
       
-      // Databases & ORMs
-      'prisma': ['/prisma/prisma'],
-      'mongoose': ['/mongoose/mongoose'],
-      'typeorm': ['/typeorm/typeorm'],
-      'sequelize': ['/sequelize/sequelize'],
+      console.log(`[Context7 MCP] Parsed ${libraries.length} libraries for ${originalLibraryName}`);
       
-      // Testing
-      'jest': ['/jestjs/jest'],
-      'cypress': ['/cypress-io/cypress'],
-      'playwright': ['/microsoft/playwright'],
-      'vitest': ['/vitest-dev/vitest'],
-      
-      // State Management
-      'redux': ['/reduxjs/redux'],
-      'mobx': ['/mobxjs/mobx'],
-      'zustand': ['/pmndrs/zustand'],
-      
-      // UI Libraries
-      'chakra': ['/chakra-ui/chakra-ui'],
-      'chakra-ui': ['/chakra-ui/chakra-ui'],
-      'ant design': ['/ant-design/ant-design'],
-      'antd': ['/ant-design/ant-design'],
-      
-      // Utilities
-      'lodash': ['/lodash/lodash'],
-      'axios': ['/axios/axios'],
-      'fetch': ['/whatwg/fetch'],
-      'moment': ['/moment/moment'],
-      'dayjs': ['/iamkun/dayjs'],
-      'date-fns': ['/date-fns/date-fns']
-    };
+    } catch (error) {
+      console.error(`[Context7 MCP] Error parsing resolve response:`, error);
+    }
+    
+    return libraries;
   }
 
   /**
-   * Resolve library name to Context7 library IDs using local mapping
-   * Falls back to resolve-library-id tool if no mapping found (though that tool has issues)
+   * Resolve library name to Context7 library IDs using resolve-library-id tool
    */
   async resolveLibraryToContextId(libraryName: string): Promise<LibraryResolution[]> {
     try {
@@ -434,161 +431,46 @@ export class Context7MCPClient {
 
       console.log(`[Context7 MCP] Resolving library: ${sanitizedLibraryName}`);
       
-      // First try local mapping for common libraries
-      const mapping = this.getLibraryIdMapping();
-      const normalizedName = sanitizedLibraryName.toLowerCase().trim();
-      
-      if (mapping[normalizedName]) {
-        console.log(`[Context7 MCP] Found local mapping for ${normalizedName}:`, mapping[normalizedName]);
-        
-        const resolutions: LibraryResolution[] = [];
-        
-        for (const libraryId of mapping[normalizedName]) {
-          // Test if this library ID actually works by making a quick documentation call
-          try {
-            console.log(`[Context7 MCP] Testing library ID: ${libraryId}`);
-            const testResult = await this.fetchContextDocumentation(libraryId);
-            if (testResult && testResult.content && 
-                !testResult.content.includes('Failed to fetch') &&
-                !testResult.content.includes('Rate limited') &&
-                !testResult.content.includes('Error code')) {
-              resolutions.push({
-                libraryId,
-                trustScore: 0.9, // High trust for mapped libraries
-                codeSnippetsCount: 50, // Estimated
-                description: `Documentation for ${sanitizedLibraryName} (${libraryId})`
-              });
-              
-              // Use the first working ID as primary result
-              break;
-            } else if (testResult && testResult.content.includes('Rate limited')) {
-              // If rate limited, assume the library ID is valid but we can't test it right now
-              console.log(`[Context7 MCP] Library ID ${libraryId} rate limited but likely valid`);
-              resolutions.push({
-                libraryId,
-                trustScore: 0.8, // High trust for mapped libraries (slightly lower due to no verification)
-                codeSnippetsCount: 50, // Estimated
-                description: `Documentation for ${sanitizedLibraryName} (${libraryId})`
-              });
-              break;
-            }
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            if (errorMessage.includes('Rate limit') || errorMessage.includes('rate limit')) {
-              // If rate limited, assume the library ID is valid
-              console.log(`[Context7 MCP] Library ID ${libraryId} rate limited but likely valid`);
-              resolutions.push({
-                libraryId,
-                trustScore: 0.8, // High trust for mapped libraries
-                codeSnippetsCount: 50, // Estimated
-                description: `Documentation for ${sanitizedLibraryName} (${libraryId})`
-              });
-              break;
-            } else {
-              console.warn(`[Context7 MCP] Library ID ${libraryId} failed test:`, errorMessage);
-            }
-          }
-        }
-        
-        if (resolutions.length > 0) {
-          return resolutions;
-        }
-      }
-
-      // If no local mapping found, try to construct common patterns
-      const patterns = [
-        `/${normalizedName}/${normalizedName}`, // e.g., /react/react
-        `/${normalizedName}/core`, // e.g., /vue/core  
-        `/${normalizedName}js/${normalizedName}js`, // e.g., /reactjs/reactjs
-        `/lib${normalizedName}/${normalizedName}`, // e.g., /libreact/react
-        `/${normalizedName}/${normalizedName}.js` // e.g., /react/react.js
-      ];
-      
-      for (const pattern of patterns) {
-        try {
-          const testResult = await this.fetchContextDocumentation(pattern);
-          if (testResult && testResult.content && 
-              !testResult.content.includes('Failed to fetch') &&
-              !testResult.content.includes('Rate limited') &&
-              !testResult.content.includes('Error code')) {
-            console.log(`[Context7 MCP] Found working pattern: ${pattern}`);
-            return [{
-              libraryId: pattern,
-              trustScore: 0.6, // Medium trust for pattern matching
-              codeSnippetsCount: 20,
-              description: `Documentation for ${sanitizedLibraryName} (${pattern})`
-            }];
-          } else if (testResult && testResult.content.includes('Rate limited')) {
-            // If rate limited, assume pattern might be valid
-            console.log(`[Context7 MCP] Pattern ${pattern} rate limited but might be valid`);
-            return [{
-              libraryId: pattern,
-              trustScore: 0.5, // Lower trust due to rate limiting
-              codeSnippetsCount: 20,
-              description: `Documentation for ${sanitizedLibraryName} (${pattern})`
-            }];
-          }
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          if (errorMessage.includes('Rate limit') || errorMessage.includes('rate limit')) {
-            // If rate limited, assume pattern might be valid
-            console.log(`[Context7 MCP] Pattern ${pattern} rate limited but might be valid`);
-            return [{
-              libraryId: pattern,
-              trustScore: 0.5, // Lower trust due to rate limiting
-              codeSnippetsCount: 20,
-              description: `Documentation for ${sanitizedLibraryName} (${pattern})`
-            }];
-          }
-          // Continue to next pattern
-        }
-      }
-
-      // As a last resort, try the resolve-library-id tool (though it usually times out)
-      // We'll only give it 5 seconds to respond to avoid long delays
-      console.log(`[Context7 MCP] Trying resolve-library-id tool as fallback...`);
+      // Use resolve-library-id tool as the PRIMARY method
+      console.log(`[Context7 MCP] Using resolve-library-id tool for: ${sanitizedLibraryName}`);
       
       try {
-        // Use shorter timeout for the problematic tool
-        const originalTimeout = 5000;
-        const result = await Promise.race([
-          this.callTool('resolve-library-id', { libraryName: sanitizedLibraryName }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Tool timeout')), originalTimeout))
-        ]);
+        const result = await this.callTool('resolve-library-id', { 
+          libraryName: sanitizedLibraryName 
+        });
 
-        // If we get a result, try to parse it
-        let responseText = '';
-        if (Array.isArray(result)) {
-          for (const item of result) {
-            if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
-              responseText += (item as { type: string; text: string }).text + '\n';
-            }
-          }
-        } else if (typeof result === 'object' && result !== null && 'content' in result) {
-          const content = (result as { content: unknown }).content;
-          if (Array.isArray(content)) {
-            for (const item of content) {
-              if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
-                responseText += (item as { type: string; text: string }).text + '\n';
-              }
-            }
-          }
-        } else if (typeof result === 'string') {
-          responseText = result;
-        }
+        // Extract response text from MCP response format
+        const responseText = this.extractContentFromMCPResponse(result);
 
-        if (responseText && !responseText.toLowerCase().includes('error') && 
-            !responseText.toLowerCase().includes('failed')) {
-          const libraries = this.parseLibrarySearchResults(responseText, sanitizedLibraryName);
+        if (responseText && !this.isErrorResponse(responseText)) {
+          console.log(`[Context7 MCP] resolve-library-id returned ${responseText.length} characters`);
+          const libraries = this.parseResolveLibraryResponse(responseText, sanitizedLibraryName);
+          
           if (libraries.length > 0) {
+            console.log(`[Context7 MCP] Successfully resolved ${libraries.length} libraries for ${sanitizedLibraryName}`);
             return libraries;
           }
+        } else {
+          console.warn(`[Context7 MCP] resolve-library-id returned error or empty response: ${responseText}`);
         }
       } catch (error) {
-        console.warn(`[Context7 MCP] resolve-library-id tool failed (expected):`, error instanceof Error ? error.message : 'Unknown error');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`[Context7 MCP] resolve-library-id tool failed: ${errorMessage}`);
+        
+        // Check if it's a rate limiting error
+        if (errorMessage.includes('rate limit') || 
+            errorMessage.includes('Rate limit') ||
+            errorMessage.includes('429') ||
+            errorMessage.includes('too many requests') ||
+            errorMessage.includes('quota exceeded') ||
+            errorMessage.includes('throttled')) {
+          throw new Error(`Rate limit: ${errorMessage}`);
+        }
+        
+        // For non-rate-limit errors, continue to fallback
       }
 
-      // Final fallback - return a generic result
+      // Fallback: return a generic result if resolve-library-id fails
       console.log(`[Context7 MCP] No resolution found, returning fallback for: ${sanitizedLibraryName}`);
       return [{
         libraryId: sanitizedLibraryName.toLowerCase(),
@@ -754,128 +636,6 @@ export class Context7MCPClient {
         libraryId: libraryId
       }
     };
-  }
-
-  /**
-   * Parse Context7 search results text to extract library information
-   */
-  private parseLibrarySearchResults(responseText: string, originalLibraryName: string): LibraryResolution[] {
-    const libraries: LibraryResolution[] = [];
-    
-    try {
-      // Look for numbered library entries in the response text
-      // Context7 format typically includes:
-      // 1. Library ID: /org/project
-      //    Name: Library Name
-      //    Description: Description text
-      //    Code Snippets: Number
-      //    Trust Score: Number
-      
-      const lines = responseText.split('\n');
-      let currentLibrary: Partial<LibraryResolution> = {};
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        
-        // Look for numbered entries like "1. Library ID: /facebook/react"
-        const numberedIdMatch = line.match(/^\d+\.\s*Library ID:\s*(\/[\w-]+\/[\w-]+)/);
-        if (numberedIdMatch) {
-          // Save previous library if it exists
-          if (currentLibrary.libraryId) {
-            libraries.push(this.finalizeLibraryResolution(currentLibrary, originalLibraryName));
-          }
-          
-          // Start new library
-          currentLibrary = {
-            libraryId: numberedIdMatch[1],
-            trustScore: 0.5,
-            codeSnippetsCount: 0,
-            description: ''
-          };
-          continue;
-        }
-        
-        // Look for indented properties if we have a current library
-        if (currentLibrary.libraryId) {
-          // Name
-          const nameMatch = line.match(/^\s*Name:\s*(.+)/);
-          if (nameMatch) {
-            if (!currentLibrary.description) {
-              currentLibrary.description = nameMatch[1];
-            }
-            continue;
-          }
-          
-          // Description
-          const descMatch = line.match(/^\s*Description:\s*(.+)/);
-          if (descMatch) {
-            currentLibrary.description = descMatch[1];
-            continue;
-          }
-          
-          // Code Snippets
-          const snippetsMatch = line.match(/^\s*Code Snippets:\s*(\d+)/);
-          if (snippetsMatch) {
-            currentLibrary.codeSnippetsCount = parseInt(snippetsMatch[1], 10) || 0;
-            continue;
-          }
-          
-          // Trust Score
-          const trustMatch = line.match(/^\s*Trust Score:\s*(\d+(?:\.\d+)?)/);
-          if (trustMatch) {
-            currentLibrary.trustScore = Math.max(0, Math.min(1, parseFloat(trustMatch[1]) / 10)); // Normalize to 0-1
-            continue;
-          }
-        }
-      }
-      
-      // Save the last library
-      if (currentLibrary.libraryId) {
-        libraries.push(this.finalizeLibraryResolution(currentLibrary, originalLibraryName));
-      }
-      
-      // If no libraries found, try to extract any library ID patterns (but be more careful)
-      if (libraries.length === 0) {
-        // Look for standalone lines with actual library paths (after numbered entries section)
-        const resultsSection = responseText.split('----------')[1] || responseText;
-        const idMatches = resultsSection.match(/\/[\w-]+\/[\w-]+/g);
-        if (idMatches) {
-          for (const id of idMatches) {
-            // Skip generic examples
-            if (!id.includes('org/project')) {
-              libraries.push({
-                libraryId: id,
-                trustScore: 0.7,
-                codeSnippetsCount: 5,
-                description: `Documentation for ${id}`
-              });
-            }
-          }
-        }
-      }
-      
-      // Final fallback
-      if (libraries.length === 0) {
-        libraries.push({
-          libraryId: originalLibraryName.toLowerCase(),
-          trustScore: 0.5,
-          codeSnippetsCount: 1,
-          description: `Documentation for ${originalLibraryName}`
-        });
-      }
-      
-    } catch (error) {
-      console.error('Error parsing library search results:', error);
-      // Fallback library
-      libraries.push({
-        libraryId: originalLibraryName.toLowerCase(),
-        trustScore: 0.5,
-        codeSnippetsCount: 1,
-        description: `Documentation for ${originalLibraryName}`
-      });
-    }
-    
-    return libraries;
   }
 
   /**

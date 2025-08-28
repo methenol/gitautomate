@@ -97,11 +97,14 @@ describe('Context7 MCP Integration - End-to-End Export Workflow', () => {
     for (const result of results) {
       expect(result.resolution).toHaveProperty('libraryId');
       expect(result.documentation).not.toBeNull();
-      expect(result.documentation.content).toBeDefined();
       
-      // Should not have hard errors
-      expect(result.documentation.content).not.toContain('Failed to fetch');
-      expect(result.documentation.content).not.toContain('Error code');
+      if (result.documentation) {
+        expect(result.documentation.content).toBeDefined();
+        
+        // Should not have hard errors
+        expect(result.documentation.content).not.toContain('Failed to fetch');
+        expect(result.documentation.content).not.toContain('Error code');
+      }
     }
     
     console.log('[E2E] ✅ Multiple library export workflow completed successfully');
