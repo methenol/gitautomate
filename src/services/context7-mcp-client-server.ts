@@ -241,7 +241,7 @@ export class Context7MCPClient {
   }
 
   /**
-   * Use a tool with the given arguments
+   * Call a tool with rate limiting and exponential backoff
    */
   async callTool(toolName: string, args: Record<string, unknown>): Promise<unknown> {
     // Validate tool name
@@ -252,41 +252,170 @@ export class Context7MCPClient {
     // Validate and sanitize arguments
     const sanitizedArgs = validateToolArgs(args);
     
-    const toolRequest: MCPRequest = {
-      jsonrpc: '2.0',
-      id: this.requestId++,
-      method: 'tools/call',
-      params: {
-        name: toolName,
-        arguments: sanitizedArgs
-      }
-    };
-
-    const response = await this.sendRequest(toolRequest);
+    let lastError: Error | null = null;
+    let rateLimitAttempts = 0;
+    const maxRateLimitAttempts = 20;
+    let delay = 1000; // Start with 1 second delay
     
-    if (response.error) {
-      // Sanitize error message
-      const errorMessage = typeof response.error.message === 'string' 
-        ? response.error.message.substring(0, 200) // Limit error message length
-        : 'Tool call failed';
-      
-      // Check for rate limiting errors and preserve the original error information
-      if (response.error.code === 429 || 
-          errorMessage.toLowerCase().includes('rate limit') ||
-          errorMessage.toLowerCase().includes('too many requests') ||
-          errorMessage.toLowerCase().includes('quota exceeded') ||
-          errorMessage.toLowerCase().includes('throttled')) {
-        throw new Error(`Rate limit: ${errorMessage}`);
-      }
-      
-      throw new Error(`Tool call failed: ${errorMessage}`);
-    }
+    while (rateLimitAttempts < maxRateLimitAttempts) {
+      try {
+        // Add delay between requests for rate limiting
+        if (rateLimitAttempts > 0) {
+          console.log(`[Context7 MCP] Rate limit retry ${rateLimitAttempts}/${maxRateLimitAttempts}, waiting ${delay}ms`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+        const toolRequest: MCPRequest = {
+          jsonrpc: '2.0',
+          id: this.requestId++,
+          method: 'tools/call',
+          params: {
+            name: toolName,
+            arguments: sanitizedArgs
+          }
+        };
 
-    return response.result?.content || response.result;
+        const response = await this.sendRequest(toolRequest);
+        
+        if (response.error) {
+          // Sanitize error message
+          const errorMessage = typeof response.error.message === 'string' 
+            ? response.error.message.substring(0, 200) // Limit error message length
+            : 'Tool call failed';
+          
+          // Check for rate limiting errors
+          if (response.error.code === 429 || 
+              errorMessage.toLowerCase().includes('rate limit') ||
+              errorMessage.toLowerCase().includes('too many requests') ||
+              errorMessage.toLowerCase().includes('quota exceeded') ||
+              errorMessage.toLowerCase().includes('throttled')) {
+            
+            rateLimitAttempts++;
+            lastError = new Error(`Rate limit: ${errorMessage}`);
+            
+            // Exponential backoff: 1s → 2s → 4s → 8s → 10s (capped)
+            delay = Math.min(delay * 2, 10000);
+            continue; // Retry
+          }
+          
+          throw new Error(`Tool call failed: ${errorMessage}`);
+        }
+
+        // Success - return result
+        return response.result?.content || response.result;
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        // Check if it's a rate limiting error
+        if (errorMessage.includes('rate limit') || 
+            errorMessage.includes('Rate limit') ||
+            errorMessage.includes('429') ||
+            errorMessage.includes('too many requests') ||
+            errorMessage.includes('quota exceeded') ||
+            errorMessage.includes('throttled')) {
+          
+          rateLimitAttempts++;
+          lastError = error instanceof Error ? error : new Error(errorMessage);
+          
+          // Exponential backoff: 1s → 2s → 4s → 8s → 10s (capped)
+          delay = Math.min(delay * 2, 10000);
+          continue; // Retry
+        }
+        
+        // Non-rate-limit error - throw immediately
+        throw error;
+      }
+    }
+    
+    // Exhausted all rate limit retries
+    throw lastError || new Error(`Rate limit exceeded after ${maxRateLimitAttempts} attempts`);
   }
 
   /**
-   * Resolve library name to Context7 library IDs
+   * Common library name to Context7 ID mappings
+   * Since resolve-library-id tool has issues, we'll use direct mappings for common libraries
+   */
+  private getLibraryIdMapping(): Record<string, string[]> {
+    return {
+      // JavaScript Frameworks & Libraries
+      'react': ['/facebook/react', '/react-dev/react'],
+      'react.js': ['/facebook/react'],
+      'reactjs': ['/facebook/react'],
+      'vue': ['/vuejs/core', '/vuejs/vue'],
+      'vue.js': ['/vuejs/core'],
+      'vuejs': ['/vuejs/core'],
+      'angular': ['/angular/angular', '/angular/core'],
+      'angularjs': ['/angular/angular'],
+      'svelte': ['/sveltejs/svelte'],
+      'next': ['/vercel/next.js'],
+      'next.js': ['/vercel/next.js'],
+      'nextjs': ['/vercel/next.js'],
+      'nuxt': ['/nuxt/nuxt'],
+      'nuxt.js': ['/nuxt/nuxt'],
+      'express': ['/expressjs/express'],
+      'express.js': ['/expressjs/express'],
+      'node': ['/nodejs/node'],
+      'node.js': ['/nodejs/node'],
+      'nodejs': ['/nodejs/node'],
+      
+      // CSS Frameworks
+      'tailwind': ['/tailwindlabs/tailwindcss'],
+      'tailwindcss': ['/tailwindlabs/tailwindcss'],
+      'tailwind css': ['/tailwindlabs/tailwindcss'],
+      'bootstrap': ['/twbs/bootstrap'],
+      'material-ui': ['/mui/material-ui'],
+      'mui': ['/mui/material-ui'],
+      
+      // Build Tools & Bundlers
+      'webpack': ['/webpack/webpack'],
+      'vite': ['/vitejs/vite'],
+      'rollup': ['/rollup/rollup'],
+      'parcel': ['/parcel-bundler/parcel'],
+      'babel': ['/babel/babel'],
+      
+      // TypeScript & Languages
+      'typescript': ['/microsoft/typescript'],
+      'ts': ['/microsoft/typescript'],
+      'javascript': ['/javascript/javascript'],
+      'js': ['/javascript/javascript'],
+      
+      // Databases & ORMs
+      'prisma': ['/prisma/prisma'],
+      'mongoose': ['/mongoose/mongoose'],
+      'typeorm': ['/typeorm/typeorm'],
+      'sequelize': ['/sequelize/sequelize'],
+      
+      // Testing
+      'jest': ['/jestjs/jest'],
+      'cypress': ['/cypress-io/cypress'],
+      'playwright': ['/microsoft/playwright'],
+      'vitest': ['/vitest-dev/vitest'],
+      
+      // State Management
+      'redux': ['/reduxjs/redux'],
+      'mobx': ['/mobxjs/mobx'],
+      'zustand': ['/pmndrs/zustand'],
+      
+      // UI Libraries
+      'chakra': ['/chakra-ui/chakra-ui'],
+      'chakra-ui': ['/chakra-ui/chakra-ui'],
+      'ant design': ['/ant-design/ant-design'],
+      'antd': ['/ant-design/ant-design'],
+      
+      // Utilities
+      'lodash': ['/lodash/lodash'],
+      'axios': ['/axios/axios'],
+      'fetch': ['/whatwg/fetch'],
+      'moment': ['/moment/moment'],
+      'dayjs': ['/iamkun/dayjs'],
+      'date-fns': ['/date-fns/date-fns']
+    };
+  }
+
+  /**
+   * Resolve library name to Context7 library IDs using local mapping
+   * Falls back to resolve-library-id tool if no mapping found (though that tool has issues)
    */
   async resolveLibraryToContextId(libraryName: string): Promise<LibraryResolution[]> {
     try {
@@ -305,44 +434,168 @@ export class Context7MCPClient {
 
       console.log(`[Context7 MCP] Resolving library: ${sanitizedLibraryName}`);
       
-      const result = await this.callTool('resolve-library-id', {
-        libraryName: sanitizedLibraryName
-      });
-
-      // Extract text from MCP response format: { content: [{ type: "text", text: "..." }] }
-      let responseText = '';
-      if (Array.isArray(result)) {
-        // Handle content array format
-        for (const item of result) {
-          if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
-            responseText += (item as { type: string; text: string }).text + '\n';
+      // First try local mapping for common libraries
+      const mapping = this.getLibraryIdMapping();
+      const normalizedName = sanitizedLibraryName.toLowerCase().trim();
+      
+      if (mapping[normalizedName]) {
+        console.log(`[Context7 MCP] Found local mapping for ${normalizedName}:`, mapping[normalizedName]);
+        
+        const resolutions: LibraryResolution[] = [];
+        
+        for (const libraryId of mapping[normalizedName]) {
+          // Test if this library ID actually works by making a quick documentation call
+          try {
+            console.log(`[Context7 MCP] Testing library ID: ${libraryId}`);
+            const testResult = await this.fetchContextDocumentation(libraryId);
+            if (testResult && testResult.content && 
+                !testResult.content.includes('Failed to fetch') &&
+                !testResult.content.includes('Rate limited') &&
+                !testResult.content.includes('Error code')) {
+              resolutions.push({
+                libraryId,
+                trustScore: 0.9, // High trust for mapped libraries
+                codeSnippetsCount: 50, // Estimated
+                description: `Documentation for ${sanitizedLibraryName} (${libraryId})`
+              });
+              
+              // Use the first working ID as primary result
+              break;
+            } else if (testResult && testResult.content.includes('Rate limited')) {
+              // If rate limited, assume the library ID is valid but we can't test it right now
+              console.log(`[Context7 MCP] Library ID ${libraryId} rate limited but likely valid`);
+              resolutions.push({
+                libraryId,
+                trustScore: 0.8, // High trust for mapped libraries (slightly lower due to no verification)
+                codeSnippetsCount: 50, // Estimated
+                description: `Documentation for ${sanitizedLibraryName} (${libraryId})`
+              });
+              break;
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            if (errorMessage.includes('Rate limit') || errorMessage.includes('rate limit')) {
+              // If rate limited, assume the library ID is valid
+              console.log(`[Context7 MCP] Library ID ${libraryId} rate limited but likely valid`);
+              resolutions.push({
+                libraryId,
+                trustScore: 0.8, // High trust for mapped libraries
+                codeSnippetsCount: 50, // Estimated
+                description: `Documentation for ${sanitizedLibraryName} (${libraryId})`
+              });
+              break;
+            } else {
+              console.warn(`[Context7 MCP] Library ID ${libraryId} failed test:`, errorMessage);
+            }
           }
         }
-      } else if (typeof result === 'object' && result !== null && 'content' in result) {
-        // Handle full MCP response format
-        const content = (result as { content: unknown }).content;
-        if (Array.isArray(content)) {
-          for (const item of content) {
+        
+        if (resolutions.length > 0) {
+          return resolutions;
+        }
+      }
+
+      // If no local mapping found, try to construct common patterns
+      const patterns = [
+        `/${normalizedName}/${normalizedName}`, // e.g., /react/react
+        `/${normalizedName}/core`, // e.g., /vue/core  
+        `/${normalizedName}js/${normalizedName}js`, // e.g., /reactjs/reactjs
+        `/lib${normalizedName}/${normalizedName}`, // e.g., /libreact/react
+        `/${normalizedName}/${normalizedName}.js` // e.g., /react/react.js
+      ];
+      
+      for (const pattern of patterns) {
+        try {
+          const testResult = await this.fetchContextDocumentation(pattern);
+          if (testResult && testResult.content && 
+              !testResult.content.includes('Failed to fetch') &&
+              !testResult.content.includes('Rate limited') &&
+              !testResult.content.includes('Error code')) {
+            console.log(`[Context7 MCP] Found working pattern: ${pattern}`);
+            return [{
+              libraryId: pattern,
+              trustScore: 0.6, // Medium trust for pattern matching
+              codeSnippetsCount: 20,
+              description: `Documentation for ${sanitizedLibraryName} (${pattern})`
+            }];
+          } else if (testResult && testResult.content.includes('Rate limited')) {
+            // If rate limited, assume pattern might be valid
+            console.log(`[Context7 MCP] Pattern ${pattern} rate limited but might be valid`);
+            return [{
+              libraryId: pattern,
+              trustScore: 0.5, // Lower trust due to rate limiting
+              codeSnippetsCount: 20,
+              description: `Documentation for ${sanitizedLibraryName} (${pattern})`
+            }];
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          if (errorMessage.includes('Rate limit') || errorMessage.includes('rate limit')) {
+            // If rate limited, assume pattern might be valid
+            console.log(`[Context7 MCP] Pattern ${pattern} rate limited but might be valid`);
+            return [{
+              libraryId: pattern,
+              trustScore: 0.5, // Lower trust due to rate limiting
+              codeSnippetsCount: 20,
+              description: `Documentation for ${sanitizedLibraryName} (${pattern})`
+            }];
+          }
+          // Continue to next pattern
+        }
+      }
+
+      // As a last resort, try the resolve-library-id tool (though it usually times out)
+      // We'll only give it 5 seconds to respond to avoid long delays
+      console.log(`[Context7 MCP] Trying resolve-library-id tool as fallback...`);
+      
+      try {
+        // Use shorter timeout for the problematic tool
+        const originalTimeout = 5000;
+        const result = await Promise.race([
+          this.callTool('resolve-library-id', { libraryName: sanitizedLibraryName }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Tool timeout')), originalTimeout))
+        ]);
+
+        // If we get a result, try to parse it
+        let responseText = '';
+        if (Array.isArray(result)) {
+          for (const item of result) {
             if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
               responseText += (item as { type: string; text: string }).text + '\n';
             }
           }
+        } else if (typeof result === 'object' && result !== null && 'content' in result) {
+          const content = (result as { content: unknown }).content;
+          if (Array.isArray(content)) {
+            for (const item of content) {
+              if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
+                responseText += (item as { type: string; text: string }).text + '\n';
+              }
+            }
+          }
+        } else if (typeof result === 'string') {
+          responseText = result;
         }
-      } else if (typeof result === 'string') {
-        responseText = result;
+
+        if (responseText && !responseText.toLowerCase().includes('error') && 
+            !responseText.toLowerCase().includes('failed')) {
+          const libraries = this.parseLibrarySearchResults(responseText, sanitizedLibraryName);
+          if (libraries.length > 0) {
+            return libraries;
+          }
+        }
+      } catch (error) {
+        console.warn(`[Context7 MCP] resolve-library-id tool failed (expected):`, error instanceof Error ? error.message : 'Unknown error');
       }
 
-      // Check for error messages
-      if (responseText.toLowerCase().includes('error') || 
-          responseText.toLowerCase().includes('failed') ||
-          responseText.toLowerCase().includes('not found')) {
-        console.warn(`[Context7 MCP] Resolution error: ${responseText}`);
-        return [];
-      }
-
-      // Parse Context7 response text to extract library information
-      const libraries = this.parseLibrarySearchResults(responseText, sanitizedLibraryName);
-      return libraries;
+      // Final fallback - return a generic result
+      console.log(`[Context7 MCP] No resolution found, returning fallback for: ${sanitizedLibraryName}`);
+      return [{
+        libraryId: sanitizedLibraryName.toLowerCase(),
+        trustScore: 0.2, // Low trust for fallback
+        codeSnippetsCount: 1,
+        description: `Documentation search for ${sanitizedLibraryName} (no specific library found)`
+      }];
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Request failed';
@@ -382,57 +635,48 @@ export class Context7MCPClient {
 
       console.log(`[Context7 MCP] Fetching documentation for: ${sanitizedLibraryId}`);
       
+      // Validate library ID format - Context7 expects /org/project format
+      if (!sanitizedLibraryId.startsWith('/') && !sanitizedLibraryId.includes('/')) {
+        // Try to construct a valid format
+        const possibleFormats = [
+          `/${sanitizedLibraryId}/${sanitizedLibraryId}`,
+          `/${sanitizedLibraryId}/core`,
+          `/${sanitizedLibraryId}js/${sanitizedLibraryId}`,
+        ];
+        
+        for (const format of possibleFormats) {
+          try {
+            const result = await this.callTool('get-library-docs', {
+              context7CompatibleLibraryID: format
+            });
+            
+            const content = this.extractContentFromMCPResponse(result);
+            if (content && !this.isErrorResponse(content)) {
+              return this.createDocumentationResult(content, format);
+            }
+          } catch (error) {
+            // Continue to next format
+            console.warn(`[Context7 MCP] Format ${format} failed:`, error instanceof Error ? error.message : 'Unknown error');
+          }
+        }
+        
+        // If no format worked, return null
+        console.warn(`[Context7 MCP] No valid format found for library ID: ${sanitizedLibraryId}`);
+        return null;
+      }
+      
       const result = await this.callTool('get-library-docs', {
         context7CompatibleLibraryID: sanitizedLibraryId
       });
 
-      // Extract text from MCP response format: { content: [{ type: "text", text: "..." }] }
-      let content = '';
-      if (Array.isArray(result)) {
-        // Handle content array format
-        for (const item of result) {
-          if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
-            content += (item as { type: string; text: string }).text + '\n';
-          }
-        }
-      } else if (typeof result === 'object' && result !== null && 'content' in result) {
-        // Handle full MCP response format
-        const contentArray = (result as { content: unknown }).content;
-        if (Array.isArray(contentArray)) {
-          for (const item of contentArray) {
-            if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
-              content += (item as { type: string; text: string }).text + '\n';
-            }
-          }
-        }
-      } else if (typeof result === 'string') {
-        content = result;
-      }
-
-      // Clean up content
-      content = content.trim();
-
-      // Check for error messages
-      if (!content || 
-          content.toLowerCase().includes('error') || 
-          content.toLowerCase().includes('failed') ||
-          content.toLowerCase().includes('not found') ||
-          content.toLowerCase().includes('documentation not found')) {
+      const content = this.extractContentFromMCPResponse(result);
+      
+      if (!content || this.isErrorResponse(content)) {
         console.warn(`[Context7 MCP] Documentation fetch error: ${content}`);
         return null;
       }
 
-      // Limit content size for security
-      const limitedContent = content.length > 50000 ? content.substring(0, 50000) + '\n\n[Content truncated for security]' : content;
-
-      return {
-        content: limitedContent,
-        metadata: {
-          source: 'Context7',
-          lastUpdated: new Date().toISOString().split('T')[0],
-          version: 'latest'
-        }
-      };
+      return this.createDocumentationResult(content, sanitizedLibraryId);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Request failed';
@@ -450,6 +694,66 @@ export class Context7MCPClient {
       
       return null;
     }
+  }
+
+  /**
+   * Extract text content from MCP response format
+   */
+  private extractContentFromMCPResponse(result: unknown): string {
+    let content = '';
+    
+    if (Array.isArray(result)) {
+      // Handle content array format
+      for (const item of result) {
+        if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
+          content += (item as { type: string; text: string }).text + '\n';
+        }
+      }
+    } else if (typeof result === 'object' && result !== null && 'content' in result) {
+      // Handle full MCP response format
+      const contentArray = (result as { content: unknown }).content;
+      if (Array.isArray(contentArray)) {
+        for (const item of contentArray) {
+          if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
+            content += (item as { type: string; text: string }).text + '\n';
+          }
+        }
+      }
+    } else if (typeof result === 'string') {
+      content = result;
+    }
+
+    return content.trim();
+  }
+
+  /**
+   * Check if response indicates an error
+   */
+  private isErrorResponse(content: string): boolean {
+    const lowerContent = content.toLowerCase();
+    return lowerContent.includes('error') || 
+           lowerContent.includes('failed') ||
+           lowerContent.includes('not found') ||
+           lowerContent.includes('documentation not found') ||
+           lowerContent.includes('error code:');
+  }
+
+  /**
+   * Create a documentation result object
+   */
+  private createDocumentationResult(content: string, libraryId: string): DocumentationResult {
+    // Limit content size for security
+    const limitedContent = content.length > 50000 ? content.substring(0, 50000) + '\n\n[Content truncated for security]' : content;
+
+    return {
+      content: limitedContent,
+      metadata: {
+        source: 'Context7',
+        lastUpdated: new Date().toISOString().split('T')[0],
+        version: 'latest',
+        libraryId: libraryId
+      }
+    };
   }
 
   /**
@@ -474,7 +778,7 @@ export class Context7MCPClient {
         const line = lines[i].trim();
         
         // Look for numbered entries like "1. Library ID: /facebook/react"
-        const numberedIdMatch = line.match(/^\d+\.\s*Library ID:\s*(\/[\w\-\.]+\/[\w\-\.]+)/);
+        const numberedIdMatch = line.match(/^\d+\.\s*Library ID:\s*(\/[\w-]+\/[\w-]+)/);
         if (numberedIdMatch) {
           // Save previous library if it exists
           if (currentLibrary.libraryId) {
@@ -534,7 +838,7 @@ export class Context7MCPClient {
       if (libraries.length === 0) {
         // Look for standalone lines with actual library paths (after numbered entries section)
         const resultsSection = responseText.split('----------')[1] || responseText;
-        const idMatches = resultsSection.match(/\/[\w\-\.]+\/[\w\-\.]+/g);
+        const idMatches = resultsSection.match(/\/[\w-]+\/[\w-]+/g);
         if (idMatches) {
           for (const id of idMatches) {
             // Skip generic examples

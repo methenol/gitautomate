@@ -3,10 +3,10 @@
  * This test isolates the Context7 MCP functionality to identify connection and tool usage issues
  */
 
-import { getContext7MCPClient } from '@/services/context7-mcp-client-server';
+import { getContext7MCPClient, Context7MCPClient } from '@/services/context7-mcp-client-server';
 
 describe('Context7 MCP Debug', () => {
-  let client: any;
+  let client: Context7MCPClient;
 
   beforeAll(async () => {
     client = getContext7MCPClient();
@@ -33,7 +33,7 @@ describe('Context7 MCP Debug', () => {
       expect(tools.length).toBeGreaterThan(0);
       
       // Check for expected tools
-      const toolNames = tools.map((tool: any) => tool.name);
+      const toolNames = tools.map((tool: { name: string }) => tool.name);
       console.log('[DEBUG] Tool names:', toolNames);
       
       expect(toolNames).toContain('resolve-library-id');

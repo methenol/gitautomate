@@ -8,7 +8,7 @@ describe('Context7 Response Parsing', () => {
   let client: Context7MCPClient;
 
   beforeEach(() => {
-    client = new (Context7MCPClient as any)(); // Create instance directly
+    client = new Context7MCPClient(); // Create instance directly
   });
 
   it('should parse successful library search results', () => {
@@ -40,7 +40,8 @@ For best results, select libraries based on name match, trust score, snippet cov
    Trust Score: 9.2
    Versions: v6.26.1, v6.25.1, v5.3.4`;
 
-    const libraries = (client as any).parseLibrarySearchResults(mockResponseText, 'React');
+    // Call the private method via type assertion
+    const libraries = (client as { parseLibrarySearchResults: (text: string, name: string) => unknown[] }).parseLibrarySearchResults(mockResponseText, 'React');
     
     console.log('Parsed libraries:', JSON.stringify(libraries, null, 2));
     
@@ -59,7 +60,7 @@ For best results, select libraries based on name match, trust score, snippet cov
 Library ID: /some/lib
 Not properly formatted response`;
 
-    const libraries = (client as any).parseLibrarySearchResults(mockMalformedText, 'TestLib');
+    const libraries = (client as { parseLibrarySearchResults: (text: string, name: string) => unknown[] }).parseLibrarySearchResults(mockMalformedText, 'TestLib');
     
     expect(libraries).toBeInstanceOf(Array);
     expect(libraries.length).toBeGreaterThan(0);
@@ -73,7 +74,7 @@ Not properly formatted response`;
     const mockEmptyText = `No libraries found for your query.
 Please try different search terms.`;
 
-    const libraries = (client as any).parseLibrarySearchResults(mockEmptyText, 'UnknownLib');
+    const libraries = (client as { parseLibrarySearchResults: (text: string, name: string) => unknown[] }).parseLibrarySearchResults(mockEmptyText, 'UnknownLib');
     
     expect(libraries).toBeInstanceOf(Array);
     expect(libraries.length).toBe(1);
