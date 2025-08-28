@@ -52,55 +52,17 @@ export async function listAvailableModels(apiKey?: string): Promise<string[]> {
       return [];
     }
 
-    // Known deprecated or problematic models to filter out
-    const deprecatedModels = [
-      'gemini-2.5-flash-lite-preview-06-17', // Deprecated preview model
-      'gemini-2.0-flash-lite-preview', // Preview models that may be unstable
-    ];
-
     // Correctly parse the model list and remove the "models/" prefix.
-    const allModels = data.models.map((model: {name: string}) =>
+    return data.models.map((model: {name: string}) =>
       model.name.replace('models/', '')
     );
-
-    // Filter out deprecated/problematic models
-    const validModels = allModels.filter((model: string) => 
-      !deprecatedModels.some(deprecated => model.includes(deprecated))
-    );
-
-    // Always ensure we have fallback models available
-    const fallbackModels = [
-      'gemini-1.5-flash-latest',
-      'gemini-1.5-pro-latest',
-      'gemini-1.0-pro'
-    ];
-
-    // If we filtered out all models or got an empty list, return fallbacks
-    if (validModels.length === 0) {
-      console.warn('No valid models found from API, using fallback models');
-      return fallbackModels;
-    }
-
-    // Ensure fallback models are included if they're not already present
-    const modelsSet = new Set(validModels);
-    for (const fallback of fallbackModels) {
-      if (!modelsSet.has(fallback)) {
-        validModels.push(fallback);
-      }
-    }
-
-    return validModels;
   } catch (error) {
     console.error('Failed to fetch models directly:', error);
-    
-    // Return fallback models instead of throwing error
-    const fallbackModels = [
-      'gemini-1.5-flash-latest',
-      'gemini-1.5-pro-latest',
-      'gemini-1.0-pro'
-    ];
-    
-    console.warn('Using fallback models due to API error');
-    return fallbackModels;
+    // Let the UI know an error occurred.
+    // The error is likely an invalid API key or network issue.
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('An unknown error occurred while fetching models.');
   }
 }

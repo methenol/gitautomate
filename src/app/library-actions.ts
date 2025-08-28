@@ -35,56 +35,27 @@ export interface LibraryIdentificationOptions {
   minConfidence?: number;
 }
 
-export async function runIdentifyLibraries(
-  tasks: Task[],
-  options: LibraryIdentificationOptions = {}
-): Promise<IdentifiedLibrary[]> {
-  
-  if (tasks.length === 0) {
-    return [];
-  }
-
-  const { apiKey, model, minConfidence = 0.6 } = options;
-
-  // Combine all task content for analysis
-  const taskContent = tasks.map((task, index) => 
-    `### Task ${index + 1}: ${task.title}\n${task.details}`
-  ).join('\n\n');
-
-  try {
-    // Validate and fallback model if needed
-    let validModel = model || 'gemini-1.5-flash-latest';
-    
-    // Filter out deprecated models
-    const deprecatedModels = [
-      'gemini-2.5-flash-lite-preview-06-17',
-      'gemini-2.0-flash-lite-preview'
-    ];
-    
-    if (deprecatedModels.some(deprecated => validModel.includes(deprecated))) {
-      console.warn(`Deprecated model "${validModel}" detected, falling back to gemini-1.5-flash-latest`);
-      validModel = 'gemini-1.5-flash-latest';
-    }
-
-    // Use LLM to identify libraries with advanced pattern matching
-    const identificationFlow = ai.defineFlow(
-      {
-        name: 'identifyLibraries',
-        inputSchema: z.object({
-          taskContent: z.string(),
-        }),
-        outputSchema: z.object({
-          libraries: z.array(z.object({
-            name: z.string(),
-            category: z.enum(['frontend', 'backend', 'database', 'testing', 'auth', 'build-tools', 'ui', 'api', 'deployment', 'monitoring', 'other']),
-            confidence: z.number().min(0).max(1),
-            context: z.string(),
-            taskReferences: z.array(z.string())
-          }))
-        })
-      },
-      async (input) => {
-        const prompt = `Analyze the following development tasks and identify all libraries, frameworks, and tools mentioned. For each library found, provide:
+// Define the flow outside the function to prevent registry conflicts
+const identifyLibrariesFlow = ai.defineFlow(
+  {
+    name: 'identifyLibrariesFlow',
+    inputSchema: z.object({
+      taskContent: z.string(),
+      modelName: z.string(),
+      apiKey: z.string().optional(),
+    }),
+    outputSchema: z.object({
+      libraries: z.array(z.object({
+        name: z.string(),
+        category: z.enum(['frontend', 'backend', 'database', 'testing', 'auth', 'build-tools', 'ui', 'api', 'deployment', 'monitoring', 'other']),
+        confidence: z.number().min(0).max(1),
+        context: z.string(),
+        taskReferences: z.array(z.string())
+      }))
+    })
+  },
+  async (input) => {
+    const prompt = `Analyze the following development tasks and identify all libraries, frameworks, and tools mentioned. For each library found, provide:
 
 1. **Exact library name** (e.g., "React", "Express.js", "PostgreSQL", "Jest")
 2. **Category** (frontend/backend/database/testing/auth/build-tools/ui/api/deployment/monitoring/other)
@@ -108,61 +79,56 @@ ${input.taskContent}
 
 Return as JSON with libraries array.`;
 
-        try {
-          const result = await ai.generate({
-            model: `googleai/${validModel}`,
-            prompt,
-            config: apiKey ? { apiKey } : undefined,
-            output: {
-              schema: z.object({
-                libraries: z.array(z.object({
-                  name: z.string(),
-                  category: z.enum(['frontend', 'backend', 'database', 'testing', 'auth', 'build-tools', 'ui', 'api', 'deployment', 'monitoring', 'other']),
-                  confidence: z.number().min(0).max(1),
-                  context: z.string(),
-                  taskReferences: z.array(z.string())
-                }))
-              })
-            }
-          });
-
-          if (!result.output) {
-            throw new Error('No output received from AI model');
-          }
-
-          return result.output;
-          
-        } catch (modelError) {
-          // If the model fails, try with a guaranteed working fallback
-          console.warn(`Model ${validModel} failed, trying with gemini-1.5-pro-latest:`, modelError);
-          
-          const fallbackResult = await ai.generate({
-            model: 'googleai/gemini-1.5-pro-latest',
-            prompt,
-            config: apiKey ? { apiKey } : undefined,
-            output: {
-              schema: z.object({
-                libraries: z.array(z.object({
-                  name: z.string(),
-                  category: z.enum(['frontend', 'backend', 'database', 'testing', 'auth', 'build-tools', 'ui', 'api', 'deployment', 'monitoring', 'other']),
-                  confidence: z.number().min(0).max(1),
-                  context: z.string(),
-                  taskReferences: z.array(z.string())
-                }))
-              })
-            }
-          });
-
-          if (!fallbackResult.output) {
-            throw new Error('No output received from fallback AI model');
-          }
-
-          return fallbackResult.output;
-        }
+    const result = await ai.generate({
+      model: input.modelName,
+      prompt,
+      config: input.apiKey ? { apiKey: input.apiKey } : undefined,
+      output: {
+        schema: z.object({
+          libraries: z.array(z.object({
+            name: z.string(),
+            category: z.enum(['frontend', 'backend', 'database', 'testing', 'auth', 'build-tools', 'ui', 'api', 'deployment', 'monitoring', 'other']),
+            confidence: z.number().min(0).max(1),
+            context: z.string(),
+            taskReferences: z.array(z.string())
+          }))
+        })
       }
-    );
+    });
 
-    const result = await identificationFlow({ taskContent });
+    if (!result.output) {
+      throw new Error('No output received from AI model');
+    }
+
+    return result.output;
+  }
+);
+
+export async function runIdentifyLibraries(
+  tasks: Task[],
+  options: LibraryIdentificationOptions = {}
+): Promise<IdentifiedLibrary[]> {
+  
+  if (tasks.length === 0) {
+    return [];
+  }
+
+  const { apiKey, model, minConfidence = 0.6 } = options;
+
+  // Combine all task content for analysis
+  const taskContent = tasks.map((task, index) => 
+    `### Task ${index + 1}: ${task.title}\n${task.details}`
+  ).join('\n\n');
+
+  try {
+    // Use the correct model name format like other working flows
+    const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-flash-latest';
+
+    const result = await identifyLibrariesFlow({ 
+      taskContent, 
+      modelName, 
+      apiKey 
+    });
     
     // Filter by minimum confidence and validate
     const filteredLibraries = result.libraries
