@@ -107,7 +107,7 @@ export class Context7MCPClient {
   private serverManager: MCPServerManager | null = null;
   private requestId = 1;
   private isInitialized = false;
-  private availableTools: MCPTool[] = [];
+  public availableTools: MCPTool[] = [];
 
   constructor() {
     // Server manager will be set during initialization
@@ -243,7 +243,7 @@ export class Context7MCPClient {
   /**
    * Use a tool with the given arguments
    */
-  private async callTool(toolName: string, args: Record<string, unknown>): Promise<unknown> {
+  async callTool(toolName: string, args: Record<string, unknown>): Promise<unknown> {
     // Validate tool name
     if (typeof toolName !== 'string' || !/^[a-zA-Z][a-zA-Z0-9-]*$/.test(toolName)) {
       throw new Error('Invalid tool name');
@@ -309,23 +309,40 @@ export class Context7MCPClient {
         libraryName: sanitizedLibraryName
       });
 
-      // Process the result - this depends on the actual Context7 MCP response format
+      // Extract text from MCP response format: { content: [{ type: "text", text: "..." }] }
+      let responseText = '';
       if (Array.isArray(result)) {
-        return result.map((item: unknown) => ({
-          libraryId: String((item as Record<string, unknown>)?.library_id || sanitizedLibraryName).substring(0, 100),
-          trustScore: Math.max(0, Math.min(1, Number((item as Record<string, unknown>)?.trust_score) || 0.5)),
-          codeSnippetsCount: Math.max(0, Number((item as Record<string, unknown>)?.code_snippets_count) || 0),
-          description: String((item as Record<string, unknown>)?.description || '').substring(0, 500)
-        }));
+        // Handle content array format
+        for (const item of result) {
+          if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
+            responseText += (item as { type: string; text: string }).text + '\n';
+          }
+        }
+      } else if (typeof result === 'object' && result !== null && 'content' in result) {
+        // Handle full MCP response format
+        const content = (result as { content: unknown }).content;
+        if (Array.isArray(content)) {
+          for (const item of content) {
+            if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
+              responseText += (item as { type: string; text: string }).text + '\n';
+            }
+          }
+        }
+      } else if (typeof result === 'string') {
+        responseText = result;
       }
 
-      // Fallback for different response formats
-      return [{
-        libraryId: `${sanitizedLibraryName}-main`,
-        trustScore: 0.8,
-        codeSnippetsCount: 10,
-        description: `Main documentation for ${sanitizedLibraryName}`
-      }];
+      // Check for error messages
+      if (responseText.toLowerCase().includes('error') || 
+          responseText.toLowerCase().includes('failed') ||
+          responseText.toLowerCase().includes('not found')) {
+        console.warn(`[Context7 MCP] Resolution error: ${responseText}`);
+        return [];
+      }
+
+      // Parse Context7 response text to extract library information
+      const libraries = this.parseLibrarySearchResults(responseText, sanitizedLibraryName);
+      return libraries;
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Request failed';
@@ -339,11 +356,6 @@ export class Context7MCPClient {
           errorMessage.includes('quota exceeded') ||
           errorMessage.includes('throttled')) {
         throw new Error(`Rate limit: ${errorMessage}`);
-      }
-      
-      // Check if it's a network/connectivity issue
-      if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('timeout') || errorMessage.includes('connection')) {
-        console.warn(`[Context7 MCP] Context7 service unavailable (network restrictions). Library resolution for "${libraryName}" skipped.`);
       }
       
       return [];
@@ -374,25 +386,39 @@ export class Context7MCPClient {
         context7CompatibleLibraryID: sanitizedLibraryId
       });
 
-      // Process the result - this depends on the actual Context7 MCP response format
-      let content: string;
-      
-      if (typeof result === 'string') {
-        content = result;
-      } else if (typeof result === 'object' && result !== null) {
-        const resultObj = result as Record<string, unknown>;
-        content = String(resultObj.content || resultObj.documentation || '');
-        
-        // If no direct content, safely stringify (but limit size)
-        if (!content) {
-          const safeResult = JSON.stringify(result, null, 2);
-          content = safeResult.length > 10000 ? safeResult.substring(0, 10000) + '...' : safeResult;
+      // Extract text from MCP response format: { content: [{ type: "text", text: "..." }] }
+      let content = '';
+      if (Array.isArray(result)) {
+        // Handle content array format
+        for (const item of result) {
+          if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
+            content += (item as { type: string; text: string }).text + '\n';
+          }
         }
-      } else {
-        content = '';
+      } else if (typeof result === 'object' && result !== null && 'content' in result) {
+        // Handle full MCP response format
+        const contentArray = (result as { content: unknown }).content;
+        if (Array.isArray(contentArray)) {
+          for (const item of contentArray) {
+            if (typeof item === 'object' && item !== null && 'type' in item && 'text' in item) {
+              content += (item as { type: string; text: string }).text + '\n';
+            }
+          }
+        }
+      } else if (typeof result === 'string') {
+        content = result;
       }
 
-      if (!content) {
+      // Clean up content
+      content = content.trim();
+
+      // Check for error messages
+      if (!content || 
+          content.toLowerCase().includes('error') || 
+          content.toLowerCase().includes('failed') ||
+          content.toLowerCase().includes('not found') ||
+          content.toLowerCase().includes('documentation not found')) {
+        console.warn(`[Context7 MCP] Documentation fetch error: ${content}`);
         return null;
       }
 
@@ -422,18 +448,143 @@ export class Context7MCPClient {
         throw new Error(`Rate limit: ${errorMessage}`);
       }
       
-      // Check if it's a network/connectivity issue
-      if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('timeout') || errorMessage.includes('connection')) {
-        console.warn(`[Context7 MCP] Context7 service unavailable (network restrictions). Documentation for "${libraryId}" skipped.`);
-      }
-      
       return null;
     }
   }
 
   /**
-   * Clean up resources
+   * Parse Context7 search results text to extract library information
    */
+  private parseLibrarySearchResults(responseText: string, originalLibraryName: string): LibraryResolution[] {
+    const libraries: LibraryResolution[] = [];
+    
+    try {
+      // Look for numbered library entries in the response text
+      // Context7 format typically includes:
+      // 1. Library ID: /org/project
+      //    Name: Library Name
+      //    Description: Description text
+      //    Code Snippets: Number
+      //    Trust Score: Number
+      
+      const lines = responseText.split('\n');
+      let currentLibrary: Partial<LibraryResolution> = {};
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Look for numbered entries like "1. Library ID: /facebook/react"
+        const numberedIdMatch = line.match(/^\d+\.\s*Library ID:\s*(\/[\w\-\.]+\/[\w\-\.]+)/);
+        if (numberedIdMatch) {
+          // Save previous library if it exists
+          if (currentLibrary.libraryId) {
+            libraries.push(this.finalizeLibraryResolution(currentLibrary, originalLibraryName));
+          }
+          
+          // Start new library
+          currentLibrary = {
+            libraryId: numberedIdMatch[1],
+            trustScore: 0.5,
+            codeSnippetsCount: 0,
+            description: ''
+          };
+          continue;
+        }
+        
+        // Look for indented properties if we have a current library
+        if (currentLibrary.libraryId) {
+          // Name
+          const nameMatch = line.match(/^\s*Name:\s*(.+)/);
+          if (nameMatch) {
+            if (!currentLibrary.description) {
+              currentLibrary.description = nameMatch[1];
+            }
+            continue;
+          }
+          
+          // Description
+          const descMatch = line.match(/^\s*Description:\s*(.+)/);
+          if (descMatch) {
+            currentLibrary.description = descMatch[1];
+            continue;
+          }
+          
+          // Code Snippets
+          const snippetsMatch = line.match(/^\s*Code Snippets:\s*(\d+)/);
+          if (snippetsMatch) {
+            currentLibrary.codeSnippetsCount = parseInt(snippetsMatch[1], 10) || 0;
+            continue;
+          }
+          
+          // Trust Score
+          const trustMatch = line.match(/^\s*Trust Score:\s*(\d+(?:\.\d+)?)/);
+          if (trustMatch) {
+            currentLibrary.trustScore = Math.max(0, Math.min(1, parseFloat(trustMatch[1]) / 10)); // Normalize to 0-1
+            continue;
+          }
+        }
+      }
+      
+      // Save the last library
+      if (currentLibrary.libraryId) {
+        libraries.push(this.finalizeLibraryResolution(currentLibrary, originalLibraryName));
+      }
+      
+      // If no libraries found, try to extract any library ID patterns (but be more careful)
+      if (libraries.length === 0) {
+        // Look for standalone lines with actual library paths (after numbered entries section)
+        const resultsSection = responseText.split('----------')[1] || responseText;
+        const idMatches = resultsSection.match(/\/[\w\-\.]+\/[\w\-\.]+/g);
+        if (idMatches) {
+          for (const id of idMatches) {
+            // Skip generic examples
+            if (!id.includes('org/project')) {
+              libraries.push({
+                libraryId: id,
+                trustScore: 0.7,
+                codeSnippetsCount: 5,
+                description: `Documentation for ${id}`
+              });
+            }
+          }
+        }
+      }
+      
+      // Final fallback
+      if (libraries.length === 0) {
+        libraries.push({
+          libraryId: originalLibraryName.toLowerCase(),
+          trustScore: 0.5,
+          codeSnippetsCount: 1,
+          description: `Documentation for ${originalLibraryName}`
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error parsing library search results:', error);
+      // Fallback library
+      libraries.push({
+        libraryId: originalLibraryName.toLowerCase(),
+        trustScore: 0.5,
+        codeSnippetsCount: 1,
+        description: `Documentation for ${originalLibraryName}`
+      });
+    }
+    
+    return libraries;
+  }
+
+  /**
+   * Finalize a library resolution object
+   */
+  private finalizeLibraryResolution(partial: Partial<LibraryResolution>, fallbackName: string): LibraryResolution {
+    return {
+      libraryId: partial.libraryId || fallbackName.toLowerCase(),
+      trustScore: Math.max(0, Math.min(1, partial.trustScore || 0.5)),
+      codeSnippetsCount: Math.max(0, partial.codeSnippetsCount || 0),
+      description: (partial.description || `Documentation for ${fallbackName}`).substring(0, 500)
+    };
+  }
   async cleanup(): Promise<void> {
     if (this.serverManager) {
       await this.serverManager.cleanup();
