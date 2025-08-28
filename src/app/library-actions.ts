@@ -95,12 +95,27 @@ ${input.taskContent}
 Return as JSON with libraries array.`;
 
         const result = await ai.generate({
-          model: model || 'gemini-1.5-flash-latest',
+          model: `googleai/${model || 'gemini-1.5-flash-latest'}`,
           prompt,
           config: apiKey ? { apiKey } : undefined,
+          output: {
+            schema: z.object({
+              libraries: z.array(z.object({
+                name: z.string(),
+                category: z.enum(['frontend', 'backend', 'database', 'testing', 'auth', 'build-tools', 'ui', 'api', 'deployment', 'monitoring', 'other']),
+                confidence: z.number().min(0).max(1),
+                context: z.string(),
+                taskReferences: z.array(z.string())
+              }))
+            })
+          }
         });
 
-        return JSON.parse(result.text);
+        if (!result.output) {
+          throw new Error('No output received from AI model');
+        }
+
+        return result.output;
       }
     );
 

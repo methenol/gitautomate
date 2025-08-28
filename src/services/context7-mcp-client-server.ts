@@ -317,8 +317,15 @@ export class Context7MCPClient {
         description: `Main documentation for ${sanitizedLibraryName}`
       }];
 
-    } catch {
-      console.error(`Error resolving library ${libraryName}: Request failed`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Request failed';
+      console.error(`Error resolving library ${libraryName}: ${errorMessage}`);
+      
+      // Check if it's a network/connectivity issue
+      if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('timeout') || errorMessage.includes('connection')) {
+        console.warn(`[Context7 MCP] Context7 service unavailable (network restrictions). Library resolution for "${libraryName}" skipped.`);
+      }
+      
       return [];
     }
   }
@@ -381,8 +388,15 @@ export class Context7MCPClient {
         }
       };
 
-    } catch {
-      console.error(`Error fetching documentation for ${libraryId}: Request failed`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Request failed';
+      console.error(`Error fetching documentation for ${libraryId}: ${errorMessage}`);
+      
+      // Check if it's a network/connectivity issue
+      if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('timeout') || errorMessage.includes('connection')) {
+        console.warn(`[Context7 MCP] Context7 service unavailable (network restrictions). Documentation for "${libraryId}" skipped.`);
+      }
+      
       return null;
     }
   }
