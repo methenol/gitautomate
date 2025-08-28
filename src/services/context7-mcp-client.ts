@@ -1,14 +1,14 @@
 /**
- * @fileOverview Context7 MCP Client - Mock implementation for demo purposes
+ * @fileOverview Context7 MCP Client - Real MCP integration with JSON-RPC 2.0 protocol
  * 
- * This is a demonstration implementation that shows the complete integration workflow.
- * In a production environment, this would communicate with a server-side MCP handler.
- * 
- * Production implementation would require:
- * - Server-side MCP server management
- * - WebSocket or Server-Sent Events for real-time communication
- * - Proper error handling and retry logic
+ * This service handles:
+ * - JSON-RPC 2.0 communication with Context7 MCP server
+ * - Library resolution and documentation fetching
+ * - Error handling and retry logic
+ * - Proper MCP protocol implementation
  */
+
+import { getContext7MCPServerManager } from '@/lib/mcp-server-manager';
 
 export interface LibraryResolution {
   libraryId: string;
@@ -26,308 +26,309 @@ export interface DocumentationResult {
   };
 }
 
+interface MCPRequest {
+  jsonrpc: '2.0';
+  id: string | number;
+  method: string;
+  params?: any;
+}
+
+interface MCPResponse {
+  jsonrpc: '2.0';
+  id: string | number;
+  result?: any;
+  error?: {
+    code: number;
+    message: string;
+    data?: any;
+  };
+}
+
 export class Context7MCPClient {
-  
+  private requestId = 0;
+  private pendingRequests = new Map<string | number, {
+    resolve: (value: any) => void;
+    reject: (error: Error) => void;
+    timeout: NodeJS.Timeout;
+  }>();
+  private responseBuffer = '';
+  private isInitialized = false;
+
+  constructor() {
+    this.setupResponseHandler();
+  }
+
+  /**
+   * Ensure MCP server is initialized with proper handshake
+   */
+  private async ensureMCPInitialized(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
+    try {
+      console.log('[Context7 MCP] Initializing MCP connection...');
+      
+      // Send initialize request first
+      await this.sendMCPRequest('initialize', {
+        protocolVersion: '2024-11-05',
+        capabilities: {
+          roots: { listChanged: true },
+          sampling: {}
+        },
+        clientInfo: {
+          name: 'gitautomate-context7-client',
+          version: '1.0.0'
+        }
+      });
+
+      // List available tools to understand what's available
+      const toolsResult = await this.sendMCPRequest('tools/list', {});
+      console.log('[Context7 MCP] Available tools:', toolsResult);
+
+      this.isInitialized = true;
+      console.log('[Context7 MCP] Initialization complete');
+      
+    } catch (error) {
+      console.error('[Context7 MCP] Initialization failed:', error);
+      throw new Error('Failed to initialize MCP connection');
+    }
+  }
+
   /**
    * Resolve library name to Context7 library ID
-   * Demo implementation with mock data
    */
   async resolveLibraryToContextId(libraryName: string): Promise<LibraryResolution[]> {
-    console.log(`[DEMO] Resolving library: ${libraryName}`);
+    console.log(`[Context7 MCP] Resolving library: ${libraryName}`);
     
-    // Simulate network delay
-    await this.delay(500);
-    
-    // Mock resolution data for common libraries
-    const mockResolutions: Record<string, LibraryResolution[]> = {
-      'react': [{
-        libraryId: 'react-main',
-        trustScore: 0.95,
-        codeSnippetsCount: 150,
-        description: 'A JavaScript library for building user interfaces'
-      }],
-      'next.js': [{
-        libraryId: 'nextjs-main',
-        trustScore: 0.92,
-        codeSnippetsCount: 120,
-        description: 'The React Framework for Production'
-      }],
-      'express.js': [{
-        libraryId: 'express-main',
-        trustScore: 0.90,
-        codeSnippetsCount: 100,
-        description: 'Fast, unopinionated, minimalist web framework for Node.js'
-      }],
-      'typescript': [{
-        libraryId: 'typescript-main',
-        trustScore: 0.88,
-        codeSnippetsCount: 80,
-        description: 'TypeScript is JavaScript with syntax for types'
-      }],
-      'tailwind css': [{
-        libraryId: 'tailwindcss-main',
-        trustScore: 0.85,
-        codeSnippetsCount: 200,
-        description: 'A utility-first CSS framework'
-      }],
-      'postgresql': [{
-        libraryId: 'postgresql-main',
-        trustScore: 0.93,
-        codeSnippetsCount: 90,
-        description: 'The World\'s Most Advanced Open Source Relational Database'
-      }],
-      'jest': [{
-        libraryId: 'jest-main',
-        trustScore: 0.87,
-        codeSnippetsCount: 75,
-        description: 'Delightful JavaScript Testing'
-      }]
-    };
+    try {
+      // First ensure MCP is initialized
+      await this.ensureMCPInitialized();
+      
+      const result = await this.sendMCPRequest('tools/call', {
+        name: 'resolve-library-id',
+        arguments: {
+          libraryName: libraryName
+        }
+      });
 
-    const normalizedName = libraryName.toLowerCase();
-    return mockResolutions[normalizedName] || [];
+      // Transform result to our interface
+      if (result.content && Array.isArray(result.content)) {
+        return result.content.map((lib: any) => ({
+          libraryId: lib.library_id || lib.id,
+          trustScore: lib.trust_score || lib.trustScore || 0,
+          codeSnippetsCount: lib.code_snippets_count || lib.codeSnippetsCount || 0,
+          description: lib.description
+        }));
+      }
+
+      return [];
+    } catch (error) {
+      console.error(`[Context7 MCP] Failed to resolve library ${libraryName}:`, error);
+      return [];
+    }
   }
 
   /**
    * Fetch comprehensive documentation for a library
-   * Demo implementation with mock documentation
    */
   async fetchContextDocumentation(contextId: string): Promise<DocumentationResult | null> {
-    console.log(`[DEMO] Fetching documentation for: ${contextId}`);
+    console.log(`[Context7 MCP] Fetching documentation for: ${contextId}`);
     
-    // Simulate network delay
-    await this.delay(1000);
-    
-    // Mock documentation for different libraries
-    const mockDocumentation: Record<string, DocumentationResult> = {
-      'react-main': {
-        content: `# React Documentation
-
-## Getting Started
-
-React is a JavaScript library for building user interfaces. This comprehensive guide covers everything you need to know.
-
-### Installation
-
-\`\`\`bash
-npm install react react-dom
-\`\`\`
-
-### Basic Example
-
-\`\`\`jsx
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-
-function App() {
-  return <h1>Hello, React!</h1>;
-}
-
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
-\`\`\`
-
-### Key Concepts
-
-#### Components
-Components are the building blocks of React applications.
-
-#### Props
-Props are how you pass data to components.
-
-#### State
-State allows components to manage their own data.
-
-#### Hooks
-Hooks let you use state and other React features in functional components.
-
-### Best Practices
-
-1. Use functional components with hooks
-2. Keep components small and focused
-3. Use proper prop types or TypeScript
-4. Follow the single responsibility principle
-5. Optimize performance with React.memo when needed
-
-### Common Patterns
-
-- Conditional rendering
-- List rendering with keys
-- Event handling
-- Form management
-- Context for global state
-
-For complete documentation, visit: https://react.dev`,
-        metadata: {
-          source: 'React Official Documentation',
-          lastUpdated: '2024-01-15',
-          version: '18.x'
+    try {
+      // Ensure MCP is initialized
+      await this.ensureMCPInitialized();
+      
+      const result = await this.sendMCPRequest('tools/call', {
+        name: 'get-library-docs',
+        arguments: {
+          libraryId: contextId
         }
-      },
-      'nextjs-main': {
-        content: `# Next.js Documentation
+      });
 
-## Introduction
-
-Next.js is a React framework that provides production-ready features out of the box.
-
-### Installation
-
-\`\`\`bash
-npx create-next-app@latest my-app
-cd my-app
-npm run dev
-\`\`\`
-
-### Key Features
-
-#### App Router
-The new App Router provides enhanced routing capabilities.
-
-#### Server Components
-Server Components render on the server for better performance.
-
-#### API Routes
-Build API endpoints directly in your Next.js application.
-
-### File-based Routing
-
-Next.js uses file-based routing in the \`app\` directory:
-
-\`\`\`
-app/
-├── page.tsx          # / route
-├── about/
-│   └── page.tsx      # /about route
-└── blog/
-    ├── page.tsx      # /blog route
-    └── [slug]/
-        └── page.tsx  # /blog/[slug] route
-\`\`\`
-
-### Data Fetching
-
-\`\`\`tsx
-// Server Component
-async function Page() {
-  const data = await fetch('https://api.example.com/data');
-  const posts = await data.json();
-  
-  return (
-    <div>
-      {posts.map(post => (
-        <article key={post.id}>{post.title}</article>
-      ))}
-    </div>
-  );
-}
-\`\`\`
-
-### Best Practices
-
-1. Use Server Components by default
-2. Leverage built-in optimizations
-3. Implement proper SEO with metadata
-4. Use Next.js Image component for optimization
-5. Follow the recommended project structure
-
-For complete documentation, visit: https://nextjs.org/docs`,
-        metadata: {
-          source: 'Next.js Official Documentation',
-          lastUpdated: '2024-01-20',
-          version: '14.x'
-        }
-      },
-      'tailwindcss-main': {
-        content: `# Tailwind CSS Documentation
-
-## Overview
-
-Tailwind CSS is a utility-first CSS framework for rapidly building custom user interfaces.
-
-### Installation
-
-\`\`\`bash
-npm install tailwindcss
-npx tailwindcss init
-\`\`\`
-
-### Configuration
-
-\`\`\`js
-// tailwind.config.js
-module.exports = {
-  content: ['./src/**/*.{html,js,tsx}'],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-}
-\`\`\`
-
-### Basic Usage
-
-\`\`\`html
-<div class="bg-blue-500 text-white p-4 rounded-lg">
-  <h1 class="text-2xl font-bold">Hello Tailwind!</h1>
-  <p class="mt-2">This is a card component.</p>
-</div>
-\`\`\`
-
-### Core Concepts
-
-#### Utility Classes
-- \`text-*\` for typography
-- \`bg-*\` for background colors
-- \`p-*\`, \`m-*\` for spacing
-- \`w-*\`, \`h-*\` for sizing
-
-#### Responsive Design
-\`\`\`html
-<div class="w-full md:w-1/2 lg:w-1/3">
-  Responsive width
-</div>
-\`\`\`
-
-#### State Variants
-\`\`\`html
-<button class="bg-blue-500 hover:bg-blue-700 focus:ring-2">
-  Interactive button
-</button>
-\`\`\`
-
-### Best Practices
-
-1. Use consistent spacing scale
-2. Leverage responsive utilities
-3. Create custom components for repeated patterns
-4. Use the JIT compiler for production
-5. Purge unused styles
-
-For complete documentation, visit: https://tailwindcss.com/docs`,
-        metadata: {
-          source: 'Tailwind CSS Official Documentation',
-          lastUpdated: '2024-01-10',
-          version: '3.x'
-        }
+      if (result.content && typeof result.content === 'string') {
+        return {
+          content: result.content,
+          metadata: {
+            source: result.metadata?.source || 'Context7',
+            lastUpdated: result.metadata?.last_updated || result.metadata?.lastUpdated,
+            version: result.metadata?.version
+          }
+        };
       }
+
+      return null;
+    } catch (error) {
+      console.error(`[Context7 MCP] Failed to fetch documentation for ${contextId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Send JSON-RPC 2.0 request to MCP server
+   */
+  private async sendMCPRequest(method: string, params?: any): Promise<any> {
+    const serverManager = getContext7MCPServerManager();
+    
+    // Ensure server is running
+    if (!serverManager.isRunning()) {
+      console.log('[Context7 MCP] Starting MCP server...');
+      await serverManager.start();
+    }
+
+    const requestId = this.generateRequestId();
+    const request: MCPRequest = {
+      jsonrpc: '2.0',
+      id: requestId,
+      method,
+      params
     };
 
-    return mockDocumentation[contextId] || null;
+    return new Promise((resolve, reject) => {
+      // Set up timeout (30 seconds)
+      const timeout = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        reject(new Error(`MCP request timeout for method: ${method}`));
+      }, 30000);
+
+      // Store the pending request
+      this.pendingRequests.set(requestId, {
+        resolve,
+        reject,
+        timeout
+      });
+
+      // Send the request
+      const requestData = JSON.stringify(request) + '\n';
+      const sent = serverManager.send(requestData);
+      
+      if (!sent) {
+        clearTimeout(timeout);
+        this.pendingRequests.delete(requestId);
+        reject(new Error('Failed to send MCP request - server not available'));
+      }
+
+      console.log(`[Context7 MCP] Sent request: ${method} (ID: ${requestId})`);
+    });
   }
 
   /**
-   * Create delay promise
+   * Setup response handler for MCP server data
    */
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  private setupResponseHandler(): void {
+    const serverManager = getContext7MCPServerManager();
+    
+    serverManager.on('data', (data: Buffer) => {
+      this.handleResponseData(data.toString());
+    });
+
+    serverManager.on('error', (error: Error) => {
+      console.error('[Context7 MCP] Server error:', error);
+      this.rejectAllPendingRequests(error);
+    });
+
+    serverManager.on('exit', () => {
+      console.log('[Context7 MCP] Server exited');
+      this.rejectAllPendingRequests(new Error('MCP server exited unexpectedly'));
+    });
   }
 
   /**
-   * Clean up (no-op for demo)
+   * Handle incoming response data from MCP server
    */
-  cleanup(): void {
-    console.log('[DEMO] Context7 MCP client cleanup');
+  private handleResponseData(data: string): void {
+    this.responseBuffer += data;
+    
+    // Process complete JSON lines
+    const lines = this.responseBuffer.split('\n');
+    this.responseBuffer = lines.pop() || ''; // Keep incomplete line in buffer
+    
+    for (const line of lines) {
+      if (line.trim()) {
+        try {
+          const response: MCPResponse = JSON.parse(line);
+          this.handleMCPResponse(response);
+        } catch (error) {
+          console.error('[Context7 MCP] Failed to parse response:', error, 'Line:', line);
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle a parsed MCP response
+   */
+  private handleMCPResponse(response: MCPResponse): void {
+    const pending = this.pendingRequests.get(response.id);
+    
+    if (!pending) {
+      console.warn(`[Context7 MCP] Received response for unknown request ID: ${response.id}`);
+      return;
+    }
+
+    // Clean up
+    clearTimeout(pending.timeout);
+    this.pendingRequests.delete(response.id);
+
+    // Handle response
+    if (response.error) {
+      console.error(`[Context7 MCP] Request ${response.id} failed:`, response.error);
+      pending.reject(new Error(`MCP Error: ${response.error.message} (Code: ${response.error.code})`));
+    } else {
+      console.log(`[Context7 MCP] Request ${response.id} succeeded`);
+      pending.resolve(response.result);
+    }
+  }
+
+  /**
+   * Reject all pending requests (on server error/exit)
+   */
+  private rejectAllPendingRequests(error: Error): void {
+    for (const [_id, pending] of this.pendingRequests) {
+      clearTimeout(pending.timeout);
+      pending.reject(error);
+    }
+    this.pendingRequests.clear();
+  }
+
+  /**
+   * Generate unique request ID
+   */
+  private generateRequestId(): number {
+    return ++this.requestId;
+  }
+
+  /**
+   * Clean up resources
+   */
+  async cleanup(): Promise<void> {
+    console.log('[Context7 MCP] Cleaning up client...');
+    
+    // Reset initialization state
+    this.isInitialized = false;
+    
+    // Reject all pending requests
+    this.rejectAllPendingRequests(new Error('Client shutting down'));
+    
+    // Stop the MCP server
+    const serverManager = getContext7MCPServerManager();
+    await serverManager.cleanup();
+  }
+
+  /**
+   * Check if MCP server is available
+   */
+  isServerAvailable(): boolean {
+    const serverManager = getContext7MCPServerManager();
+    return serverManager.isRunning();
+  }
+
+  /**
+   * Get server status
+   */
+  getServerStatus() {
+    const serverManager = getContext7MCPServerManager();
+    return serverManager.getStatus();
   }
 }
 
@@ -342,4 +343,14 @@ export function getContext7MCPClient(): Context7MCPClient {
     context7Client = new Context7MCPClient();
   }
   return context7Client;
+}
+
+/**
+ * Clean up the global Context7 MCP client
+ */
+export async function cleanupContext7MCPClient(): Promise<void> {
+  if (context7Client) {
+    await context7Client.cleanup();
+    context7Client = null;
+  }
 }
