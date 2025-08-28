@@ -56,6 +56,53 @@ interface MCPServerManager {
   cleanup(): Promise<void>;
 }
 
+/**
+ * Safely parse JSON with validation
+ */
+function safeJsonParse(text: string): MCPResponse | null {
+  try {
+    if (!text || text.length > 10000) { // Prevent very large payloads
+      return null;
+    }
+    
+    const parsed = JSON.parse(text);
+    
+    // Validate basic JSON-RPC 2.0 structure
+    if (typeof parsed !== 'object' || parsed === null) {
+      return null;
+    }
+    
+    if (parsed.jsonrpc !== '2.0' || typeof parsed.id !== 'number') {
+      return null;
+    }
+    
+    return parsed as MCPResponse;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Validate and sanitize tool arguments
+ */
+function validateToolArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {};
+  
+  for (const [key, value] of Object.entries(args)) {
+    // Only allow string keys and basic value types
+    if (typeof key === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        sanitized[key] = value;
+      } else if (value === null || value === undefined) {
+        sanitized[key] = value;
+      }
+      // Skip complex objects/arrays for security
+    }
+  }
+  
+  return sanitized;
+}
+
 export class Context7MCPClient {
   private serverManager: MCPServerManager | null = null;
   private requestId = 1;
@@ -164,21 +211,21 @@ export class Context7MCPClient {
       // Set up response listener
       const onData = (data: Buffer) => {
         try {
-          const responseText = data.toString().trim();
+          const responseText = data.toString('utf8').trim();
           if (responseText) {
-            const response = JSON.parse(responseText) as MCPResponse;
-            if (response.id === request.id) {
+            const response = safeJsonParse(responseText);
+            if (response && response.id === request.id) {
               clearTimeout(timeout);
               this.serverManager?.removeListener('data', onData);
               console.log(`[Context7 MCP] Request ${request.id} succeeded`);
               resolve(response);
             }
           }
-        } catch (error) {
+        } catch {
           clearTimeout(timeout);
           this.serverManager?.removeListener('data', onData);
-          console.error(`[Context7 MCP] Request ${request.id} failed:`, error);
-          reject(error);
+          console.error(`[Context7 MCP] Request ${request.id} failed: Invalid response format`);
+          reject(new Error('Invalid response format'));
         }
       };
 
@@ -197,20 +244,32 @@ export class Context7MCPClient {
    * Use a tool with the given arguments
    */
   private async callTool(toolName: string, args: Record<string, unknown>): Promise<unknown> {
+    // Validate tool name
+    if (typeof toolName !== 'string' || !/^[a-zA-Z][a-zA-Z0-9-]*$/.test(toolName)) {
+      throw new Error('Invalid tool name');
+    }
+    
+    // Validate and sanitize arguments
+    const sanitizedArgs = validateToolArgs(args);
+    
     const toolRequest: MCPRequest = {
       jsonrpc: '2.0',
       id: this.requestId++,
       method: 'tools/call',
       params: {
         name: toolName,
-        arguments: args
+        arguments: sanitizedArgs
       }
     };
 
     const response = await this.sendRequest(toolRequest);
     
     if (response.error) {
-      throw new Error(`Tool call failed: ${response.error.message}`);
+      // Sanitize error message
+      const errorMessage = typeof response.error.message === 'string' 
+        ? response.error.message.substring(0, 200) // Limit error message length
+        : 'Tool call failed';
+      throw new Error(`Tool call failed: ${errorMessage}`);
     }
 
     return response.result?.content || response.result;
@@ -221,34 +280,45 @@ export class Context7MCPClient {
    */
   async resolveLibraryToContextId(libraryName: string): Promise<LibraryResolution[]> {
     try {
+      // Validate library name input
+      if (typeof libraryName !== 'string' || libraryName.length === 0 || libraryName.length > 100) {
+        throw new Error('Invalid library name');
+      }
+      
+      // Sanitize library name to prevent injection
+      const sanitizedLibraryName = libraryName.replace(/[^a-zA-Z0-9_.@/-]/g, '');
+      if (sanitizedLibraryName !== libraryName) {
+        throw new Error('Library name contains invalid characters');
+      }
+
       await this.initialize();
 
-      console.log(`[Context7 MCP] Resolving library: ${libraryName}`);
+      console.log(`[Context7 MCP] Resolving library: ${sanitizedLibraryName}`);
       
       const result = await this.callTool('resolve-library-id', {
-        library_name: libraryName
+        library_name: sanitizedLibraryName
       });
 
       // Process the result - this depends on the actual Context7 MCP response format
       if (Array.isArray(result)) {
         return result.map((item: unknown) => ({
-          libraryId: (item as Record<string, unknown>)?.library_id as string || libraryName,
-          trustScore: Number((item as Record<string, unknown>)?.trust_score) || 0.5,
-          codeSnippetsCount: Number((item as Record<string, unknown>)?.code_snippets_count) || 0,
-          description: (item as Record<string, unknown>)?.description as string
+          libraryId: String((item as Record<string, unknown>)?.library_id || sanitizedLibraryName).substring(0, 100),
+          trustScore: Math.max(0, Math.min(1, Number((item as Record<string, unknown>)?.trust_score) || 0.5)),
+          codeSnippetsCount: Math.max(0, Number((item as Record<string, unknown>)?.code_snippets_count) || 0),
+          description: String((item as Record<string, unknown>)?.description || '').substring(0, 500)
         }));
       }
 
       // Fallback for different response formats
       return [{
-        libraryId: `${libraryName}-main`,
+        libraryId: `${sanitizedLibraryName}-main`,
         trustScore: 0.8,
         codeSnippetsCount: 10,
-        description: `Main documentation for ${libraryName}`
+        description: `Main documentation for ${sanitizedLibraryName}`
       }];
 
-    } catch (error) {
-      console.error(`Error resolving library ${libraryName}:`, error);
+    } catch {
+      console.error(`Error resolving library ${libraryName}: Request failed`);
       return [];
     }
   }
@@ -258,25 +328,52 @@ export class Context7MCPClient {
    */
   async fetchContextDocumentation(libraryId: string): Promise<DocumentationResult | null> {
     try {
+      // Validate library ID input
+      if (typeof libraryId !== 'string' || libraryId.length === 0 || libraryId.length > 100) {
+        throw new Error('Invalid library ID');
+      }
+      
+      // Sanitize library ID to prevent injection
+      const sanitizedLibraryId = libraryId.replace(/[^a-zA-Z0-9_.@/-]/g, '');
+      if (sanitizedLibraryId !== libraryId) {
+        throw new Error('Library ID contains invalid characters');
+      }
+
       await this.initialize();
 
-      console.log(`[Context7 MCP] Fetching documentation for: ${libraryId}`);
+      console.log(`[Context7 MCP] Fetching documentation for: ${sanitizedLibraryId}`);
       
       const result = await this.callTool('get-library-docs', {
-        library_id: libraryId
+        library_id: sanitizedLibraryId
       });
 
       // Process the result - this depends on the actual Context7 MCP response format
-      const content = (result as Record<string, unknown>)?.content as string || 
-                     (result as Record<string, unknown>)?.documentation as string ||
-                     JSON.stringify(result, null, 2);
+      let content: string;
+      
+      if (typeof result === 'string') {
+        content = result;
+      } else if (typeof result === 'object' && result !== null) {
+        const resultObj = result as Record<string, unknown>;
+        content = String(resultObj.content || resultObj.documentation || '');
+        
+        // If no direct content, safely stringify (but limit size)
+        if (!content) {
+          const safeResult = JSON.stringify(result, null, 2);
+          content = safeResult.length > 10000 ? safeResult.substring(0, 10000) + '...' : safeResult;
+        }
+      } else {
+        content = '';
+      }
 
       if (!content) {
         return null;
       }
 
+      // Limit content size for security
+      const limitedContent = content.length > 50000 ? content.substring(0, 50000) + '\n\n[Content truncated for security]' : content;
+
       return {
-        content: content,
+        content: limitedContent,
         metadata: {
           source: 'Context7',
           lastUpdated: new Date().toISOString().split('T')[0],
@@ -284,8 +381,8 @@ export class Context7MCPClient {
         }
       };
 
-    } catch (error) {
-      console.error(`Error fetching documentation for ${libraryId}:`, error);
+    } catch {
+      console.error(`Error fetching documentation for ${libraryId}: Request failed`);
       return null;
     }
   }

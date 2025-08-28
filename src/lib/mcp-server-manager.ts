@@ -18,6 +18,41 @@ export interface MCPServerConfig {
   maxRestarts?: number; // Max restart attempts (default: 3)
 }
 
+// Allowlist of safe commands to prevent command injection
+const ALLOWED_COMMANDS = ['npx', 'node'] as const;
+const ALLOWED_PACKAGES = ['@upstash/context7-mcp'] as const;
+
+/**
+ * Validate command and arguments for security
+ */
+function validateCommandConfig(config: MCPServerConfig): void {
+  // Validate command is in allowlist
+  if (!ALLOWED_COMMANDS.includes(config.command as typeof ALLOWED_COMMANDS[number])) {
+    throw new Error(`Invalid command: ${config.command}. Only allowed commands: ${ALLOWED_COMMANDS.join(', ')}`);
+  }
+
+  // Validate arguments
+  if (!Array.isArray(config.args) || config.args.length === 0) {
+    throw new Error('Invalid arguments: must be non-empty array');
+  }
+
+  // For npx commands, validate the package name
+  if (config.command === 'npx') {
+    const packageName = config.args[0];
+    if (!ALLOWED_PACKAGES.includes(packageName as typeof ALLOWED_PACKAGES[number])) {
+      throw new Error(`Invalid package: ${packageName}. Only allowed packages: ${ALLOWED_PACKAGES.join(', ')}`);
+    }
+  }
+
+  // Validate no shell metacharacters in arguments
+  const dangerousChars = /[;&|`$(){}[\]]/;
+  for (const arg of config.args) {
+    if (typeof arg !== 'string' || dangerousChars.test(arg)) {
+      throw new Error(`Invalid argument contains dangerous characters: ${arg}`);
+    }
+  }
+}
+
 export interface MCPServerStatus {
   running: boolean;
   pid?: number;
@@ -35,6 +70,10 @@ export class MCPServerManager extends EventEmitter {
 
   constructor(config: MCPServerConfig) {
     super();
+    
+    // Validate configuration for security
+    validateCommandConfig(config);
+    
     this.config = {
       timeout: 10000,
       maxRestarts: 3,
@@ -167,9 +206,30 @@ export class MCPServerManager extends EventEmitter {
     }
 
     try {
-      return this.process.stdin?.write(data) ?? false;
+      // Validate input data
+      let validatedData: string;
+      if (Buffer.isBuffer(data)) {
+        validatedData = data.toString('utf8');
+      } else if (typeof data === 'string') {
+        validatedData = data;
+      } else {
+        console.error('[MCP Server] Invalid data type for send()');
+        return false;
+      }
+
+      // Basic validation for JSON-RPC format if applicable
+      if (validatedData.trim().startsWith('{')) {
+        try {
+          JSON.parse(validatedData.trim());
+        } catch {
+          console.error('[MCP Server] Invalid JSON format in send data');
+          return false;
+        }
+      }
+
+      return this.process.stdin?.write(validatedData) ?? false;
     } catch (error) {
-      console.error(`[MCP Server] Failed to send data:`, error);
+      console.error('[MCP Server] Failed to send data:', error instanceof Error ? error.message : 'Unknown error');
       return false;
     }
   }
@@ -198,11 +258,14 @@ export class MCPServerManager extends EventEmitter {
     }
 
     this.status.running = false;
-    this.status.lastError = error.message;
+    // Sanitize error message to prevent information disclosure
+    const sanitizedMessage = error.message.replace(/\/[^\s]*node_modules[^\s]*/g, '[PACKAGE_PATH]');
+    this.status.lastError = sanitizedMessage;
     this.process = null;
     
-    this.emit('error', error);
-    reject(error);
+    const sanitizedError = new Error(sanitizedMessage);
+    this.emit('error', sanitizedError);
+    reject(sanitizedError);
   }
 
   /**

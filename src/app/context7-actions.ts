@@ -26,12 +26,18 @@ export interface DocumentationResult {
  */
 export async function resolveLibraryToContextId(libraryName: string): Promise<LibraryResolution[]> {
   try {
+    // Validate input
+    if (typeof libraryName !== 'string' || libraryName.length === 0 || libraryName.length > 100) {
+      console.error('Invalid library name provided');
+      return [];
+    }
+
     // Dynamic import for server-side only module
     const { getContext7MCPClient } = await import('@/services/context7-mcp-client-server');
     const client = getContext7MCPClient();
     return await client.resolveLibraryToContextId(libraryName);
   } catch (error) {
-    console.error('Error resolving library:', error);
+    console.error('Error resolving library:', error instanceof Error ? error.message : 'Unknown error');
     return [];
   }
 }
@@ -41,12 +47,18 @@ export async function resolveLibraryToContextId(libraryName: string): Promise<Li
  */
 export async function fetchContextDocumentation(libraryId: string): Promise<DocumentationResult | null> {
   try {
+    // Validate input
+    if (typeof libraryId !== 'string' || libraryId.length === 0 || libraryId.length > 100) {
+      console.error('Invalid library ID provided');
+      return null;
+    }
+
     // Dynamic import for server-side only module
     const { getContext7MCPClient } = await import('@/services/context7-mcp-client-server');
     const client = getContext7MCPClient();
     return await client.fetchContextDocumentation(libraryId);
   } catch (error) {
-    console.error('Error fetching documentation:', error);
+    console.error('Error fetching documentation:', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }
@@ -60,6 +72,6 @@ export async function cleanupMCPServer(): Promise<void> {
     const { cleanupContext7MCPServer } = await import('@/lib/mcp-server-manager');
     await cleanupContext7MCPServer();
   } catch (error) {
-    console.error('Error cleaning up MCP server:', error);
+    console.error('Error cleaning up MCP server:', error instanceof Error ? error.message : 'Unknown error');
   }
 }
