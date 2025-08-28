@@ -3,13 +3,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import JSZip from 'jszip';
 
+// Import the actual documentation services
+const { LibraryIdentifier } = await import('@/services/library-identifier');
+const { DocumentationFetcher, Context7MCPClient } = await import('@/services/documentation-fetcher');
+
 // Types
 type Task = {
   title: string;
   details: string;
 };
 
-// Mock implementation for now - in a real scenario, this would import the actual services
 export async function POST(request: NextRequest) {
   try {
     const { prd, architecture, specifications, fileStructure, tasks, fetchDocumentation } = await request.json();
@@ -23,7 +26,7 @@ export async function POST(request: NextRequest) {
     // Add docs folder
     let referenceFolder: any;
     if (fetchDocumentation) {
-      console.log('[Export] Documentation fetching enabled - creating mock documentation');
+      console.log('[Export] Documentation fetching enabled - using Context7 MCP integration');
       
       // Create reference folder for documentation
       referenceFolder = zip.folder('reference');
@@ -32,94 +35,88 @@ export async function POST(request: NextRequest) {
         throw new Error('Could not create reference folder in zip file.');
       }
 
-      // Mock documentation for testing
-      const mockDocs = [
-        {
-          libraryName: 'react',
-          filename: 'React.md', 
-          content: `# React Documentation
+      try {
+        // Step 1: Identify libraries from the project content
+        const libraryIdentifier = new LibraryIdentifier();
+        
+        // Convert tasks to format expected by LibraryIdentifier
+        const libTasks = (tasks as Task[]).map(task => ({
+          title: task.title,
+          details: task.details
+        }));
 
-## Introduction
-React is a JavaScript library for building user interfaces.
+        const librariesResult = await libraryIdentifier.identifyLibraries(
+          architecture || '',
+          specifications || '', 
+          fileStructure || '',
+          libTasks
+        );
 
-## Key Concepts
-- Components: Reusable UI pieces
-- JSX: Syntax extension for JavaScript  
-- Hooks: Functions that let you "hook into" React state
-- Virtual DOM: Efficient updates to the UI
+        console.log(`[Export] Identified ${librariesResult.libraries.length} libraries:`, 
+          librariesResult.libraries.map(lib => lib.name).join(', '));
 
-## Best Practices
-1. Use functional components with hooks
-2. Keep component focused and single-purpose  
-3. Properly manage state with useState/useEffect
+        if (librariesResult.libraries.length === 0) {
+          console.log('[Export] No libraries identified, proceeding without documentation');
+        } else {
+          // Step 2: Fetch real documentation using Context7 MCP client
+          
+          const mcpClient = new Context7MCPClient();
+          await mcpClient.initialize();
 
-## Code Examples
-\`\`\`jsx
-import React, { useState } from 'react';
+          // Filter out empty library names
+          const librariesToFetch = librariesResult.libraries.filter(lib => lib.name && lib.name.trim().length > 0);
+          
+          console.log(`[Export] Fetching documentation for ${librariesToFetch.length} libraries using Context7 MCP`);
+          
+          const docFetcher = new DocumentationFetcher(mcpClient);
+          
+          // Fetch all documentation with progress tracking
+          const result = await docFetcher.fetchAllDocumentation(
+            librariesToFetch,
+            (progress) => {
+              console.log(`[Export] Progress: ${progress.completedLibraries}/${progress.total Libraries} libraries processed, 
+                Success: ${progress.successCount}, Errors: ${progress.errorCount}`);
+            }
+          );
 
-function Counter() {
-  const [count, setCount] = useState(0);
-  
-  return (
-    <button onClick={() => setCount(count + 1)}>
-      Count: {count}
-    </button>
-  );
-}
+          console.log(`[Export] Successfully fetched documentation for ${result.libraryDocs.length} libraries`);
 
-export default Counter;
-\`\`
-        `
-        },
-        {
-          libraryName: 'typescript',
-          filename: 'TypeScript.md',
-          content: `# TypeScript Documentation
+          // Add the real, contextually relevant documentation to ZIP
+          result.libraryDocs.forEach(doc => {
+            if (doc.content && doc.filename) {
+              referenceFolder.file(doc.filename, doc.content);
+              
+              // Log the actual fetched content
+              console.log(`[Export] Added real Context7 documentation for: ${doc.libraryName} -> ${doc.filename}`);
+              console.log(`[Export] Content preview (${Math.min(100, doc.content.length)} chars): ${doc.content.substring(0, 100)}`);
+            }
+          });
 
-## Introduction
-TypeScript is a typed superset of JavaScript that compiles to plain JavaScript.
-
-## Key Features  
-- Static typing
-- Interface definitions
-- Generics
-- Advanced type inference
-
-## Best Practices
-1. Use \`interface\` for object shapes
-2. Leverage type inference when possible  
-3. Create reusable utility types
-
-## Code Examples
-\`\`typescript
-interface User {
-  id: number;
-  name: string; 
-  email?: string;
-}
-
-function getUser(id: number): Promise<User> {
-  return fetch(\`/users/\${id}\`).then(res => res.json());
-}
-
-// Generic utility type
-type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
-};
-\`\`
-        `
         }
-      ];
 
-      // Add mock documentation
-      for (const doc of mockDocs) {
-        if (doc.content && doc.filename) {
-          referenceFolder.file(doc.filename, doc.content);
-          console.log(`[Export] Added documentation: ${doc.libraryName} -> ${doc.filename}`);
-        }
+      } catch (error) {
+        console.error('[Export] Documentation fetching failed:', error);
+        
+        // Create reference folder with error message
+        const readmeContent = `# Documentation Fetching Error
+
+The system encountered an error while fetching library documentation using Context7 MCP integration.
+
+Error details: ${error instanceof Error ? error.message : String(error)}
+
+This might be due to:
+- Context7 MCP server not being available
+- Network connectivity issues  
+- Missing or invalid API configuration
+
+Please check your setup and try again.
+
+`;
+        referenceFolder.file('README.md', readmeContent);
       }
-
-      console.log(`[Export] Successfully added mock documentation`);
+    } else {
+      // Create empty reference folder when fetchDocumentation is disabled
+      zip.folder('reference');
     }
 
     const docsFolder = zip.folder('docs');
@@ -189,7 +186,7 @@ This project uses a task-based development system with AI agents to handle diffe
 
 ## Available Agents
 - **Research Agent**: Researches tasks and provides detailed notes, best practices, and implementation approaches.
-- **Implementation Agent**: Writes code based on the research findings.
+- **Implementation Agent** Writes code based on the research findings.
 
 ## Development Workflow
 1. Generate tasks with AI planning
@@ -231,4 +228,3 @@ This project uses a task-based development system with AI agents to handle diffe
     );
   }
 }
-
