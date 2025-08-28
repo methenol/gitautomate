@@ -199,7 +199,7 @@ export class Context7MCPClient {
   private async sendRequest(request: MCPRequest): Promise<MCPResponse> {
     let timeoutAttempts = 0;
     const maxTimeoutAttempts = 20;
-    let delay = 1000; // Start with 1 second delay
+    let delay = 500; // Start with 500ms delay for faster initial retries
     let lastError: Error | null = null;
 
     while (timeoutAttempts < maxTimeoutAttempts) {
@@ -218,7 +218,7 @@ export class Context7MCPClient {
 
           const timeout = setTimeout(() => {
             reject(new Error('Request timeout'));
-          }, 10000);
+          }, 8000); // Reduced timeout from 10s to 8s for faster retries
 
           const requestData = JSON.stringify(request) + '\n';
           
@@ -264,8 +264,8 @@ export class Context7MCPClient {
           timeoutAttempts++;
           lastError = error instanceof Error ? error : new Error(errorMessage);
           
-          // Exponential backoff: 1s → 2s → 4s → 8s → 10s (capped)
-          delay = Math.min(delay * 2, 10000);
+          // Exponential backoff: 500ms → 1s → 2s → 4s → 6s (capped) - faster initial retries
+          delay = Math.min(delay === 500 ? 1000 : delay * 2, 6000);
           continue; // Retry
         }
         
@@ -293,7 +293,7 @@ export class Context7MCPClient {
     let lastError: Error | null = null;
     let rateLimitAttempts = 0;
     const maxRateLimitAttempts = 20;
-    let delay = 1000; // Start with 1 second delay
+    let delay = 500; // Start with 500ms delay for faster initial retries
     
     while (rateLimitAttempts < maxRateLimitAttempts) {
       try {
@@ -331,16 +331,34 @@ export class Context7MCPClient {
             rateLimitAttempts++;
             lastError = new Error(`Rate limit: ${errorMessage}`);
             
-            // Exponential backoff: 1s → 2s → 4s → 8s → 10s (capped)
-            delay = Math.min(delay * 2, 10000);
+            // Exponential backoff: 500ms → 1s → 2s → 4s → 6s (capped) - faster initial retries
+            delay = Math.min(delay === 500 ? 1000 : delay * 2, 6000);
             continue; // Retry
           }
           
           throw new Error(`Tool call failed: ${errorMessage}`);
         }
 
+        // Success - check response content for rate limiting
+        const result = response.result?.content || response.result;
+        const resultContent = this.extractContentFromMCPResponse(result);
+        
+        // Check if successful response contains rate limit message
+        if (resultContent && (
+            resultContent.toLowerCase().includes('rate limited') ||
+            resultContent.toLowerCase().includes('too many requests') ||
+            resultContent.toLowerCase().includes('rate limit'))) {
+          
+          rateLimitAttempts++;
+          lastError = new Error(`Rate limit in response: ${resultContent.substring(0, 100)}`);
+          
+          // Exponential backoff: 500ms → 1s → 2s → 4s → 6s (capped)
+          delay = Math.min(delay === 500 ? 1000 : delay * 2, 6000);
+          continue; // Retry
+        }
+        
         // Success - return result
-        return response.result?.content || response.result;
+        return result;
         
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -356,8 +374,8 @@ export class Context7MCPClient {
           rateLimitAttempts++;
           lastError = error instanceof Error ? error : new Error(errorMessage);
           
-          // Exponential backoff: 1s → 2s → 4s → 8s → 10s (capped)
-          delay = Math.min(delay * 2, 10000);
+          // Exponential backoff: 500ms → 1s → 2s → 4s → 6s (capped) - faster initial retries
+          delay = Math.min(delay === 500 ? 1000 : delay * 2, 6000);
           continue; // Retry
         }
         
@@ -391,8 +409,8 @@ export class Context7MCPClient {
         let trustScore = 0;
         
         for (const line of lines) {
-          // Extract Context7-compatible library ID
-          const idMatch = line.match(/^-?\s*Context7-compatible library ID:\s*(\/[\w\-_/]+)/);
+          // Extract Context7-compatible library ID - allow more characters including dots
+          const idMatch = line.match(/^-?\s*Context7-compatible library ID:\s*(\/[\w\-_./]+)/);
           if (idMatch) {
             libraryId = idMatch[1];
             continue;
@@ -412,10 +430,10 @@ export class Context7MCPClient {
             continue;
           }
           
-          // Extract trust score
+          // Extract trust score (normalize from 0-10 scale to 0-1 scale)
           const trustMatch = line.match(/^-?\s*Trust Score:\s*(\d+(?:\.\d+)?)/);
           if (trustMatch) {
-            trustScore = parseFloat(trustMatch[1]) / 10; // Normalize to 0-1 range
+            trustScore = parseFloat(trustMatch[1]) / 10; // Normalize 0-10 to 0-1
             continue;
           }
         }
@@ -584,15 +602,51 @@ export class Context7MCPClient {
   }
 
   /**
-   * Check if response indicates an error
+   * Check if response indicates an error (not including rate limits)
    */
   private isErrorResponse(content: string): boolean {
-    const lowerContent = content.toLowerCase();
-    return lowerContent.includes('error') || 
-           lowerContent.includes('failed') ||
-           lowerContent.includes('not found') ||
-           lowerContent.includes('documentation not found') ||
-           lowerContent.includes('error code:');
+    // Only flag actual error messages, not documentation content or rate limits
+    const trimmedContent = content.trim();
+    
+    // Rate limiting should be handled by retry logic, not treated as permanent error
+    if (trimmedContent.includes('Rate limited') || 
+        trimmedContent.includes('too many requests') ||
+        trimmedContent.includes('rate limit')) {
+      return false; // Let retry logic handle this
+    }
+    
+    // Check for specific Context7 error messages
+    if (trimmedContent.includes('The library you are trying to access does not exist')) {
+      return true;
+    }
+    
+    if (trimmedContent.includes('Please try with a different library ID')) {
+      return true;
+    }
+    
+    // Check if content starts with error indicators
+    const errorStarters = [
+      /^error:/i,
+      /^failed:/i,
+      /^no documentation available/i,
+      /^invalid library/i,
+      /^library not found/i
+    ];
+    
+    if (errorStarters.some(pattern => pattern.test(trimmedContent))) {
+      return true;
+    }
+    
+    // If content contains CODE SNIPPETS or other documentation indicators, it's valid
+    if (trimmedContent.includes('CODE SNIPPETS') || 
+        trimmedContent.includes('TITLE:') ||
+        trimmedContent.includes('DESCRIPTION:') ||
+        trimmedContent.includes('SOURCE:') ||
+        trimmedContent.length > 500) {
+      return false;
+    }
+    
+    return false;
   }
 
   /**

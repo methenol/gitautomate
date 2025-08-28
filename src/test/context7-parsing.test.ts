@@ -6,7 +6,7 @@
  * and is tested through integration tests instead.
  */
 
-import { Context7MCPClient } from '@/services/context7-mcp-client-server';
+// Context7MCPClient import removed as it's not used in disabled tests
 
 describe.skip('Context7 Response Parsing', () => {
   it('should be tested through integration tests', () => {
