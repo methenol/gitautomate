@@ -109,6 +109,8 @@ export class Context7MCPClient {
   private requestId = 1;
   private isInitialized = false;
   public availableTools: MCPTool[] = [];
+  private static lastRequestTime: number = 0;
+  private static readonly MIN_REQUEST_INTERVAL = 20000; // 20 seconds minimum between requests
 
   constructor() {
     // Server manager will be set during initialization
@@ -191,6 +193,22 @@ export class Context7MCPClient {
     console.log('[Context7 MCP] Available tools:', {
       tools: this.availableTools.map(tool => ({ name: tool.name, description: tool.description }))
     });
+  }
+
+  /**
+   * Ensure minimum 20-second delay between Context7 requests
+   */
+  private async enforceRateLimit(): Promise<void> {
+    const now = Date.now();
+    const timeSinceLastRequest = now - Context7MCPClient.lastRequestTime;
+    
+    if (timeSinceLastRequest < Context7MCPClient.MIN_REQUEST_INTERVAL) {
+      const waitTime = Context7MCPClient.MIN_REQUEST_INTERVAL - timeSinceLastRequest;
+      console.log(`[Context7 MCP] Rate limiting: waiting ${waitTime}ms since last request`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
+    Context7MCPClient.lastRequestTime = Date.now();
   }
 
   /**
@@ -290,6 +308,9 @@ export class Context7MCPClient {
     // Validate and sanitize arguments
     const sanitizedArgs = validateToolArgs(args);
     
+    // Enforce minimum 20-second delay between all Context7 requests
+    await this.enforceRateLimit();
+    
     let lastError: Error | null = null;
     let rateLimitAttempts = 0;
     const maxRateLimitAttempts = 20;
@@ -297,10 +318,12 @@ export class Context7MCPClient {
     
     while (rateLimitAttempts < maxRateLimitAttempts) {
       try {
-        // Add delay between requests for rate limiting
+        // Add delay between requests for rate limiting (only for retries)
         if (rateLimitAttempts > 0) {
           console.log(`[Context7 MCP] Rate limit retry ${rateLimitAttempts}/${maxRateLimitAttempts}, waiting ${delay}ms`);
           await new Promise(resolve => setTimeout(resolve, delay));
+          // Update last request time after retry delay
+          Context7MCPClient.lastRequestTime = Date.now();
         }
         
         const toolRequest: MCPRequest = {
