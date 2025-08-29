@@ -97,6 +97,36 @@ Now, provide the detailed implementation plan as a JSON object for the following
 **Task Title: {{{title}}}**
 `;
 
+// Define the flow outside the function to prevent registry conflicts
+const researchTaskFlow = ai.defineFlow(
+  {
+    name: 'researchTaskFlow',
+    inputSchema: z.object({
+      prompt: z.string(),
+      modelName: z.string(),
+      apiKey: z.string().optional(),
+    }),
+    outputSchema: ResearchTaskOutputSchema,
+  },
+  async (input) => {
+    const {output} = await ai.generate({
+      model: input.modelName,
+      prompt: input.prompt,
+      output: {
+        schema: ResearchTaskOutputSchema,
+      },
+      config: input.apiKey ? {apiKey: input.apiKey} : undefined,
+    });
+
+    if (!output) {
+      throw new Error(
+        'An unexpected response was received from the server.'
+      );
+    }
+    return output;
+  }
+);
+
 export async function researchTask(
   input: ResearchTaskInput,
   apiKey?: string,
@@ -114,30 +144,9 @@ export async function researchTask(
     .replace('{{{specifications}}}', input.specifications)
     .replace('{{{title}}}', input.title);
 
-  const researchTaskFlow = ai.defineFlow(
-    {
-      name: 'researchTaskFlow',
-      inputSchema: z.string(),
-      outputSchema: ResearchTaskOutputSchema,
-    },
-    async (prompt) => {
-      const {output} = await ai.generate({
-        model: modelName,
-        prompt: prompt,
-        output: {
-          schema: ResearchTaskOutputSchema,
-        },
-        config: apiKey ? {apiKey} : undefined,
-      });
-
-      if (!output) {
-        throw new Error(
-          'An unexpected response was received from the server.'
-        );
-      }
-      return output;
-    }
-  );
-
-  return await researchTaskFlow(prompt);
+  return await researchTaskFlow({
+    prompt,
+    modelName,
+    apiKey,
+  });
 }
