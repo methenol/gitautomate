@@ -199,7 +199,7 @@ export class Context7MCPClient {
   private async sendRequest(request: MCPRequest): Promise<MCPResponse> {
     let timeoutAttempts = 0;
     const maxTimeoutAttempts = 20;
-    let delay = 500; // Start with 500ms delay for faster initial retries
+    let delay = 20000; // Start with 20 seconds delay for rate limiting
     let lastError: Error | null = null;
 
     while (timeoutAttempts < maxTimeoutAttempts) {
@@ -264,8 +264,8 @@ export class Context7MCPClient {
           timeoutAttempts++;
           lastError = error instanceof Error ? error : new Error(errorMessage);
           
-          // Exponential backoff: 500ms → 1s → 2s → 4s → 6s (capped) - faster initial retries
-          delay = Math.min(delay === 500 ? 1000 : delay * 2, 6000);
+          // Exponential backoff: 20s → 40s → 60s (capped at 60s)
+          delay = Math.min(delay * 2, 60000);
           continue; // Retry
         }
         
@@ -293,7 +293,7 @@ export class Context7MCPClient {
     let lastError: Error | null = null;
     let rateLimitAttempts = 0;
     const maxRateLimitAttempts = 20;
-    let delay = 500; // Start with 500ms delay for faster initial retries
+    let delay = 20000; // Start with 20 seconds delay for rate limiting
     
     while (rateLimitAttempts < maxRateLimitAttempts) {
       try {
@@ -331,8 +331,8 @@ export class Context7MCPClient {
             rateLimitAttempts++;
             lastError = new Error(`Rate limit: ${errorMessage}`);
             
-            // Exponential backoff: 500ms → 1s → 2s → 4s → 6s (capped) - faster initial retries
-            delay = Math.min(delay === 500 ? 1000 : delay * 2, 6000);
+            // Exponential backoff: 20s → 40s → 60s (capped at 60s)
+            delay = Math.min(delay * 2, 60000);
             continue; // Retry
           }
           
@@ -352,8 +352,8 @@ export class Context7MCPClient {
           rateLimitAttempts++;
           lastError = new Error(`Rate limit in response: ${resultContent.substring(0, 100)}`);
           
-          // Exponential backoff: 500ms → 1s → 2s → 4s → 6s (capped)
-          delay = Math.min(delay === 500 ? 1000 : delay * 2, 6000);
+          // Exponential backoff: 20s → 40s → 60s (capped at 60s)
+          delay = Math.min(delay * 2, 60000);
           continue; // Retry
         }
         
@@ -374,8 +374,8 @@ export class Context7MCPClient {
           rateLimitAttempts++;
           lastError = error instanceof Error ? error : new Error(errorMessage);
           
-          // Exponential backoff: 500ms → 1s → 2s → 4s → 6s (capped) - faster initial retries
-          delay = Math.min(delay === 500 ? 1000 : delay * 2, 6000);
+          // Exponential backoff: 20s → 40s → 60s (capped at 60s)
+          delay = Math.min(delay * 2, 60000);
           continue; // Retry
         }
         
