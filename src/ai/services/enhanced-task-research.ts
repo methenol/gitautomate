@@ -12,7 +12,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { TaskSchema, type Task } from '@/types';
+// import { TaskSchema, type Task } from '@/types';
 import { z } from 'genkit';
 
 // Import documentation services
@@ -59,7 +59,7 @@ export class EnhancedTaskResearchService {
   private readonly fetcher: DocumentationFetcher;
   private readonly maxLibrariesPerTask = 5; // Limit libraries per task to avoid overwhelming
 
-  constructor(settings?: any) {
+  constructor(_settings?: any) {
     this.fetcher = new DocumentationFetcher();
   }
 

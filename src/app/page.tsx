@@ -705,56 +705,8 @@ const handleExportData = async () => {
                     </FormItem>
                   )}
 
-                   <FormField
-                    control={form.control}
-                    name="includeStackOverflowDocs"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            Include Stack Overflow
-                          </FormLabel>
-                          <FormDescription>
-                           Add community Q&A and examples from Stack Overflow.
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
 
-                   <FormField
-                    control={form.control}
-                    name="maxDocumentationSizeKB"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Max Documentation Size</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="512 KB"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                         Maximum size per library documentation file. 100-1024 KB.
-                        </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
 
-                  <DialogFooter>
-                    <Button type="submit">Save Settings</Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
           </Dialog>
         </div>
       </header>

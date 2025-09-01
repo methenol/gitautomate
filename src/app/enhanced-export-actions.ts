@@ -15,7 +15,6 @@
 import {
   LibraryIdentifier,
   DocumentationFetcher,
-  type FetchedDocumentation,
   type LibraryIdentification,
   type LibraryDocumentation
 } from '@/ai/services/documentation-fetcher';
@@ -134,7 +133,7 @@ export class EnhancedExportService {
     fileStructure: string,
     tasks: Array<{ title: string; details: string }>,
     libraryDocumentation: LibraryDocumentation[]
-  ): Promise<any> { // JSZip type
+  ): Promise<JSZip> {
 
     const JSZip = (await import('jszip')).default;
     
@@ -178,7 +177,7 @@ export class EnhancedExportService {
     specifications: string,
     fileStructure: string,
     tasks: Array<{ title: string; details: string }>
-  ): Promise<any> { // JSZip type
+  ): Promise<JSZip> {
 
     const JSZip = (await import('jszip')).default;
     

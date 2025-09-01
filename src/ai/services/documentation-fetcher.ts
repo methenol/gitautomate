@@ -249,7 +249,7 @@ export class DocumentationFetcher {
               sizeKB: content.length / 1024,
             }];
           }
-        } catch (error) {
+        } catch (_error) {
           // Continue to next pattern
         }
       }
@@ -290,7 +290,7 @@ export class DocumentationFetcher {
               sizeKB: content.length / 1024,
             }];
           }
-        } catch (error) {
+        } catch (_error) {
           // Continue to next URL
         }
       }
