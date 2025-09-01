@@ -14,7 +14,7 @@ import {
   runGenerateFileStructure,
   getModels,
 } from './actions';
-import { runGenerateAgentsMd } from '@/app/actions';
+import { handleExportWithDocumentation } from '@/app/enhanced-export-actions';
 import type { Task } from '@/types';
 import {
   getRepositories,
@@ -88,6 +88,11 @@ const settingsSchema = z.object({
   googleApiKey: z.string().optional(),
   model: z.string(),
   useTDD: z.boolean().default(false),
+  // Documentation settings
+  enableDocumentationExport: z.boolean().default(true),
+  documentationSources: z.enum(['github-only', 'multi-source']).default('multi-source'),
+  includeStackOverflowDocs: z.boolean().default(true),
+  maxDocumentationSizeKB: z.number().min(100).max(1024).default(512),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -123,6 +128,12 @@ export default function Home() {
   const [useTDD, setUseTDD] = useState<boolean>(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   
+  // Documentation settings states
+  const [enableDocumentationExport, setEnableDocumentationExport] = useState<boolean>(true);
+  const [documentationSources, setDocumentationSources] = useState<'github-only' | 'multi-source'>('multi-source');
+  const [includeStackOverflowDocs, setIncludeStackOverflowDocs] = useState<boolean>(true);
+  const [maxDocumentationSizeKB, setMaxDocumentationSizeKB] = useState<number>(512);
+  
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [repositories, setRepositories] = useState<Repository[]>([LOCAL_MODE_REPO]);
   const [selectedRepo, setSelectedRepo] = useState<string>(LOCAL_MODE_REPO_ID);
@@ -157,6 +168,10 @@ export default function Home() {
       googleApiKey: '',
       model: UI_DEFAULT_MODEL,
       useTDD: false,
+      enableDocumentationExport: true,
+      documentationSources: 'multi-source',
+      includeStackOverflowDocs: true,
+      maxDocumentationSizeKB: 512,
     },
   });
 
@@ -201,16 +216,34 @@ export default function Home() {
     const storedApiKey = localStorage.getItem('googleApiKey') || '';
     const storedModel = localStorage.getItem('selectedModel') || UI_DEFAULT_MODEL;
     const storedTDD = localStorage.getItem('useTDD') === 'true';
+    
+    // Load documentation settings
+    const storedEnableDocs = localStorage.getItem('enableDocumentationExport') === 'true';
+    const storedSources = (localStorage.getItem('documentationSources') as 'github-only' | 'multi-source') || 'multi-source';
+    const storedStackOverflow = localStorage.getItem('includeStackOverflowDocs') === 'true';  
+    const storedMaxSizeKB = parseInt(localStorage.getItem('maxDocumentationSizeKB') || '512');
 
     setGithubToken(storedToken);
     setGoogleApiKey(storedApiKey);
     setSelectedModel(storedModel);
     setUseTDD(storedTDD);
 
+    // Set documentation settings
+    setEnableDocumentationExport(storedEnableDocs);
+    setDocumentationSources(storedSources);  
+    setIncludeStackOverflowDocs(storedStackOverflow);
+    setMaxDocumentationSizeKB(storedMaxSizeKB);
+
     form.setValue('githubToken', storedToken);
     form.setValue('googleApiKey', storedApiKey);
     form.setValue('model', storedModel);
     form.setValue('useTDD', storedTDD);
+    
+    // Set documentation settings in form
+    form.setValue('enableDocumentationExport', storedEnableDocs);
+    form.setValue('documentationSources', storedSources);
+    form.setValue('includeStackOverflowDocs', storedStackOverflow);  
+    form.setValue('maxDocumentationSizeKB', storedMaxSizeKB);
     
     if (storedApiKey || process.env.GOOGLE_API_KEY) {
       fetchModels(storedApiKey);
@@ -257,9 +290,15 @@ export default function Home() {
 
     setUseTDD(values.useTDD);
     localStorage.setItem('useTDD', values.useTDD.toString());
-    
+
+    // Save documentation settings
+    localStorage.setItem('enableDocumentationExport', values.enableDocumentationExport.toString());
+    localStorage.setItem('documentationSources', values.documentationSources);
+    localStorage.setItem('includeStackOverflowDocs', values.includeStackOverflowDocs.toString());
+    localStorage.setItem('maxDocumentationSizeKB', values.maxDocumentationSizeKB.toString());
+
     setIsSettingsOpen(false);
-    toast({ title: 'Success', description: 'Settings saved.' });
+    toast({ title: 'Success', description: 'Documentation settings saved.' });
 
     if (newApiKey !== oldApiKey) {
       fetchModels(newApiKey);
@@ -441,56 +480,37 @@ const handleExportData = async () => {
     setLoading((prev) => ({ ...prev, exporting: true }));
 
     try {
-      const zip = new JSZip();
-      const docsFolder = zip.folder('docs');
-      const tasksFolder = zip.folder('tasks');
-
-      if (!docsFolder || !tasksFolder) {
-        throw new Error('Could not create folders in zip file.');
-      }
-
-      // Add docs
-      docsFolder.file('PRD.md', prd);
-      docsFolder.file('ARCHITECTURE.md', architecture);
-      docsFolder.file('SPECIFICATION.md', specifications);
-      docsFolder.file('FILE_STRUCTURE.md', fileStructure);
-
-      // Create main tasks file
-      const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
-      tasksFolder.file('tasks.md', `# Task List\n\n${mainTasksContent}`);
-
-      // Create individual task files
-      tasks.forEach((task, index) => {
-        const taskNumber = (index + 1).toString().padStart(3, '0');
-        tasksFolder.file(`task-${taskNumber}.md`, `# ${task.title}\n\n${task.details}`);
-      });
-
-      // Generate and add AGENTS.md file at the root of zip
-      const agentsMdResult = await runGenerateAgentsMd(
+      // Get documentation settings from form
+      const enableDocs = form.getValues('enableDocumentationExport');
+      
+      // Use enhanced export with documentation fetching
+      const { blob, documentationSummary } = await handleExportWithDocumentation(
+        prd,
+        architecture,
+        specifications,
+        fileStructure,
+        tasks.map(task => ({ title: task.title, details: task.details })),
         {
-          prd,
-          architecture, 
-          specifications,
-          fileStructure,
-          tasks: tasks.map((task, index) => `### Task ${index + 1}: ${task.title}\n${task.details}`).join('\n\n')
-        },
-        { apiKey: googleApiKey, model: selectedModel }
+          includeLibraryDocs: enableDocs,
+          maxLibrariesPerTask: 5,
+          documentationSettings: {
+            sources: form.getValues('documentationSources') as 'github-only' | 'multi-source',
+            includeStackOverflow: form.getValues('includeStackOverflowDocs'),
+            maxDocumentationSizeKB: form.getValues('maxDocumentationSizeKB')
+          }
+        }
       );
-      
-      // Add AGENTS.md at the root level (not inside any subfolder)
-      zip.file('AGENTS.md', agentsMdResult.agentsMdContent);
-      
-      // Add additional copies of AGENTS.md to specified locations
-      zip.file('.openhands/microagents/repo.md', agentsMdResult.agentsMdContent);
-      zip.file('.github/copilot-instructions.md', agentsMdResult.agentsMdContent);
 
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      saveAs(zipBlob, 'gitautomate-export.zip');
+      saveAs(blob, 'gitautomate-enhanced-export.zip');
 
+      // Show success message with documentation summary
+      const description = `Export successful! ${documentationSummary.totalLibrariesIdentified} libraries identified, with documentation fetched for ${documentationSummary.successfulFetches}.`;
+      
       toast({
-        title: 'Export Successful',
-        description: 'Your project data has been downloaded as a zip file with AGENTS.md.',
+        title: 'Enhanced Export Successful',
+        description,
       });
+
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -638,6 +658,97 @@ const handleExportData = async () => {
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="enableDocumentationExport"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            Export Library Documentation
+                          </FormLabel>
+                          <FormDescription>
+                           Include library documentation in export zips.
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                   <FormField
+                    control={form.control}
+                    name="documentationSources"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Documentation Sources</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose documentation sources" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="github-only">GitHub Only</SelectItem>
+                            <SelectItem value="multi-source">Multi-Source (Recommended)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                         Multi-source includes GitHub, official websites, MDN, and Stack Overflow.
+                        </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+
+                   <FormField
+                    control={form.control}
+                    name="includeStackOverflowDocs"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            Include Stack Overflow
+                          </FormLabel>
+                          <FormDescription>
+                           Add community Q&A and examples from Stack Overflow.
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                   <FormField
+                    control={form.control}
+                    name="maxDocumentationSizeKB"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Max Documentation Size</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="512 KB"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                         Maximum size per library documentation file. 100-1024 KB.
+                        </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+
                   <DialogFooter>
                     <Button type="submit">Save Settings</Button>
                   </DialogFooter>
