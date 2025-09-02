@@ -249,19 +249,39 @@ export class DocumentationFetcher {
    * Simple HTML to Markdown converter for documentation
    */
   private convertHtmlToMarkdown(html: string): string {
-    // Basic HTML to Markdown conversion
-    return html
-      .replace(/<h1[^>]*>/gi, '# ')
-      .replace(/<h2[^>]*>/gi, '## ')
-      .replace(/<h3[^>]*>/gi, '### ')
-      .replace(/<p[^>]*>/gi, '')
-      .replace(/<\/p>/gi, '\n\n')
-      .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
-      .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
-      .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]*>/g, '') // Remove all other HTML tags
-      .trim();
+    // Basic HTML to Markdown conversion - fix security vulnerability by processing single characters
+    let result = html;
+    
+    // Handle specific HTML elements with safe replacement patterns
+    const replacements: Array<{pattern: RegExp, replacement: string}> = [
+      { pattern: /<h1[^>]*>/gi, replacement: '# ' },
+      { pattern: /<\/h1>/gi, replacement: '\n\n' },
+      { pattern: /<h2[^>]*>/gi, replacement: '## ' },
+      { pattern: /<\/h2>/gi, replacement: '\n\n' },
+      { pattern: /<h3[^>]*>/gi, replacement: '### ' },
+      { pattern: /<\/h3>/gi, replacement: '\n\n' },
+      { pattern: /<p[^>]*>/g, replacement: '' }, // Remove opening p tags
+      { pattern: /<\/p>/gi, replacement: '\n\n' },
+    ];
+    
+    // Apply safe replacements first
+    for (const { pattern, replacement } of replacements) {
+      result = result.replace(pattern, replacement);
+    }
+    
+    // Handle code, strong, and em tags with capturing groups (without s flag for compatibility)
+    result = result.replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, '`$1`');
+    result = result.replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, '**$1**');
+    result = result.replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, '*$1*');
+    result = result.replace(/<br\s*\/?>/gi, '\n');
+    
+    // Remove remaining HTML tags by processing single characters (fixes security vulnerability)
+    result = result.replace(/</g, '').replace(/>/g, '');
+    
+    // Clean up excessive newlines
+    result = result.replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, '');
+    
+    return result.trim();
   }
 
   /**
