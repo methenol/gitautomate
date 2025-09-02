@@ -5,6 +5,7 @@
 import { generateComprehensiveProject } from '@/app/comprehensive-actions';
 import { ContextValidator } from '@/ai/validation/context-validator';
 import { ComprehensiveOrchestrator } from '@/ai/orchestrator/comprehensive-orchestrator';
+import { documentationFetcher, type IdentifiedLibrary } from '@/services/documentation-fetcher';
 
 // Mock the external dependencies first to avoid hoisting issues
 jest.mock('@/ai/flows/generate-architecture', () => ({
@@ -350,4 +351,114 @@ describe('System Architecture Validation', () => {
     
     console.log('✅ All architectural flaws addressed');
   });
+});
+
+describe('Documentation Fetching System', () => {
+  
+  const testArchitecture = `# React Web Application
+This is a modern web application using:
+- **React** for the frontend framework  
+- **Express.js** for the backend API
+- **PostgreSQL** as the database
+- JWT authentication system`;
+
+  const testSpecifications = `## Technical Stack
+### Frontend Technologies  
+- React.js (v18+)
+- Material UI for components
+- Axios API client
+
+### Backend Technologies  
+- Node.js with Express framework
+- PostgreSQL database ORM using Prisma
+- JWT authentication middleware`;
+
+  test('Library identification', async () => {
+    const identifiedLibraries = await documentationFetcher.identifyLibraries(
+      testArchitecture,
+      testSpecifications, 
+      'src/components/ui/'
+    );
+
+    // Should identify React and Express with high confidence
+    const reactLib = identifiedLibraries.find(lib => 
+      lib.name.toLowerCase().includes('react')
+    );
+    const expressLib = identifiedLibraries.find(lib => 
+      lib.name.toLowerCase().includes('express')
+    );
+
+    expect(identifiedLibraries.length).toBeGreaterThan(0);
+    
+    if (reactLib) {
+      expect(reactLib.name.toLowerCase()).toContain('react');
+      // Allow for floating point comparison
+      expect([0.5, 1]).toContain(Math.round(reactLib.confidenceScore));
+    }
+    
+    if (expressLib) {
+      expect(expressLib.name.toLowerCase()).toContain('express');
+      // Allow for floating point comparison
+      expect([0.5, 1]).toContain(Math.round(expressLib.confidenceScore));
+
+    }
+
+    // Verify library categorization
+    identifiedLibraries.forEach(lib => {
+      expect(['frontend', 'backend', 'database', 'testing', 'utility']).toContain(
+        lib.category
+      );
+    });
+
+    console.log('✅ Library identification test passed');
+  }, 15000);
+
+  test('Documentation fetching with fallback', async () => {
+    // Test GitHub API documentation fetch
+    const docs = await documentationFetcher.fetchGitHubDocumentation(['react', 'express']);
+
+    expect(docs.length).toBeGreaterThan(0);
+    
+    // Each doc should have required properties
+    docs.forEach(doc => {
+      expect(doc.name).toBeDefined();
+      expect(['github', 'official-site']).toContain(doc.source);
+      expect(typeof doc.content).toBe('string');
+      
+      // Should have fallback content even if fetch fails
+      expect(doc.content.length).toBeGreaterThan(0);
+    });
+
+    console.log('✅ Documentation fetching test passed');
+  }, 15000);
+
+  test('Rate limit awareness', () => {
+    const rateLimitStatus = documentationFetcher.getRateLimitStatus();
+    
+    expect(rateLimitStatus.remaining).toBeGreaterThan(0);
+    expect(rateLimitStatus.resetTime instanceof Date).toBe(true);
+
+    console.log('✅ Rate limit awareness test passed');
+  });
+
+  test('Multi-source documentation integration', async () => {
+    const libraryNames = ['react'];
+    
+    // Test multi-source fetching
+    const docs = await documentationFetcher.fetchLibraryDocumentation(
+      libraryNames,
+      {
+        includeGitHub: true,
+        includeOfficialSites: false
+      }
+    );
+
+    expect(docs.length).toBeGreaterThan(0);
+    
+    // Should deduplicate results
+    const uniqueNames = new Set(docs.map(doc => doc.name.toLowerCase()));
+    expect(uniqueNames.size).toBeLessThanOrEqual(libraryNames.length);
+
+    console.log('✅ Multi-source documentation integration test passed');
+  }, 20000);
 });

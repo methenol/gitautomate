@@ -16,6 +16,7 @@ import {
 } from './actions';
 import { runGenerateAgentsMd } from '@/app/actions';
 import type { Task } from '@/types';
+import { taskDocumentationIntegration, type LibraryDocumentation, IdentifiedLibrary } from '@/services/task-documentation-integration';
 import {
   getRepositories,
   createImplementationPlanIssues,
@@ -88,6 +89,7 @@ const settingsSchema = z.object({
   googleApiKey: z.string().optional(),
   model: z.string(),
   useTDD: z.boolean().default(false),
+  documentationEnabled: z.boolean().default(true),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -147,6 +149,11 @@ export default function Home() {
     exporting: false,
     models: false,
   });
+
+  // Documentation fetching state
+  const [documentationEnabled, setDocumentationEnabled] = useState(true);
+  const [identifiedLibraries, setIdentifiedLibraries] = useState<IdentifiedLibrary[]>([]);
+  const [fetchedDocumentation, setFetchedDocumentation] = useState<LibraryDocumentation[]>([]);
   
   const [taskLoading, setTaskLoading] = useState<TaskLoadingStates>({});
 
@@ -157,6 +164,7 @@ export default function Home() {
       googleApiKey: '',
       model: UI_DEFAULT_MODEL,
       useTDD: false,
+      documentationEnabled: true,
     },
   });
 
@@ -201,16 +209,19 @@ export default function Home() {
     const storedApiKey = localStorage.getItem('googleApiKey') || '';
     const storedModel = localStorage.getItem('selectedModel') || UI_DEFAULT_MODEL;
     const storedTDD = localStorage.getItem('useTDD') === 'true';
+    const storedDocumentationEnabled = localStorage.getItem('documentationEnabled') !== 'false';
 
     setGithubToken(storedToken);
     setGoogleApiKey(storedApiKey);
     setSelectedModel(storedModel);
     setUseTDD(storedTDD);
+    setDocumentationEnabled(storedDocumentationEnabled);
 
     form.setValue('githubToken', storedToken);
     form.setValue('googleApiKey', storedApiKey);
     form.setValue('model', storedModel);
     form.setValue('useTDD', storedTDD);
+    form.setValue('documentationEnabled', storedDocumentationEnabled);
     
     if (storedApiKey || process.env.GOOGLE_API_KEY) {
       fetchModels(storedApiKey);
@@ -258,7 +269,11 @@ export default function Home() {
     setUseTDD(values.useTDD);
     localStorage.setItem('useTDD', values.useTDD.toString());
     
+    setDocumentationEnabled(values.documentationEnabled);
+    localStorage.setItem('documentationEnabled', values.documentationEnabled.toString());
+    
     setIsSettingsOpen(false);
+    
     toast({ title: 'Success', description: 'Settings saved.' });
 
     if (newApiKey !== oldApiKey) {
@@ -455,24 +470,109 @@ const handleExportData = async () => {
       docsFolder.file('SPECIFICATION.md', specifications);
       docsFolder.file('FILE_STRUCTURE.md', fileStructure);
 
-      // Create main tasks file
-      const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
+      // Enhance tasks with documentation if enabled
+      let enhancedTasks = [...tasks];
+      
+      try {
+        console.log('Enhancing tasks with documentation...');
+        
+        const enhancementResult = await taskDocumentationIntegration.enhanceTasksWithDocumentation(
+          architecture,
+          specifications, 
+          fileStructure,
+          tasks
+        );
+        
+        enhancedTasks = enhancementResult.enhancedTasks;
+        setIdentifiedLibraries(enhancementResult.identifiedLibraries);
+        setFetchedDocumentation(enhancementResult.fetchedDocumentation);
+        
+        console.log(`Enhanced ${tasks.length} tasks with documentation for ${enhancementResult.fetchedDocumentation.length} libraries`);
+        
+      } catch (docError) {
+        console.warn('Failed to enhance tasks with documentation:', docError);
+        
+        // Continue without enhancement, but show warning
+      }
+
+      // Create main tasks file using enhanced tasks (original if enhancement failed)
+      const mainTasksContent = enhancedTasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
       tasksFolder.file('tasks.md', `# Task List\n\n${mainTasksContent}`);
 
-      // Create individual task files
-      tasks.forEach((task, index) => {
+      // Create individual task files using enhanced tasks
+      enhancedTasks.forEach((task, index) => {
         const taskNumber = (index + 1).toString().padStart(3, '0');
         tasksFolder.file(`task-${taskNumber}.md`, `# ${task.title}\n\n${task.details}`);
       });
 
-      // Generate and add AGENTS.md file at the root of zip
+      // Add documentation references if enabled and available
+      if (documentationEnabled && fetchedDocumentation.length > 0) {
+        console.log('Adding documentation references to export...');
+        
+        // Create reference folder
+        const refFolder = zip.folder('reference');
+        
+        if (refFolder) {
+          // Create documentation index
+          const libList = identifiedLibraries.map(lib => 
+            `- ${lib.name} (${Math.round(lib.confidenceScore * 100)}% confidence - ${lib.category})`
+          ).join('\n');
+          
+          refFolder.file('README.md', `# Library Documentation References\n\n${fetchedDocumentation.length} libraries documented:\n\n${libList}\n\nGenerated on: ${new Date().toISOString()}`);
+
+          // Add individual documentation files
+          fetchedDocumentation.forEach((doc, index) => {
+            const fileName = `${doc.name}-${index + 1}.md`;
+            
+            // Create formatted content with metadata
+            const docContent = `# ${doc.name} Documentation
+
+**Source:** ${doc.source}
+${doc.url ? `**Repository/Website:** [Link](${doc.url})` : ''}
+**Generated on:** ${new Date().toISOString()}
+
+---
+
+${doc.content}`;
+
+            refFolder.file(fileName, docContent);
+          });
+
+          // Add library summary to docs folder
+          const libSummary = `# Identified Libraries in Project
+
+${identifiedLibraries.length} libraries were identified with high confidence scores:
+
+## High-Confidence Libraries (${fetchedDocumentation.length} documented)
+
+${identifiedLibraries
+  .filter(lib => lib.confidenceScore >= taskDocumentationIntegration.getSettings().minimumConfidenceScore)
+  .map(lib => `- **${lib.name}** (${Math.round(lib.confidenceScore * 100)}% confidence) - ${lib.category}`)
+  .join('\n')}
+
+## Low-Confidence Libraries (${identifiedLibraries.length - fetchedDocumentation.length} not documented)
+
+${identifiedLibraries
+  .filter(lib => lib.confidenceScore < taskDocumentationIntegration.getSettings().minimumConfidenceScore)
+  .map(lib => `- **${lib.name}** (${Math.round(lib.confidenceScore * 100)}% confidence) - ${lib.category}`)
+  .join('\n')}
+
+---
+
+*This summary was automatically generated during the export process. Documentation files are available in the /reference folder.*`;
+
+          docsFolder.file('LIBRARY_SUMMARY.md', libSummary);
+        }
+      }
+
+      // Generate and add AGENTS.md file at the root of zip using enhanced tasks
       const agentsMdResult = await runGenerateAgentsMd(
         {
           prd,
           architecture, 
           specifications,
           fileStructure,
-          tasks: tasks.map((task, index) => `### Task ${index + 1}: ${task.title}\n${task.details}`).join('\n\n')
+          tasks: enhancedTasks.map((task, index) => `### Task ${index + 1}: ${task.title}\n${task.details}`).join('\n\n')
         },
         { apiKey: googleApiKey, model: selectedModel }
       );
@@ -485,12 +585,19 @@ const handleExportData = async () => {
       zip.file('.github/copilot-instructions.md', agentsMdResult.agentsMdContent);
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });
+      
+      // Update success message based on whether documentation was included
+      const hasDocumentation = fetchedDocumentation.length > 0;
+      
       saveAs(zipBlob, 'gitautomate-export.zip');
 
       toast({
         title: 'Export Successful',
-        description: 'Your project data has been downloaded as a zip file with AGENTS.md.',
+        description: hasDocumentation 
+          ? `Your project data has been downloaded as a zip file with AGENTS.md and library documentation references for ${fetchedDocumentation.length} libraries.`
+          : 'Your project data has been downloaded as a zip file with AGENTS.md.',
       });
+
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -638,6 +745,32 @@ const handleExportData = async () => {
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={form.control}
+                    name="documentationEnabled"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            Include Documentation References
+                          </FormLabel>
+                          <FormDescription>
+                           Automatically fetch and include library documentation in exports.
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked);
+                              setDocumentationEnabled(checked); // Update local state
+                            }}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  /></arg_value>
                   <DialogFooter>
                     <Button type="submit">Save Settings</Button>
                   </DialogFooter>
