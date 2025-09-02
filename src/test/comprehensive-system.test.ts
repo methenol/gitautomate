@@ -5,7 +5,7 @@
 import { generateComprehensiveProject } from '@/app/comprehensive-actions';
 import { ContextValidator } from '@/ai/validation/context-validator';
 import { ComprehensiveOrchestrator } from '@/ai/orchestrator/comprehensive-orchestrator';
-import { documentationFetcher, type IdentifiedLibrary } from '@/services/documentation-fetcher';
+import { documentationFetcher } from '@/services/documentation-fetcher';
 
 // Mock the external dependencies first to avoid hoisting issues
 jest.mock('@/ai/flows/generate-architecture', () => ({
