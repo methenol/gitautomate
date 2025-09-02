@@ -770,7 +770,8 @@ ${identifiedLibraries
                         </FormControl>
                       </FormItem>
                     )}
-                  /></arg_value>
+                  />
+                  
                   <DialogFooter>
                     <Button type="submit">Save Settings</Button>
                   </DialogFooter>

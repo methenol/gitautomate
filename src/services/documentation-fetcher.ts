@@ -185,7 +185,11 @@ export class DocumentationFetcher {
         fetchedAt: new Date()
       };
     } catch (error) {
+      console.warn(`Failed to fetch GitHub documentation for ${repo}:`, error);
+      
+      // Return fallback content
       return {
+
         name: repo.split('/')[1],
         source: 'github',
         content: `# Documentation for ${repo}\n\nUnable to fetch documentation from GitHub. Please visit the repository directly: https://github.com/${repo}`,
@@ -252,10 +256,10 @@ export class DocumentationFetcher {
       .replace(/<h3[^>]*>/gi, '### ')
       .replace(/<p[^>]*>/gi, '')
       .replace(/<\/p>/gi, '\n\n')
-      .replace(/<code[^>]*>(.*?)<\/code>/gis, '`$1`')
-      .replace(/<strong[^>]*>(.*?)<\/strong>/gis, '**$1**')
-      .replace(/<em[^>]*>(.*?)<\/em>/gis, '*$1*')
-      .replace(/<br\s*[\/]?>/gi, '\n')
+      .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
+      .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+      .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+      .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<[^>]*>/g, '') // Remove all other HTML tags
       .trim();
   }
@@ -306,14 +310,15 @@ export class DocumentationFetcher {
 /**
  * Helper to deduplicate documentation results while preserving the best sources
  */
-function deduplicateResults(results: LibraryDocumentation[], maxExpectedPerLibrary: number): LibraryDocumentation[] {
+function deduplicateResults(results: LibraryDocumentation[], _maxExpectedPerLibrary: number): LibraryDocumentation[] {
   const deduplicated = new Map<string, LibraryDocumentation>();
   
   // Define source priority order
   const sourcePriority: Record<LibraryDocumentation['source'], number> = {
     'github': 3,
     'official-site': 2, 
-    'mdn': 1
+    'mdn': 1,
+    'stackoverflow': 0
   };
 
   for (const doc of results) {

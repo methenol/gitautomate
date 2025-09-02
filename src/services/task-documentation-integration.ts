@@ -151,7 +151,7 @@ export class TaskDocumentationIntegration {
     const lines = content.split('\n');
     
     // Look for key sections to preserve first
-    let importantContent: string[] = [];
+    const importantContent: string[] = [];
     const importantPatterns = [
       /^# /, // Main title
       /^## Getting Started/,
@@ -175,7 +175,7 @@ export class TaskDocumentationIntegration {
         foundImportantSection = true;
       }
       
-      if (foundImportantSection || isImportant) {
+      if ((isImportant || foundImportantSection) && line.trim()) {
         importantContent.push(line);
         
         // Stop adding if we hit the limit
@@ -183,22 +183,6 @@ export class TaskDocumentationIntegration {
         
         if (currentSize >= maxSizeBytes * 0.9) { // Leave some buffer
           break;
-        }
-      } else if (foundImportantSection && line.trim()) {
-        // Add content after important sections
-        const currentSize = [...importantContent, line].join('\n').length;
-        
-        if (currentSize <= maxSizeBytes) {
-          importantContent.push(line);
-          
-          // Stop adding if we hit the limit
-          const finalSize = importantContent.join('\n').length;
-          
-          if (finalSize >= maxSizeBytes * 0.9) {
-            break;
-          }
-        } else {
-          break; // Would exceed limit
         }
       }
     }
@@ -399,4 +383,6 @@ ${documentation.content}
  */
 export const taskDocumentationIntegration = new TaskDocumentationIntegration();
 
+// Export types for external use
+export type { IdentifiedLibrary, LibraryDocumentation };
 

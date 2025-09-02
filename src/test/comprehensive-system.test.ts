@@ -71,7 +71,7 @@ jest.mock('@/ai/flows/generate-tasks', () => ({
 }));
 
 // Test constants - now defined after mocks
-const MOCK_ARCHITECTURE = `# Test Architecture
+const _MOCK_ARCHITECTURE = `# Test Architecture
 
 This is a React-based web application with:
 - Component-based UI architecture
@@ -79,7 +79,7 @@ This is a React-based web application with:
 - Database persistence layer
 - Authentication system`;
 
-const MOCK_SPECIFICATIONS = `# Test Specifications
+const _MOCK_SPECIFICATIONS = `# Test Specifications
 
 ## Features
 - User authentication and registration
@@ -93,7 +93,7 @@ const MOCK_SPECIFICATIONS = `# Test Specifications
 - PostgreSQL database
 - JWT authentication`;
 
-const MOCK_FILE_STRUCTURE = `src/
+const _MOCK_FILE_STRUCTURE = `src/
 ├── components/
 │   ├── ui/
 │   ├── auth/
@@ -111,7 +111,7 @@ const MOCK_FILE_STRUCTURE = `src/
 └── types/
     └── index.ts`;
 
-const MOCK_TASKS = [
+const _MOCK_TASKS = [
   { title: 'Setup project infrastructure', details: '' },
   { title: 'Configure database schema', details: '' },
   { title: 'Implement authentication system', details: '' },
