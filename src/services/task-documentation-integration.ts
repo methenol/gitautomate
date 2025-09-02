@@ -1,6 +1,3 @@
-
-
-
 /**
  * Task Documentation Integration Service
  * 
@@ -147,11 +144,11 @@ export class TaskDocumentationIntegration {
    * Intelligently truncate documentation to stay within size limits
    */
   private truncateDocumentation(content: string, maxSizeBytes: number): string {
-    // Try to preserve key sections by looking for markdown structure
+    // Try to preserve key sections by looking at markdown structure
     const lines = content.split('\n');
     
     // Look for key sections to preserve first
-    const importantContent: string[] = [];
+    let importantContent: string[] = [];
     const importantPatterns = [
       /^# /, // Main title
       /^## Getting Started/,
@@ -193,7 +190,7 @@ export class TaskDocumentationIntegration {
     const originalSize = content.length;
     
     if (originalSize > maxSizeBytes && truncated.split('\n').length < lines.length) {
-      const finalContent = `${truncated}\n\n---\n*Note: Documentation was truncated to stay within export size limits (${Math.round(maxSizeBytes / 1024)}KB). The full documentation may be available at: ${new URL(content) || 'https://github.com'}*`;
+      const finalContent = `${truncated}\n\n---\n*Note: Documentation was truncated to stay within export size limits (${Math.round(maxSizeBytes / 1024)}KB). The full documentation may be available at: https://github.com*`;
       
       return finalContent;
     }
@@ -385,4 +382,3 @@ export const taskDocumentationIntegration = new TaskDocumentationIntegration();
 
 // Export types for external use
 export type { IdentifiedLibrary, LibraryDocumentation };
-

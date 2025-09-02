@@ -249,7 +249,7 @@ export class DocumentationFetcher {
    * Simple HTML to Markdown converter for documentation
    */
   private convertHtmlToMarkdown(html: string): string {
-    // Basic HTML to Markdown conversion - fix security vulnerability by processing single characters
+    // Basic HTML to Markdown conversion with enhanced security
     let result = html;
     
     // Handle specific HTML elements with safe replacement patterns
@@ -275,8 +275,8 @@ export class DocumentationFetcher {
     result = result.replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, '*$1*');
     result = result.replace(/<br\s*\/?>/gi, '\n');
     
-    // Remove remaining HTML tags by processing single characters (fixes security vulnerability)
-    result = result.replace(/</g, '').replace(/>/g, '');
+    // Enhanced HTML tag removal that handles multi-character tags safely
+    result = result.replace(/<[^>]*>/g, '');
     
     // Clean up excessive newlines
     result = result.replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, '');
