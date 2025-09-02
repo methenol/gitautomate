@@ -276,7 +276,10 @@ export class DocumentationFetcher {
     result = result.replace(/<br\s*\/?>/gi, '\n');
     
     // Enhanced HTML tag removal that handles multi-character tags safely
-    result = result.replace(/<[^>]*>/g, '');
+    result = result.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    
+    // Remove any remaining HTML-like patterns that might have bypassed the above
+    result = result.replace(/&lt;[^&]*&gt;/g, '');
     
     // Clean up excessive newlines
     result = result.replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, '');

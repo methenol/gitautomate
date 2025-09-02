@@ -148,7 +148,7 @@ export class TaskDocumentationIntegration {
     const lines = content.split('\n');
     
     // Look for key sections to preserve first
-    let importantContent: string[] = [];
+    const importantContent: string[] = [];
     const importantPatterns = [
       /^# /, // Main title
       /^## Getting Started/,
