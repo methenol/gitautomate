@@ -163,24 +163,33 @@ export default function Home() {
 
 
 
+  // Load settings from server-side storage on component mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('githubToken') || '';
-    const storedLlmModel = localStorage.getItem('llmModel') || '';
-    const storedApiKey = localStorage.getItem('apiKey') || '';
-    const storedApiBase = localStorage.getItem('apiBase') || '';
-    const storedTDD = localStorage.getItem('useTDD') === 'true';
+    const loadSettings = async () => {
+      try {
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+          const settings = await response.json();
+          
+          setGithubToken(settings.githubToken || '');
+          setLlmModel(settings.llmModel || '');
+          setApiKey(settings.apiKey || '');
+          setApiBase(settings.apiBase || '');
+          setUseTDD(settings.useTDD || false);
 
-    setGithubToken(storedToken);
-    setLlmModel(storedLlmModel);
-    setApiKey(storedApiKey);
-    setApiBase(storedApiBase);
-    setUseTDD(storedTDD);
-
-    form.setValue('githubToken', storedToken);
-    form.setValue('llmModel', storedLlmModel);
-    form.setValue('apiKey', storedApiKey);
-    form.setValue('apiBase', storedApiBase);
-    form.setValue('useTDD', storedTDD);
+          form.setValue('githubToken', settings.githubToken || '');
+          form.setValue('llmModel', settings.llmModel || '');
+          form.setValue('apiKey', settings.apiKey || '');
+          form.setValue('apiBase', settings.apiBase || '');
+          form.setValue('useTDD', settings.useTDD || false);
+        }
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+        // Continue with empty settings if load fails
+      }
+    };
+    
+    loadSettings();
   }, [form]);
 
 
@@ -208,24 +217,42 @@ export default function Home() {
     }
   }, [githubToken, toast]);
 
-  const handleSaveSettings = (values: SettingsFormValues) => {
-    setGithubToken(values.githubToken || '');
-    localStorage.setItem('githubToken', values.githubToken || '');
-    
-    setLlmModel(values.llmModel || '');
-    localStorage.setItem('llmModel', values.llmModel || '');
-    
-    setApiKey(values.apiKey || '');
-    localStorage.setItem('apiKey', values.apiKey || '');
-    
-    setApiBase(values.apiBase || '');
-    localStorage.setItem('apiBase', values.apiBase || '');
+  const handleSaveSettings = async (values: SettingsFormValues) => {
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          githubToken: values.githubToken || '',
+          llmModel: values.llmModel || '',
+          apiKey: values.apiKey || '',
+          apiBase: values.apiBase || '',
+          useTDD: values.useTDD,
+        }),
+      });
 
-    setUseTDD(values.useTDD);
-    localStorage.setItem('useTDD', values.useTDD.toString());
-    
-    setIsSettingsOpen(false);
-    toast({ title: 'Success', description: 'Settings saved.' });
+      if (!response.ok) {
+        throw new Error('Failed to save settings');
+      }
+
+      // Update local state after successful save
+      setGithubToken(values.githubToken || '');
+      setLlmModel(values.llmModel || '');
+      setApiKey(values.apiKey || '');
+      setApiBase(values.apiBase || '');
+      setUseTDD(values.useTDD);
+      
+      setIsSettingsOpen(false);
+      toast({ title: 'Success', description: 'Settings saved securely.' });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to save settings. Please try again.',
+      });
+    }
   };
 
   const handleGenerateArchitecture = async () => {
@@ -546,10 +573,10 @@ const handleExportData = async () => {
                       <FormItem>
                         <FormLabel>LLM Model</FormLabel>
                         <FormControl>
-                          <Input placeholder="openai/gpt-4o, anthropic/claude-3-haiku, etc." {...field} />
+                          <Input placeholder="provider/model format" {...field} />
                         </FormControl>
                         <FormDescription>
-                          Enter the provider/model in format "provider/model" (e.g., "openai/gpt-4o", "anthropic/claude-3-haiku", "gemini-pro")
+                          Enter the provider/model in format "provider/model"
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -578,7 +605,7 @@ const handleExportData = async () => {
                       <FormItem>
                         <FormLabel>LLM API Base URL</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://api.openai.com/v1 (optional)" {...field} />
+                          <Input placeholder="Custom API base URL (optional)" {...field} />
                         </FormControl>
                         <FormDescription>
                           Custom endpoint URL for self-hosted or alternative providers (optional)

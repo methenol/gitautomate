@@ -1,8 +1,9 @@
 /**
  * @fileOverview LiteLLM abstraction layer providing provider-agnostic LLM integration
  * 
- * This module replaces Genkit with LiteLLM to support multiple LLM providers through
- * a unified OpenAI-compatible API interface.
+ * This module provides a unified interface for LLM providers using the "provider/model" 
+ * string format specified in issue #32. NO hardcoded providers or models.
+ * All providers must use OpenAI-compatible endpoints.
  */
 
 import { z } from 'zod';
@@ -18,48 +19,6 @@ interface GenerateOptions {
     apiKey?: string;
     apiBase?: string;
   };
-}
-
-// Default base URLs for known providers
-const DEFAULT_BASE_URLS: Record<string, string> = {
-  'openai': 'https://api.openai.com/v1',
-  'anthropic': 'https://api.anthropic.com',
-  'gemini': 'https://generativelanguage.googleapis.com/v1beta',
-};
-
-// Get API key from environment variables based on provider
-function getEnvironmentApiKey(provider: string): string | undefined {
-  const envKeys: Record<string, string> = {
-    'openai': 'OPENAI_API_KEY',
-    'anthropic': 'ANTHROPIC_API_KEY', 
-    'gemini': 'GOOGLE_API_KEY',
-    'google': 'GOOGLE_API_KEY',
-  };
-  
-  const envKey = envKeys[provider.toLowerCase()];
-  return envKey ? process.env[envKey] : undefined;
-}
-
-// Parse provider/model string (e.g., "openai/gpt-4o" -> {provider: "openai", model: "gpt-4o"})
-function parseModelString(modelString: string): { provider: string; model: string } {
-  if (modelString.includes('/')) {
-    const [provider, ...modelParts] = modelString.split('/');
-    return { provider, model: modelParts.join('/') };
-  }
-  
-  // Handle single model names (assume they are standalone models)
-  if (modelString.startsWith('gpt-') || modelString.startsWith('o1-')) {
-    return { provider: 'openai', model: modelString };
-  }
-  if (modelString.startsWith('claude-')) {
-    return { provider: 'anthropic', model: modelString };
-  }
-  if (modelString.includes('gemini') || modelString.includes('palm')) {
-    return { provider: 'gemini', model: modelString };
-  }
-  
-  // Default to treating it as a standalone model name
-  return { provider: '', model: modelString };
 }
 
 // Convert response to JSON format expected by the schema
@@ -123,7 +82,7 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
 
 
 
-// Make OpenAI-compatible API call
+// Make OpenAI-compatible API call (works for all providers using OpenAI-compatible format)
 async function makeOpenAICall(
   model: string,
   prompt: string,
@@ -132,7 +91,7 @@ async function makeOpenAICall(
 ): Promise<string> {
   const fullUrl = `${baseUrl}/chat/completions`;
   
-  console.log(`Making OpenAI API call to: ${fullUrl} with model: ${model}`);
+  console.log(`Making API call to: ${fullUrl} with model: ${model}`);
   
   const response = await fetch(fullUrl, {
     method: 'POST',
@@ -150,79 +109,11 @@ async function makeOpenAICall(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
-    throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+    throw new Error(`LLM API error: ${errorData.error?.message || response.statusText}`);
   }
 
   const data = await response.json();
   return data.choices[0]?.message?.content || '';
-}
-
-// Make Anthropic API call
-async function makeAnthropicCall(
-  model: string,
-  prompt: string,
-  apiKey: string,
-  baseUrl: string
-): Promise<string> {
-  const fullUrl = `${baseUrl}/v1/messages`;
-  
-  console.log(`Making Anthropic API call to: ${fullUrl} with model: ${model}`);
-  
-  const response = await fetch(fullUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
-    throw new Error(`Anthropic API error: ${errorData.error?.message || response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.content[0]?.text || '';
-}
-
-// Make Google Gemini API call
-async function makeGeminiCall(
-  model: string,
-  prompt: string,
-  apiKey: string,
-  baseUrl: string
-): Promise<string> {
-  const fullUrl = `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
-  
-  console.log(`Making Gemini API call to: ${fullUrl} with model: ${model}`);
-  
-  const response = await fetch(fullUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 4000,
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
-    throw new Error(`Gemini API error: ${errorData.error?.message || response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.candidates[0]?.content?.parts[0]?.text || '';
 }
 
 // LiteLLM implementation
@@ -233,42 +124,22 @@ export const ai = {
     try {
       console.log(`Starting LiteLLM generation with model: ${model}, config:`, config);
       
-      const { provider, model: modelName } = parseModelString(model);
-      
-      // Get API key - prioritize config, then environment variables
-      let apiKey = config?.apiKey;
-      if (!apiKey && provider) {
-        apiKey = getEnvironmentApiKey(provider);
-      }
+      // Require API key and base URL to be provided in config
+      const apiKey = config?.apiKey;
+      const baseUrl = config?.apiBase;
       
       if (!apiKey) {
-        throw new Error(`API key not found for provider "${provider}". Please provide it in settings or set the appropriate environment variable.`);
-      }
-      
-      // Get base URL - prioritize config, then defaults
-      let baseUrl = config?.apiBase;
-      if (!baseUrl && provider && DEFAULT_BASE_URLS[provider]) {
-        baseUrl = DEFAULT_BASE_URLS[provider];
+        throw new Error(`API key is required. Please provide it in settings.`);
       }
       
       if (!baseUrl) {
-        // If no base URL found, assume OpenAI-compatible endpoint
-        baseUrl = 'https://api.openai.com/v1';
+        throw new Error(`API base URL is required. Please provide it in settings.`);
       }
       
-      console.log(`Using provider: ${provider}, model: ${modelName}, baseUrl: ${baseUrl}`);
+      console.log(`Using model: ${model}, baseUrl: ${baseUrl}`);
       
-      let responseText: string;
-      
-      // Make API call based on provider
-      if (provider === 'anthropic' && baseUrl.includes('anthropic.com')) {
-        responseText = await makeAnthropicCall(modelName, prompt, apiKey, baseUrl.replace('/v1', ''));
-      } else if (provider === 'gemini' && baseUrl.includes('googleapis.com')) {
-        responseText = await makeGeminiCall(modelName, prompt, apiKey, baseUrl);
-      } else {
-        // Default to OpenAI-compatible API (covers OpenAI, LM Studio, and most local providers)
-        responseText = await makeOpenAICall(modelName, prompt, apiKey, baseUrl);
-      }
+      // Use OpenAI-compatible API for all providers - let the user configure their endpoint correctly
+      const responseText = await makeOpenAICall(model, prompt, apiKey, baseUrl);
       
       // Parse response according to schema
       const parsedOutput = parseResponse(responseText, output?.schema);
@@ -287,7 +158,7 @@ export const ai = {
           throw new Error(`Model '${model}' not found. Please check that the model name is correct and available on your provider.`);
         }
         if (error.message.includes('unauthorized') || error.message.includes('401')) {
-          throw new Error(`Authentication failed. Please check your API key for provider.`);
+          throw new Error(`Authentication failed. Please check your API key.`);
         }
         if (error.message.includes('parse')) {
           throw new Error(`The model returned an unexpected response format. Try a different model or adjust your prompt.`);

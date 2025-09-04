@@ -1,0 +1,7 @@
+{
+  "githubToken": "",
+  "llmModel": "openai/qwen3-4b-128k",
+  "apiKey": "121a9cfe22769c435e7a5d26ab9a9cee",
+  "apiBase": "http://m16r2:1234/v1",
+  "useTDD": false
+}
