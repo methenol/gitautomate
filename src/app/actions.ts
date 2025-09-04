@@ -38,7 +38,7 @@ export async function runGenerateArchitecture(
         error.message.includes('Please check your Google AI API key'))
     ) {
       throw new Error(
-        'Failed to generate architecture: Your Google AI API key is missing or invalid. Please check it in settings.'
+        'Failed to generate architecture: Your LLM API key is missing or invalid. Please check it in settings.'
       );
     }
     throw new Error(
@@ -95,10 +95,10 @@ export async function runGenerateFileStructure(
       error instanceof Error &&
       (error.message.includes('API key not found') ||
         error.message.includes('API key is invalid') ||
-        error.message.includes('Please check your Google AI API key'))
+        error.message.includes('Please check your LLM API key'))
     ) {
       throw new Error(
-        'Failed to generate file structure: Your Google AI API key is missing or invalid. Please check it in settings.'
+        'Failed to generate file structure: Your LLM API key is missing or invalid. Please check it in settings.'
       );
     }
     throw new Error(
@@ -163,10 +163,10 @@ export async function runGenerateAgentsMd(
       error instanceof Error &&
       (error.message.includes('API key not found') ||
         error.message.includes('API key is invalid') ||
-        error.message.includes('Please check your Google AI API key'))
+        error.message.includes('Please check your LLM API key'))
     ) {
       throw new Error(
-        'Failed to generate AGENTS.md content: Your Google AI API key is missing or invalid. Please check it in settings.'
+        'Failed to generate AGENTS.md content: Your LLM API key is missing or invalid. Please check it in settings.'
       );
     }
     throw new Error(
@@ -174,21 +174,3 @@ export async function runGenerateAgentsMd(
     );
   }
 }
-
-// Model listing functionality removed as per LiteLLM migration requirements
-// Users will specify models directly without provider lookup
-/*
-export async function getModels(options?: ActionOptions): Promise<string[]> {
-  try {
-    const models = await listAvailableModels(options?.apiKey);
-    return models;
-  } catch (error) {
-    console.error('Failed to fetch models:', error);
-    if (error instanceof Error) {
-      // Pass the specific error message to the client.
-      throw new Error(`Failed to fetch models: ${error.message}`);
-    }
-    throw new Error('An unknown error occurred while fetching models.');
-  }
-}
-*/

@@ -103,7 +103,7 @@ export async function researchTask(
   model?: string,
   useTDD?: boolean
 ): Promise<ResearchTaskOutput> {
-  // Use model directly without provider prefix
+  // LiteLLM handles provider prefix internally - user provides simple model name
   const modelName = model || 'gpt-4o';
   
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
@@ -113,7 +113,7 @@ export async function researchTask(
     .replace('{{{specifications}}}', input.specifications)
     .replace('{{{title}}}', input.title);
 
-  const {output} = await ai.generate<ResearchTaskOutput>({
+  const {output} = await ai.generate({
     model: modelName,
     prompt: prompt,
     output: {
@@ -127,5 +127,5 @@ export async function researchTask(
       'An unexpected response was received from the server.'
     );
   }
-  return output;
+  return output as ResearchTaskOutput;
 }

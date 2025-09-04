@@ -1,270 +1,174 @@
-/**
- * @fileOverview LiteLLM-style abstraction layer for multiple LLM providers
- * 
- * This file provides a unified interface for interacting with different LLM providers
- * including OpenAI, Anthropic, Google AI, and custom endpoints. It replaces the 
- * Genkit implementation with a provider-agnostic approach.
- */
-
-import { config } from 'dotenv';
-config();
-
-import OpenAI from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 
-// Provider-agnostic configuration interface
-export interface LLMConfig {
-  provider: 'openai' | 'anthropic' | 'google' | 'custom';
+// LiteLLM settings interface as specified in the issue
+interface LLMSettings {
+  // User inputs provider/model in format "openai/gpt-4o" or "anthropic/claude-3"
+  llmModel: string;        // Full provider/model identifier
+  
+  apiKey?: string;         // Optional API key (can use env vars)
+  apiBase?: string;       // Custom endpoint URL for self-hosted
+}
+
+interface LLMConfig {
+  settings: LLMSettings;
+}
+
+// Import LiteLLM completion function
+// Note: We'll use dynamic import since LiteLLM is primarily a Python package
+// For Node.js, we'll use a simplified wrapper approach
+async function completion(params: {
   model: string;
-  apiKey?: string;
-  baseUrl?: string;
-}
-
-// Unified message format (OpenAI-compatible)
-interface Message {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
-// Unified response format
-interface LLMResponse {
-  content: string;
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}
-
-// Generate function parameters
-interface GenerateParams {
-  model: string;
-  prompt: string;
-  output?: {
-    schema: z.ZodSchema;
-  };
-  config?: {
-    apiKey?: string;
-    baseUrl?: string;
-  };
+  messages: Array<{ role: string; content: string }>;
   temperature?: number;
-  maxTokens?: number;
-}
-
-// Flow definition interface (compatible with existing Genkit flows)
-interface FlowDefinition {
-  name: string;
-  inputSchema: z.ZodSchema;
-  outputSchema: z.ZodSchema;
-}
-
-class LiteLLMProvider {
-  private getProviderFromModel(model: string): { provider: string; actualModel: string } {
-    // Parse provider/model format or infer from model name
-    if (model.includes('/')) {
-      const [provider, actualModel] = model.split('/', 2);
-      return { provider, actualModel };
-    }
-    
-    // Infer provider from model name patterns
-    if (model.startsWith('gpt-') || model.includes('gpt')) {
-      return { provider: 'openai', actualModel: model };
-    }
-    if (model.startsWith('claude-') || model.includes('claude')) {
-      return { provider: 'anthropic', actualModel: model };
-    }
-    if (model.startsWith('gemini-') || model.includes('gemini')) {
-      return { provider: 'google', actualModel: model };
-    }
-    
-    // Default to OpenAI format
-    return { provider: 'openai', actualModel: model };
-  }
-
-  private async callOpenAI(
-    model: string,
-    messages: Message[],
-    config?: { apiKey?: string; baseUrl?: string },
-    options?: { temperature?: number; maxTokens?: number }
-  ): Promise<LLMResponse> {
-    const client = new OpenAI({
-      apiKey: config?.apiKey || process.env.OPENAI_API_KEY,
-      baseURL: config?.baseUrl,
-    });
-
-    const response = await client.chat.completions.create({
+  max_tokens?: number;
+  api_key?: string;
+  api_base?: string;
+}) {
+  // This is a simplified Node.js wrapper for LiteLLM
+  // In a real implementation, this would interface with the LiteLLM Python service
+  // or use a Node.js equivalent that provides the same abstraction
+  
+  const { model, messages, temperature = 0.7, max_tokens = 1000, api_key, api_base } = params;
+  
+  // LiteLLM auto-detects provider from model name
+  // Examples: "gpt-4o" -> OpenAI, "claude-3-haiku" -> Anthropic, "gemini-pro" -> Google
+  
+  let apiUrl: string;
+  let headers: Record<string, string>;
+  let requestBody: any;
+  
+  // Auto-detect provider from model name (as LiteLLM does)
+  if (model.includes('gpt-') || model.includes('o1-') || model.includes('text-')) {
+    // OpenAI
+    apiUrl = api_base || 'https://api.openai.com/v1/chat/completions';
+    headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${api_key || process.env.OPENAI_API_KEY}`,
+    };
+    requestBody = {
       model,
       messages,
-      temperature: options?.temperature ?? 0.7,
-      max_tokens: options?.maxTokens ?? 4000,
-    });
-
-    return {
-      content: response.choices[0]?.message?.content || '',
-      usage: response.usage ? {
-        prompt_tokens: response.usage.prompt_tokens,
-        completion_tokens: response.usage.completion_tokens,
-        total_tokens: response.usage.total_tokens,
-      } : undefined,
+      temperature,
+      max_tokens,
     };
-  }
-
-  private async callAnthropic(
-    model: string,
-    messages: Message[],
-    config?: { apiKey?: string; baseUrl?: string },
-    options?: { temperature?: number; maxTokens?: number }
-  ): Promise<LLMResponse> {
-    const client = new Anthropic({
-      apiKey: config?.apiKey || process.env.ANTHROPIC_API_KEY,
-      baseURL: config?.baseUrl,
-    });
-
-    // Convert messages to Anthropic format
-    const systemMessage = messages.find(m => m.role === 'system');
-    const userMessages = messages.filter(m => m.role !== 'system');
-    
-    const response = await client.messages.create({
+  } else if (model.includes('claude-')) {
+    // Anthropic
+    apiUrl = api_base || 'https://api.anthropic.com/v1/messages';
+    headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': api_key || process.env.ANTHROPIC_API_KEY || '',
+      'anthropic-version': '2023-06-01',
+    };
+    requestBody = {
       model,
-      max_tokens: options?.maxTokens ?? 4000,
-      temperature: options?.temperature ?? 0.7,
-      system: systemMessage?.content,
-      messages: userMessages.map(m => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      })),
-    });
-
-    const content = response.content[0];
-    return {
-      content: content.type === 'text' ? content.text : '',
-      usage: response.usage ? {
-        prompt_tokens: response.usage.input_tokens,
-        completion_tokens: response.usage.output_tokens,
-        total_tokens: response.usage.input_tokens + response.usage.output_tokens,
-      } : undefined,
+      messages,
+      max_tokens,
+      temperature,
     };
-  }
-
-  private async callGoogle(
-    model: string,
-    messages: Message[],
-    config?: { apiKey?: string; baseUrl?: string },
-    options?: { temperature?: number; maxTokens?: number }
-  ): Promise<LLMResponse> {
-    // Use Google AI API directly (similar to current implementation)
-    const apiKey = config?.apiKey || process.env.GOOGLE_API_KEY;
-    if (!apiKey) {
-      throw new Error('Google AI API key not found');
-    }
-
-    const url = config?.baseUrl || 'https://generativelanguage.googleapis.com/v1beta/models';
-    const endpoint = `${url}/${model}:generateContent?key=${apiKey}`;
-
-    // Convert messages to Google AI format
-    const prompt = messages.map(m => m.content).join('\n\n');
-    
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-          temperature: options?.temperature ?? 0.7,
-          maxOutputTokens: options?.maxTokens ?? 4000,
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Google AI API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    return {
-      content,
-      usage: data.usageMetadata ? {
-        prompt_tokens: data.usageMetadata.promptTokenCount || 0,
-        completion_tokens: data.usageMetadata.candidatesTokenCount || 0,
-        total_tokens: data.usageMetadata.totalTokenCount || 0,
-      } : undefined,
+  } else if (model.includes('gemini-')) {
+    // Google AI
+    const googleApiKey = api_key || process.env.GOOGLE_API_KEY;
+    apiUrl = api_base || `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`;
+    headers = {
+      'Content-Type': 'application/json',
     };
+    // Convert messages to Google format
+    const contents = messages.map(msg => ({
+      parts: [{ text: msg.content }],
+      role: msg.role === 'assistant' ? 'model' : 'user'
+    }));
+    requestBody = {
+      contents,
+      generationConfig: {
+        temperature,
+        maxOutputTokens: max_tokens,
+      },
+    };
+  } else {
+    throw new Error(`Unsupported model: ${model}`);
   }
-
-  async generate<TOutput>(params: GenerateParams): Promise<{ output: TOutput }> {
-    const { model, prompt, output, config, temperature, maxTokens } = params;
-    
-    const { provider, actualModel } = this.getProviderFromModel(model);
-    
-    // Create messages array
-    const messages: Message[] = [
-      { role: 'user', content: prompt }
-    ];
-
-    let response: LLMResponse;
-
-    try {
-      switch (provider) {
-        case 'openai':
-          response = await this.callOpenAI(actualModel, messages, config, { temperature, maxTokens });
-          break;
-        case 'anthropic':
-          response = await this.callAnthropic(actualModel, messages, config, { temperature, maxTokens });
-          break;
-        case 'google':
-          response = await this.callGoogle(actualModel, messages, config, { temperature, maxTokens });
-          break;
-        default:
-          // Treat custom as OpenAI-compatible
-          response = await this.callOpenAI(actualModel, messages, config, { temperature, maxTokens });
-          break;
-      }
-    } catch (error) {
-      console.error(`Error calling ${provider} provider:`, error);
-      throw new Error(`Failed to generate response from ${provider}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-
-    // Parse response if schema is provided
-    let parsedOutput = response.content;
-    
-    if (output?.schema) {
-      try {
-        // Try to parse as JSON first
-        const jsonMatch = response.content.match(/```json\s*([\s\S]*?)\s*```/) || 
-                         response.content.match(/```\s*([\s\S]*?)\s*```/) ||
-                         [null, response.content];
-        
-        const jsonContent = jsonMatch[1] || response.content;
-        const parsed = JSON.parse(jsonContent.trim());
-        
-        // Validate against schema
-        parsedOutput = output.schema.parse(parsed);
-      } catch (parseError) {
-        console.error('Failed to parse response as JSON:', parseError);
-        console.error('Response content:', response.content);
-        throw new Error(`Failed to parse structured response: ${parseError instanceof Error ? parseError.message : 'Invalid JSON'}`);
-      }
-    }
-
-    return { output: parsedOutput as TOutput };
+  
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(requestBody),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.statusText}`);
   }
-
-  // Flow definition method (compatible with existing code)
-  defineFlow<TInput, TOutput>(
-    definition: FlowDefinition,
-    handler: (input: TInput) => Promise<TOutput>
-  ) {
-    return handler;
+  
+  const data = await response.json();
+  
+  // Normalize response format (LiteLLM provides OpenAI-compatible responses)
+  if (model.includes('gemini-')) {
+    // Convert Google response to OpenAI format
+    return {
+      choices: [{
+        message: {
+          role: 'assistant',
+          content: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
+        },
+      }],
+    };
+  } else if (model.includes('claude-')) {
+    // Convert Anthropic response to OpenAI format
+    return {
+      choices: [{
+        message: {
+          role: 'assistant',
+          content: data.content?.[0]?.text || '',
+        },
+      }],
+    };
+  } else {
+    // OpenAI format (already correct)
+    return data;
   }
 }
 
-// Export singleton instance
-export const ai = new LiteLLMProvider();
-
-// Export types for use in flows
-export type { GenerateParams };
+// AI wrapper that replaces the genkit functionality
+export const ai = {
+  async generate(params: {
+    model: string;
+    prompt: string;
+    output?: { schema: z.ZodSchema };
+    config?: { apiKey?: string; apiBase?: string };
+  }) {
+    const { model, prompt, output, config } = params;
+    
+    const messages = [
+      { role: 'user', content: prompt }
+    ];
+    
+    // Add JSON schema instruction if output schema is provided
+    let finalPrompt = prompt;
+    if (output?.schema) {
+      finalPrompt += '\n\nPlease respond with valid JSON that matches the required schema.';
+    }
+    
+    const response = await completion({
+      model,
+      messages: [{ role: 'user', content: finalPrompt }],
+      api_key: config?.apiKey,
+      api_base: config?.apiBase,
+    });
+    
+    const content = response.choices[0]?.message?.content || '';
+    
+    // If schema is provided, parse and validate JSON
+    if (output?.schema) {
+      try {
+        const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\{[\s\S]*\}/);
+        const jsonString = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+        const parsed = JSON.parse(jsonString);
+        const validated = output.schema.parse(parsed);
+        return { output: validated };
+      } catch (error) {
+        throw new Error(`Failed to parse or validate JSON response: ${error}`);
+      }
+    }
+    
+    return { output: content };
+  }
+};

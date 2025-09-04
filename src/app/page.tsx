@@ -84,12 +84,9 @@ import { Label } from '@/components/ui/label';
 
 const settingsSchema = z.object({
   githubToken: z.string().optional(),
-  
-  // LLM Provider Configuration
-  llmProvider: z.enum(['openai', 'anthropic', 'google', 'custom']).default('openai'),
-  llmApiKey: z.string().optional(),
-  llmBaseUrl: z.string().url().optional(),
-  model: z.string(),
+  llmModel: z.string().default('gpt-4o'), // User inputs provider/model like "gpt-4o" or "claude-3-haiku"
+  llmApiKey: z.string().optional(), // Optional API key (can use env vars)
+  llmApiBase: z.string().optional(), // Custom endpoint URL for self-hosted
   useTDD: z.boolean().default(false),
 });
 
@@ -121,15 +118,10 @@ const UI_DEFAULT_MODEL = 'gpt-4o';
 export default function Home() {
   const { toast } = useToast();
   const [githubToken, setGithubToken] = useState<string>('');
-  
-  // Updated LLM configuration state
-  const [llmProvider, setLlmProvider] = useState<'openai' | 'anthropic' | 'google' | 'custom'>('openai');
+  const [llmModel, setLlmModel] = useState<string>(UI_DEFAULT_MODEL);
   const [llmApiKey, setLlmApiKey] = useState<string>('');
-  const [llmBaseUrl, setLlmBaseUrl] = useState<string>('');
-  
-  const [selectedModel, setSelectedModel] = useState<string>(UI_DEFAULT_MODEL);
+  const [llmApiBase, setLlmApiBase] = useState<string>('');
   const [useTDD, setUseTDD] = useState<boolean>(false);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [repositories, setRepositories] = useState<Repository[]>([LOCAL_MODE_REPO]);
@@ -162,76 +154,34 @@ export default function Home() {
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       githubToken: '',
-      llmProvider: 'openai',
+      llmModel: UI_DEFAULT_MODEL,
       llmApiKey: '',
-      llmBaseUrl: '',
-      model: UI_DEFAULT_MODEL,
+      llmApiBase: '',
       useTDD: false,
     },
   });
 
-  // Model lists by provider - no API lookups as per migration requirements
-  const getDefaultModelsForProvider = useCallback((provider: string) => {
-    switch (provider) {
-      case 'openai':
-        return ['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo', 'gpt-4-turbo-preview'];
-      case 'anthropic':
-        return ['claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307', 'claude-3-opus-20240229'];
-      case 'google':
-        return ['gemini-1.5-pro-latest', 'gemini-1.5-flash-latest', 'gemini-pro'];
-      case 'custom':
-        return ['custom-model']; // User can specify any model name
-      default:
-        return ['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'];
-    }
-  }, []);
-
-  const initializeDefaultModels = useCallback((provider?: string) => {
-    const currentProvider = provider || llmProvider;
-    const defaultModels = getDefaultModelsForProvider(currentProvider);
-    
-    setAvailableModels(defaultModels);
-    
-    // Set default model based on provider
-    const defaultModel = defaultModels[0];
-    const currentModel = localStorage.getItem('selectedModel') || defaultModel;
-    
-    // Use current model if it's available for the provider, otherwise use default
-    const modelToUse = defaultModels.includes(currentModel) ? currentModel : defaultModel;
-    
-    form.setValue('model', modelToUse);
-    setSelectedModel(modelToUse);
-  }, [form, llmProvider, getDefaultModelsForProvider]);
-
+  // Load settings from localStorage on component mount
 
   useEffect(() => {
     const storedToken = localStorage.getItem('githubToken') || '';
-    
-    // Load LLM configuration from localStorage (will be moved to server-side later)
-    const storedProvider = (localStorage.getItem('llmProvider') || 'openai') as 'openai' | 'anthropic' | 'google' | 'custom';
-    const storedApiKey = localStorage.getItem('llmApiKey') || localStorage.getItem('googleApiKey') || ''; // Backward compatibility
-    const storedBaseUrl = localStorage.getItem('llmBaseUrl') || '';
-    
-    const storedModel = localStorage.getItem('selectedModel') || UI_DEFAULT_MODEL;
+    const storedLlmModel = localStorage.getItem('llmModel') || UI_DEFAULT_MODEL;
+    const storedLlmApiKey = localStorage.getItem('llmApiKey') || '';
+    const storedLlmApiBase = localStorage.getItem('llmApiBase') || '';
     const storedTDD = localStorage.getItem('useTDD') === 'true';
 
     setGithubToken(storedToken);
-    setLlmProvider(storedProvider);
-    setLlmApiKey(storedApiKey);
-    setLlmBaseUrl(storedBaseUrl);
-    setSelectedModel(storedModel);
+    setLlmModel(storedLlmModel);
+    setLlmApiKey(storedLlmApiKey);
+    setLlmApiBase(storedLlmApiBase);
     setUseTDD(storedTDD);
 
     form.setValue('githubToken', storedToken);
-    form.setValue('llmProvider', storedProvider);
-    form.setValue('llmApiKey', storedApiKey);
-    form.setValue('llmBaseUrl', storedBaseUrl);
-    form.setValue('model', storedModel);
+    form.setValue('llmModel', storedLlmModel);
+    form.setValue('llmApiKey', storedLlmApiKey);
+    form.setValue('llmApiBase', storedLlmApiBase);
     form.setValue('useTDD', storedTDD);
-    
-    // Initialize models for the selected provider
-    initializeDefaultModels(storedProvider);
-  }, [initializeDefaultModels, form]);
+  }, [form]);
 
 
   useEffect(() => {
@@ -259,27 +209,20 @@ export default function Home() {
   }, [githubToken, toast]);
 
   const handleSaveSettings = (values: SettingsFormValues) => {
-    // Save GitHub token
     setGithubToken(values.githubToken || '');
     localStorage.setItem('githubToken', values.githubToken || '');
     
-    // Save LLM configuration
-    setLlmProvider(values.llmProvider);
-    setLlmApiKey(values.llmApiKey || '');
-    setLlmBaseUrl(values.llmBaseUrl || '');
-    
-    localStorage.setItem('llmProvider', values.llmProvider);
-    localStorage.setItem('llmApiKey', values.llmApiKey || '');
-    localStorage.setItem('llmBaseUrl', values.llmBaseUrl || '');
+    setLlmModel(values.llmModel);
+    localStorage.setItem('llmModel', values.llmModel);
 
-    setSelectedModel(values.model);
-    localStorage.setItem('selectedModel', values.model);
+    setLlmApiKey(values.llmApiKey || '');
+    localStorage.setItem('llmApiKey', values.llmApiKey || '');
+
+    setLlmApiBase(values.llmApiBase || '');
+    localStorage.setItem('llmApiBase', values.llmApiBase || '');
 
     setUseTDD(values.useTDD);
     localStorage.setItem('useTDD', values.useTDD.toString());
-    
-    // Update available models for the new provider
-    initializeDefaultModels(values.llmProvider);
     
     setIsSettingsOpen(false);
     toast({ title: 'Success', description: 'Settings saved.' });
@@ -293,14 +236,14 @@ export default function Home() {
     setTasks([]);
     setFinalIssueURL('');
     try {
-      const result = await runGenerateArchitecture({ prd }, { apiKey: llmApiKey, model: selectedModel });
+      const result = await runGenerateArchitecture({ prd }, { apiKey: llmApiKey, model: llmModel });
       setArchitecture(result.architecture);
       setSpecifications(result.specifications);
 
       // Automatically generate file structure after architecture/specs
       const fileStructResult = await runGenerateFileStructure(
         { prd, architecture: result.architecture, specifications: result.specifications },
-        { apiKey: llmApiKey, model: selectedModel }
+        { apiKey: llmApiKey, model: llmModel }
       );
       setFileStructure(fileStructResult.fileStructure || '');
     } catch (error) {
@@ -321,7 +264,7 @@ export default function Home() {
     try {
       const result = await runResearchTask(
         { title: task.title, architecture, fileStructure, specifications },
-        { apiKey: llmApiKey, model: selectedModel, useTDD }
+        { apiKey: llmApiKey, model: llmModel, useTDD }
       );
       const formattedDetails = `### Context\n${result.context}\n\n### Implementation Steps\n${result.implementationSteps}\n\n### Acceptance Criteria\n${result.acceptanceCriteria}`;
       setTasks(currentTasks =>
@@ -341,7 +284,7 @@ export default function Home() {
     } finally {
       setTaskLoading(prev => ({ ...prev, [task.title]: false }));
     }
-  }, [architecture, fileStructure, specifications, llmApiKey, selectedModel, useTDD, selectedTask?.title]);
+  }, [architecture, fileStructure, specifications, llmApiKey, llmModel, useTDD, selectedTask?.title]);
 
 
   const handleGenerateTasks = async () => {
@@ -353,7 +296,7 @@ export default function Home() {
     try {
       const result = await runGenerateTasks(
         { architecture, specifications, fileStructure },
-        { apiKey: llmApiKey, model: selectedModel, useTDD }
+        { apiKey: llmApiKey, model: llmModel, useTDD }
       );
       const initialTasks = result.tasks;
 
@@ -493,7 +436,7 @@ const handleExportData = async () => {
           fileStructure,
           tasks: tasks.map((task, index) => `### Task ${index + 1}: ${task.title}\n${task.details}`).join('\n\n')
         },
-        { apiKey: llmApiKey, model: selectedModel }
+        { apiKey: llmApiKey, model: llmModel }
       );
       
       // Add AGENTS.md at the root level (not inside any subfolder)
@@ -598,30 +541,16 @@ const handleExportData = async () => {
                   />
                   <FormField
                     control={form.control}
-                    name="llmProvider"
+                    name="llmModel"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>LLM Provider</FormLabel>
-                        <Select 
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            // Update available models when provider changes
-                            initializeDefaultModels(value);
-                          }} 
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a provider" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="openai">OpenAI</SelectItem>
-                            <SelectItem value="anthropic">Anthropic</SelectItem>
-                            <SelectItem value="google">Google AI</SelectItem>
-                            <SelectItem value="custom">Custom Endpoint</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>LLM Model</FormLabel>
+                        <FormControl>
+                          <Input placeholder="gpt-4o, claude-3-haiku, gemini-pro, etc." {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Enter the model name (e.g., "gpt-4o", "claude-3-haiku", "gemini-pro")
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -631,51 +560,29 @@ const handleExportData = async () => {
                     name="llmApiKey"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>API Key</FormLabel>
+                        <FormLabel>LLM API Key</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="Enter your API key (optional)" {...field} />
+                          <Input type="password" placeholder="API key (optional, can use env vars)" {...field} />
                         </FormControl>
+                        <FormDescription>
+                          API key for your LLM provider (optional if using environment variables)
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  {form.watch('llmProvider') === 'custom' && (
-                    <FormField
-                      control={form.control}
-                      name="llmBaseUrl"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Base URL</FormLabel>
-                          <FormControl>
-                            <Input type="url" placeholder="https://api.example.com/v1" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
                   <FormField
                     control={form.control}
-                    name="model"
+                    name="llmApiBase"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>AI Model</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={loading.models}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a model" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {loading.models && <SelectItem value="loading" disabled>Loading models...</SelectItem>}
-                            {availableModels.map(model => (
-                              <SelectItem key={model} value={model}>
-                                {model}
-                              </SelectItem>
-                            ))}
-                             {availableModels.length === 0 && !loading.models && <SelectItem value="none" disabled>No models found.</SelectItem>}
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>LLM API Base URL</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://api.openai.com/v1 (optional)" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Custom endpoint URL for self-hosted or alternative providers (optional)
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

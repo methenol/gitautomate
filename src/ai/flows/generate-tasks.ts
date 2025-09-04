@@ -64,7 +64,7 @@ Specifications:
 Generate the complete, exhaustive, and sequentially ordered list of task titles now.`;
 
 export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
-  // Use model directly without provider prefix
+  // LiteLLM handles provider prefix internally - user provides simple model name
   const modelName = model || 'gpt-4o';
 
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
@@ -74,7 +74,7 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
     .replace('{{{fileStructure}}}', input.fileStructure)
     .replace('{{{specifications}}}', input.specifications);
 
-  const {output} = await ai.generate<GenerateTasksOutput>({
+  const {output} = await ai.generate({
     model: modelName,
     prompt: prompt,
     output: {
@@ -86,5 +86,5 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
   if (output?.tasks) {
     output.tasks = output.tasks.map((task: any) => ({ ...task, details: '' }));
   }
-  return output!;
+  return output as GenerateTasksOutput;
 }

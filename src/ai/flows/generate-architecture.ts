@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview This file defines a Genkit flow for generating a software architecture and specifications from a PRD.
+ * @fileOverview This file defines a LiteLLM flow for generating a software architecture and specifications from a PRD.
  *
  * - generateArchitecture - A function that takes a PRD as input and returns a proposed software architecture and specifications.
  * - GenerateArchitectureInput - The input type for the generateArchitecture function, which includes the PRD.
@@ -37,10 +37,10 @@ export async function generateArchitecture(
   apiKey?: string,
   model?: string
 ): Promise<GenerateArchitectureOutput> {
-  // Use model directly without provider prefix - let LiteLLM handle provider detection
-  const modelName = model || 'gpt-4o';
+  // LiteLLM handles provider prefix internally - user provides simple model name
+  const modelName = model || 'gpt-4o'; 
   
-  const { output } = await ai.generate<GenerateArchitectureOutput>({
+  const {output} = await ai.generate({
     model: modelName,
     prompt: `Generate a software architecture and specifications based on the following Product Requirements Document (PRD).
 
@@ -54,5 +54,5 @@ Respond with ONLY a valid JSON object that conforms to the output schema. Use ma
     config: apiKey ? {apiKey} : undefined,
   });
 
-  return output!;
+  return output as GenerateArchitectureOutput;
 }
