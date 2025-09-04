@@ -35,7 +35,7 @@ export async function runGenerateArchitecture(
       error instanceof Error &&
       (error.message.includes('API key not found') ||
         error.message.includes('API key is invalid') ||
-        error.message.includes('Please check your Google AI API key'))
+        error.message.includes('Please check your LLM API key'))
     ) {
       throw new Error(
         'Failed to generate architecture: Your LLM API key is missing or invalid. Please check it in settings.'
@@ -174,3 +174,5 @@ export async function runGenerateAgentsMd(
     );
   }
 }
+
+

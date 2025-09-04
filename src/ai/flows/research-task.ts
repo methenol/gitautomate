@@ -103,7 +103,6 @@ export async function researchTask(
   model?: string,
   useTDD?: boolean
 ): Promise<ResearchTaskOutput> {
-  // LiteLLM handles provider prefix internally - user provides simple model name
   const modelName = model || 'gpt-4o';
   
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
@@ -127,5 +126,6 @@ export async function researchTask(
       'An unexpected response was received from the server.'
     );
   }
+  
   return output as ResearchTaskOutput;
 }

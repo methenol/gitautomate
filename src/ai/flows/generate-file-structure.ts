@@ -1,15 +1,15 @@
 'use server';
 
 /**
- * @fileOverview LiteLLM flow for generating a proposed file/folder structure for a software project.
+ * @fileOverview Genkit flow for generating a proposed file/folder structure for a software project.
  *
  * - generateFileStructure - Generates a comprehensive, human-editable file/folder structure based on PRD, architecture, and specifications.
  * - GenerateFileStructureInput - Input type: { prd: string, architecture: string, specifications: string }
  * - GenerateFileStructureOutput - Output type: { fileStructure: string }
  */
 
-import { ai } from '@/ai/litellm';
-import { z } from 'zod';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
 
 const GenerateFileStructureInputSchema = z.object({
   prd: z
@@ -63,7 +63,6 @@ export async function generateFileStructure(
   apiKey?: string,
   model?: string
 ): Promise<GenerateFileStructureOutput> {
-  // LiteLLM handles provider prefix internally - user provides simple model name
   const modelName = model || 'gpt-4o';
 
   const prompt = fileStructurePrompt
@@ -85,5 +84,6 @@ export async function generateFileStructure(
       'An unexpected response was received from the server.'
     );
   }
+  
   return output as GenerateFileStructureOutput;
 }

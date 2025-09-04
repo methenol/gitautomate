@@ -50,6 +50,11 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -57,10 +62,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
 import {
   Bot,
   ChevronRight,
@@ -84,9 +85,9 @@ import { Label } from '@/components/ui/label';
 
 const settingsSchema = z.object({
   githubToken: z.string().optional(),
-  llmModel: z.string().default('gpt-4o'), // User inputs provider/model like "gpt-4o" or "claude-3-haiku"
-  llmApiKey: z.string().optional(), // Optional API key (can use env vars)
-  llmApiBase: z.string().optional(), // Custom endpoint URL for self-hosted
+  llmModel: z.string().optional(),
+  apiKey: z.string().optional(),
+  apiBase: z.string().optional(),
   useTDD: z.boolean().default(false),
 });
 
@@ -99,7 +100,6 @@ type LoadingStates = {
   researching: boolean;
   issue: boolean;
   exporting: boolean;
-  models: boolean;
 };
 
 type TaskLoadingStates = {
@@ -113,14 +113,14 @@ const LOCAL_MODE_REPO: Repository = {
   name: 'Local Mode (Export Only)',
   full_name: LOCAL_MODE_REPO_ID,
 };
-const UI_DEFAULT_MODEL = 'gpt-4o';
+
 
 export default function Home() {
   const { toast } = useToast();
   const [githubToken, setGithubToken] = useState<string>('');
-  const [llmModel, setLlmModel] = useState<string>(UI_DEFAULT_MODEL);
-  const [llmApiKey, setLlmApiKey] = useState<string>('');
-  const [llmApiBase, setLlmApiBase] = useState<string>('');
+  const [llmModel, setLlmModel] = useState<string>('');
+  const [apiKey, setApiKey] = useState<string>('');
+  const [apiBase, setApiBase] = useState<string>('');
   const [useTDD, setUseTDD] = useState<boolean>(false);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -145,7 +145,6 @@ export default function Home() {
     researching: false,
     issue: false,
     exporting: false,
-    models: false,
   });
   
   const [taskLoading, setTaskLoading] = useState<TaskLoadingStates>({});
@@ -154,32 +153,33 @@ export default function Home() {
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       githubToken: '',
-      llmModel: UI_DEFAULT_MODEL,
-      llmApiKey: '',
-      llmApiBase: '',
+      llmModel: '',
+      apiKey: '',
+      apiBase: '',
       useTDD: false,
     },
   });
 
-  // Load settings from localStorage on component mount
+
+
 
   useEffect(() => {
     const storedToken = localStorage.getItem('githubToken') || '';
-    const storedLlmModel = localStorage.getItem('llmModel') || UI_DEFAULT_MODEL;
-    const storedLlmApiKey = localStorage.getItem('llmApiKey') || '';
-    const storedLlmApiBase = localStorage.getItem('llmApiBase') || '';
+    const storedLlmModel = localStorage.getItem('llmModel') || '';
+    const storedApiKey = localStorage.getItem('apiKey') || '';
+    const storedApiBase = localStorage.getItem('apiBase') || '';
     const storedTDD = localStorage.getItem('useTDD') === 'true';
 
     setGithubToken(storedToken);
     setLlmModel(storedLlmModel);
-    setLlmApiKey(storedLlmApiKey);
-    setLlmApiBase(storedLlmApiBase);
+    setApiKey(storedApiKey);
+    setApiBase(storedApiBase);
     setUseTDD(storedTDD);
 
     form.setValue('githubToken', storedToken);
     form.setValue('llmModel', storedLlmModel);
-    form.setValue('llmApiKey', storedLlmApiKey);
-    form.setValue('llmApiBase', storedLlmApiBase);
+    form.setValue('apiKey', storedApiKey);
+    form.setValue('apiBase', storedApiBase);
     form.setValue('useTDD', storedTDD);
   }, [form]);
 
@@ -212,14 +212,14 @@ export default function Home() {
     setGithubToken(values.githubToken || '');
     localStorage.setItem('githubToken', values.githubToken || '');
     
-    setLlmModel(values.llmModel);
-    localStorage.setItem('llmModel', values.llmModel);
-
-    setLlmApiKey(values.llmApiKey || '');
-    localStorage.setItem('llmApiKey', values.llmApiKey || '');
-
-    setLlmApiBase(values.llmApiBase || '');
-    localStorage.setItem('llmApiBase', values.llmApiBase || '');
+    setLlmModel(values.llmModel || '');
+    localStorage.setItem('llmModel', values.llmModel || '');
+    
+    setApiKey(values.apiKey || '');
+    localStorage.setItem('apiKey', values.apiKey || '');
+    
+    setApiBase(values.apiBase || '');
+    localStorage.setItem('apiBase', values.apiBase || '');
 
     setUseTDD(values.useTDD);
     localStorage.setItem('useTDD', values.useTDD.toString());
@@ -236,14 +236,14 @@ export default function Home() {
     setTasks([]);
     setFinalIssueURL('');
     try {
-      const result = await runGenerateArchitecture({ prd }, { apiKey: llmApiKey, model: llmModel });
+      const result = await runGenerateArchitecture({ prd }, { apiKey: apiKey, model: llmModel });
       setArchitecture(result.architecture);
       setSpecifications(result.specifications);
 
       // Automatically generate file structure after architecture/specs
       const fileStructResult = await runGenerateFileStructure(
         { prd, architecture: result.architecture, specifications: result.specifications },
-        { apiKey: llmApiKey, model: llmModel }
+        { apiKey: apiKey, model: llmModel }
       );
       setFileStructure(fileStructResult.fileStructure || '');
     } catch (error) {
@@ -264,7 +264,7 @@ export default function Home() {
     try {
       const result = await runResearchTask(
         { title: task.title, architecture, fileStructure, specifications },
-        { apiKey: llmApiKey, model: llmModel, useTDD }
+        { apiKey: apiKey, model: llmModel, useTDD }
       );
       const formattedDetails = `### Context\n${result.context}\n\n### Implementation Steps\n${result.implementationSteps}\n\n### Acceptance Criteria\n${result.acceptanceCriteria}`;
       setTasks(currentTasks =>
@@ -284,7 +284,7 @@ export default function Home() {
     } finally {
       setTaskLoading(prev => ({ ...prev, [task.title]: false }));
     }
-  }, [architecture, fileStructure, specifications, llmApiKey, llmModel, useTDD, selectedTask?.title]);
+  }, [architecture, fileStructure, specifications, apiKey, llmModel, useTDD, selectedTask?.title]);
 
 
   const handleGenerateTasks = async () => {
@@ -296,7 +296,7 @@ export default function Home() {
     try {
       const result = await runGenerateTasks(
         { architecture, specifications, fileStructure },
-        { apiKey: llmApiKey, model: llmModel, useTDD }
+        { apiKey: apiKey, model: llmModel, useTDD }
       );
       const initialTasks = result.tasks;
 
@@ -436,7 +436,7 @@ const handleExportData = async () => {
           fileStructure,
           tasks: tasks.map((task, index) => `### Task ${index + 1}: ${task.title}\n${task.details}`).join('\n\n')
         },
-        { apiKey: llmApiKey, model: llmModel }
+        { apiKey: apiKey, model: llmModel }
       );
       
       // Add AGENTS.md at the root level (not inside any subfolder)
@@ -546,10 +546,10 @@ const handleExportData = async () => {
                       <FormItem>
                         <FormLabel>LLM Model</FormLabel>
                         <FormControl>
-                          <Input placeholder="gpt-4o, claude-3-haiku, gemini-pro, etc." {...field} />
+                          <Input placeholder="openai/gpt-4o, anthropic/claude-3-haiku, etc." {...field} />
                         </FormControl>
                         <FormDescription>
-                          Enter the model name (e.g., "gpt-4o", "claude-3-haiku", "gemini-pro")
+                          Enter the provider/model in format "provider/model" (e.g., "openai/gpt-4o", "anthropic/claude-3-haiku", "gemini-pro")
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -557,7 +557,7 @@ const handleExportData = async () => {
                   />
                   <FormField
                     control={form.control}
-                    name="llmApiKey"
+                    name="apiKey"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>LLM API Key</FormLabel>
@@ -573,7 +573,7 @@ const handleExportData = async () => {
                   />
                   <FormField
                     control={form.control}
-                    name="llmApiBase"
+                    name="apiBase"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>LLM API Base URL</FormLabel>

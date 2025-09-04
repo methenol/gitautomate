@@ -64,7 +64,6 @@ Specifications:
 Generate the complete, exhaustive, and sequentially ordered list of task titles now.`;
 
 export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
-  // LiteLLM handles provider prefix internally - user provides simple model name
   const modelName = model || 'gpt-4o';
 
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
@@ -83,8 +82,9 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
     config: apiKey ? {apiKey} : undefined,
   });
   
-  if (output?.tasks) {
-    output.tasks = output.tasks.map((task: any) => ({ ...task, details: '' }));
+  const typedOutput = output as GenerateTasksOutput;
+  if (typedOutput?.tasks) {
+    typedOutput.tasks = typedOutput.tasks.map((task) => ({ ...task, details: '' }));
   }
-  return output as GenerateTasksOutput;
+  return typedOutput;
 }

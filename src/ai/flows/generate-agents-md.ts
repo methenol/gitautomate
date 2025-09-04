@@ -1,5 +1,5 @@
 /**
- * @fileOverview This file defines a LiteLLM flow for generating an AGENTS.md file with project-specific instructions for AI agents.
+ * @fileOverview This file defines a Genkit flow for generating an AGENTS.md file with project-specific instructions for AI agents.
  *
  * - generateAgentsMd - A function that takes PRD, architecture, specifications, and file structure as input and returns an AGENTS.md content.
  * - GenerateAgentsMdInput - The input type for the generateAgentsMd function, which includes project data.
@@ -52,7 +52,6 @@ export async function generateAgentsMd(
   apiKey?: string,
   model?: string
 ): Promise<GenerateAgentsMdOutput> {
-  // LiteLLM handles provider prefix internally - user provides simple model name
   const modelName = model || 'gpt-4o';
   
   const {output} = await ai.generate({
