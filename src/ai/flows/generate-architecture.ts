@@ -38,16 +38,12 @@ export async function generateArchitecture(
   model?: string,
   apiBase?: string
 ): Promise<GenerateArchitectureOutput> {
-  console.log(`[DEBUG] generateArchitecture called with model: "${model}"`);
-  console.log(`[DEBUG] Generate-architecture.ts - model parameter received: "${model}"`);
   if (!model) {
     throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
   }
-  const modelName = model;
-  console.log(`[DEBUG] Generate-architecture.ts - modelName assigned: "${modelName}"`);
   
   const {output} = await ai.generate({
-    model: modelName,
+    model: model,
     prompt: `Generate a software architecture and specifications based on the following Product Requirements Document (PRD).
 
 PRD:
@@ -63,6 +59,5 @@ Respond with ONLY a valid JSON object that conforms to the output schema. Use ma
     } : undefined,
   });
 
-  console.log(`[DEBUG] generateArchitecture completed with model: "${modelName}"`);
   return output as GenerateArchitectureOutput;
 }

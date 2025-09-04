@@ -171,7 +171,6 @@ export default function Home() {
         if (response.ok) {
           const settings = await response.json();
           
-          console.log(`[DEBUG] Loading settings from server, llmModel: "${settings.llmModel}"`);
           setGithubToken(settings.githubToken || '');
           setLlmModel(settings.llmModel || '');
           setApiKey(settings.apiKey || '');
@@ -239,7 +238,6 @@ export default function Home() {
       }
 
       // Update local state after successful save
-      console.log(`[DEBUG] Saving settings, llmModel: "${values.llmModel}"`);
       setGithubToken(values.githubToken || '');
       setLlmModel(values.llmModel || '');
       setApiKey(values.apiKey || '');
@@ -265,8 +263,6 @@ export default function Home() {
     setTasks([]);
     setFinalIssueURL('');
     try {
-      console.log(`[DEBUG] Calling runGenerateArchitecture with llmModel: "${llmModel}"`);
-      console.log(`[DEBUG] Page.tsx - model parameter being passed: "${llmModel}"`);
       const result = await runGenerateArchitecture({ prd }, { apiKey: apiKey, model: llmModel, apiBase: apiBase });
       setArchitecture(result.architecture);
       setSpecifications(result.specifications);
