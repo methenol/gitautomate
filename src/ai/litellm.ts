@@ -121,26 +121,7 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
   }
 }
 
-// Validate URL without aggressive normalization
-function validateUrl(url: string): string {
-  try {
-    // Handle empty or undefined URLs
-    if (!url || typeof url !== 'string') {
-      throw new Error('URL is required and must be a string');
-    }
-    
-    // Trim whitespace
-    url = url.trim();
-    
-    // Just validate that the URL is parseable - don't modify it
-    const urlObj = new URL(url);
-    
-    // Return the original trimmed URL, not the normalized version
-    return url;
-  } catch (error) {
-    throw new Error(`Invalid URL format: ${url}. Please provide a valid URL with protocol (e.g., "http://localhost:1234" or "https://api.example.com")`);
-  }
-}
+
 
 // Make OpenAI-compatible API call
 async function makeOpenAICall(
@@ -149,9 +130,7 @@ async function makeOpenAICall(
   apiKey: string,
   baseUrl: string
 ): Promise<string> {
-  // Validate the base URL
-  const validatedBaseUrl = validateUrl(baseUrl);
-  const fullUrl = `${validatedBaseUrl}/chat/completions`;
+  const fullUrl = `${baseUrl}/chat/completions`;
   
   console.log(`Making OpenAI API call to: ${fullUrl} with model: ${model}`);
   
@@ -185,9 +164,7 @@ async function makeAnthropicCall(
   apiKey: string,
   baseUrl: string
 ): Promise<string> {
-  // Validate the base URL
-  const validatedBaseUrl = validateUrl(baseUrl);
-  const fullUrl = `${validatedBaseUrl}/v1/messages`;
+  const fullUrl = `${baseUrl}/v1/messages`;
   
   console.log(`Making Anthropic API call to: ${fullUrl} with model: ${model}`);
   
@@ -221,9 +198,7 @@ async function makeGeminiCall(
   apiKey: string,
   baseUrl: string
 ): Promise<string> {
-  // Validate the base URL
-  const validatedBaseUrl = validateUrl(baseUrl);
-  const fullUrl = `${validatedBaseUrl}/models/${model}:generateContent?key=${apiKey}`;
+  const fullUrl = `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
   
   console.log(`Making Gemini API call to: ${fullUrl} with model: ${model}`);
   
@@ -305,9 +280,6 @@ export const ai = {
       
       // Provide more specific error messages
       if (error instanceof Error) {
-        if (error.message.includes('Invalid URL format')) {
-          throw new Error(`LLM API Error: ${error.message}`);
-        }
         if (error.message.includes('API key')) {
           throw new Error(`LLM API Error: ${error.message}`);
         }
