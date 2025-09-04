@@ -27,220 +27,44 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
     return response;
   }
 
-  console.log(`[DEBUG] Response parsing - first 200 chars:`, response.substring(0, 200));
+  console.log(`[DEBUG] Raw AI response received (first 500 chars): ${response.substring(0, 500)}...`);
 
   try {
     // Try to parse as JSON first
     const parsed = JSON.parse(response);
-    console.log(`[DEBUG] Direct JSON parsing successful`);
+    console.log(`[DEBUG] Successfully parsed as direct JSON:`, parsed);
     return schema.parse(parsed);
   } catch (jsonError) {
-    console.log(`[DEBUG] Direct JSON parsing failed:`, jsonError.message);
+    console.log(`[DEBUG] Direct JSON parsing failed, trying markdown extraction`);
     
-    // Detect if this is a fileStructure-only schema by testing what fields are required
-    let shapeKeys: string[] = [];
-    let isFileStructureSchema = false;
-    
-    try {
-      // Method 1: Direct schema shape inspection
-      if (schema && (schema as any)._def?.shape) {
-        shapeKeys = Object.keys((schema as any)._def.shape);
-        isFileStructureSchema = shapeKeys.includes('fileStructure') && shapeKeys.length === 1;
-      }
-      
-      // Method 2: Test parsing to see what fields are required
-      if (!isFileStructureSchema && schema) {
-        const testParse = schema.safeParse({});
-        if (!testParse.success && testParse.error?.issues) {
-          const requiredFields = testParse.error.issues
-            .filter(issue => issue.code === 'invalid_type' && issue.message === 'Required')
-            .map(issue => issue.path[0])
-            .filter(Boolean) as string[];
-          
-          shapeKeys = requiredFields;
-          isFileStructureSchema = requiredFields.includes('fileStructure') && requiredFields.length === 1;
-        }
-      }
-    } catch (e) {
-      console.log(`[DEBUG] Schema introspection failed:`, e);
-    }
-    
-    console.log(`[DEBUG] Detected schema keys:`, shapeKeys);
-    console.log(`[DEBUG] Is fileStructure schema:`, isFileStructureSchema);
-    
-    // Check if response looks like a file structure (directory tree)
-    const looksLikeFileStructureResponse = response.includes('```markdown') || 
-                                          response.includes('project-root/') ||
-                                          response.includes('├─') || 
-                                          response.includes('└─') ||
-                                          response.includes('│') ||
-                                          response.includes('├') ||
-                                          response.includes('└') ||
-                                          response.includes('│') ||
-                                          /^[a-zA-Z0-9-_]+\/\s*$/m.test(response);
-    
-    console.log(`[DEBUG] Looks like file structure response:`, looksLikeFileStructureResponse);
-    
-    // Handle fileStructure responses - if it's a fileStructure schema OR looks like a file structure
-    if (isFileStructureSchema || looksLikeFileStructureResponse) {
-      console.log(`[DEBUG] Processing fileStructure response`);
-      
-      let fileStructureContent = '';
-      
-      // Try to extract from markdown code blocks first - fix the regex to properly handle language identifiers
-      const markdownBlockPatterns = [
-        /```(?:markdown|text|bash|tree)\s*\n([\s\S]*?)\n?```/,  // Language specified
-        /```\s*\n([\s\S]*?)\n?```/,  // No language specified
-        /```([\s\S]*?)```/  // Simple fallback
-      ];
-      
-      for (const pattern of markdownBlockPatterns) {
-        const match = response.match(pattern);
-        if (match) {
-          console.log(`[DEBUG] Found markdown code block with pattern`);
-          fileStructureContent = match[1].trim();
-          // Remove any remaining language identifiers that might have been captured
-          if (fileStructureContent.startsWith('markdown\n') || fileStructureContent.startsWith('text\n') || 
-              fileStructureContent.startsWith('bash\n') || fileStructureContent.startsWith('tree\n')) {
-            fileStructureContent = fileStructureContent.split('\n').slice(1).join('\n').trim();
-          }
-          break;
-        }
-      }
-      
-      // If no code block found, clean up any stray markdown markers and use the response directly
-      if (!fileStructureContent) {
-        console.log(`[DEBUG] No markdown code block found, cleaning response`);
-        fileStructureContent = response
-          .replace(/^```\w*\s*\n?/, '')  // Remove opening code block with optional language
-          .replace(/\n?```$/, '')       // Remove closing code block  
-          .trim();
-      }
-      
-      console.log(`[DEBUG] Extracted fileStructure content (first 100 chars):`, fileStructureContent.substring(0, 100));
-      
-      if (fileStructureContent && fileStructureContent.length > 0) {
-        console.log(`[DEBUG] Parsing fileStructure with schema`);
-        return schema.parse({ fileStructure: fileStructureContent });
-      } else {
-        console.log(`[DEBUG] No fileStructure content found, using response as-is`);
-        return schema.parse({ fileStructure: response.trim() });
-      }
-    }
-    
-    // Try to extract JSON from markdown code blocks - improved regex to handle various formats
-    const jsonBlockMatches = [
-      /```(?:json)?\s*\n?([\s\S]*?)\n?```/,
-      /```(?:json)?\s*([\s\S]*?)```/,
-      /`{3,}(?:json)?\s*\n?([\s\S]*?)\n?`{3,}/
-    ];
-    
-    for (const regex of jsonBlockMatches) {
-      const match = response.match(regex);
-      if (match) {
-        try {
-          const cleaned = match[1].trim();
-          console.log(`[DEBUG] Markdown JSON parsing attempt:`, cleaned.substring(0, 100));
-          const parsed = JSON.parse(cleaned);
-          console.log(`[DEBUG] Markdown JSON parsing successful`);
-          return schema.parse(parsed);
-        } catch (markdownError) {
-          console.log(`[DEBUG] Markdown JSON parsing failed:`, markdownError.message);
-          continue; // Try next pattern
-        }
-      }
-    }
-    
-    // Try to find JSON object with better boundary detection
-    const jsonObjectMatches = [
-      /\{[\s\S]*\}(?=\s*$|```|$)/,  // JSON that ends at string end or before ```
-      /\{[^{]*"architecture"[\s\S]*?"specifications"[\s\S]*?\}/,  // More specific for our schema
-      /\{[^{]*"fileStructure"[\s\S]*?\}/,  // Specific for file structure schema
-      /\{[\s\S]*?\}(?=\s*\n\s*```|$)/,  // JSON that ends before closing ```
-      /\{[\s\S]*\}/  // Fallback greedy match
-    ];
-    
-    for (const regex of jsonObjectMatches) {
-      const match = response.match(regex);
-      if (match) {
-        try {
-          console.log(`[DEBUG] JSON object extraction attempt:`, match[0].substring(0, 100));
-          const parsed = JSON.parse(match[0]);
-          console.log(`[DEBUG] JSON object extraction successful`);
-          return schema.parse(parsed);
-        } catch (extractError) {
-          console.log(`[DEBUG] JSON object extraction failed:`, extractError.message);
-          continue; // Try next pattern
-        }
+    // If JSON parsing fails, try to extract JSON from markdown code blocks
+    const jsonMatch = response.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[1]);
+        console.log(`[DEBUG] Successfully parsed JSON from markdown block:`, parsed);
+        return schema.parse(parsed);
+      } catch (markdownError) {
+        console.log(`[DEBUG] Markdown JSON parsing failed, falling back to text parsing`);
+        // Fall through to create structured response
       }
     }
     
     // As last resort, try to create a structured response based on common patterns
-    if ((schema as any)._def?.shape) {
+    if ((schema as any)._def.shape) {
       const result: any = {};
       const shapeKeys = Object.keys((schema as any)._def.shape);
       console.log(`[DEBUG] Creating structured response for required keys:`, shapeKeys);
       
       if (shapeKeys.includes('architecture') && shapeKeys.includes('specifications')) {
-        // Architecture generation response - use improved regex matching for JSON fields
-        const regexPatterns = [
-          [/"architecture"\s*:\s*"((?:[^"\\]|\\.)*)"/s, /"specifications"\s*:\s*"((?:[^"\\]|\\.)*)"/s],
-          [/"architecture"\s*:\s*`([^`]*)`/s, /"specifications"\s*:\s*`([^`]*)`/s],
-          [/architecture['"]\s*:\s*['"]([^'"]*)['"]/si, /specifications['"]\s*:\s*['"]([^'"]*)['"]/si]
-        ];
+        // Architecture generation response - use regex matching
+        const archMatch = response.match(/(?:architecture|Architecture)([\s\S]*?)(?:specification|Specification|$)/i);
+        const specMatch = response.match(/(?:specification|Specification)([\s\S]*?)$/i);
         
-        for (const [archPattern, specPattern] of regexPatterns) {
-          const archMatch = response.match(archPattern);
-          const specMatch = response.match(specPattern);
-          
-          if (archMatch && specMatch) {
-            result.architecture = archMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\t/g, '\t');
-            result.specifications = specMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\t/g, '\t');
-            break;
-          }
-        }
+        result.architecture = archMatch ? archMatch[1].trim() : response;
+        result.specifications = specMatch ? specMatch[1].trim() : 'Please refer to the architecture above.';
         
-        // If regex patterns fail, try line-by-line parsing
-        if (!result.architecture || !result.specifications) {
-          const lines = response.split('\n');
-          let currentField = '';
-          let currentContent = '';
-          
-          for (const line of lines) {
-            if (line.includes('"architecture"') || line.toLowerCase().includes('architecture')) {
-              if (currentField && currentContent) {
-                result[currentField] = currentContent.trim();
-              }
-              currentField = 'architecture';
-              currentContent = '';
-            } else if (line.includes('"specifications"') || line.toLowerCase().includes('specifications')) {
-              if (currentField && currentContent) {
-                result[currentField] = currentContent.trim();
-              }
-              currentField = 'specifications';
-              currentContent = '';
-            } else if (currentField) {
-              currentContent += line + '\n';
-            }
-          }
-          
-          // Add the last field
-          if (currentField && currentContent) {
-            result[currentField] = currentContent.trim();
-          }
-        }
-        
-        // Final fallback if we still don't have both fields
-        if (!result.architecture) {
-          result.architecture = 'Architecture information extracted from response.';
-        }
-        if (!result.specifications) {
-          result.specifications = 'Specifications information extracted from response.';
-        }
-      } else if (shapeKeys.includes('fileStructure')) {
-        // File structure generation response - this should have been handled above already
-        console.log(`[DEBUG] WARNING: fileStructure processing reached fallback section - this should not happen`);
-        result.fileStructure = response.trim() || 'Unable to extract file structure from response.';
+        console.log(`[DEBUG] Extracted architecture length: ${result.architecture.length}, specifications length: ${result.specifications.length}`);
       } else if (shapeKeys.includes('tasks')) {
         // Task generation response - try to extract task list
         const lines = response.split('\n').filter(line => line.trim());
@@ -252,22 +76,61 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
           }));
         
         result.tasks = tasks.length > 0 ? tasks : [{ title: response.substring(0, 100), details: '' }];
+        console.log(`[DEBUG] Extracted ${result.tasks.length} tasks`);
+      } else if (shapeKeys.includes('fileStructure')) {
+        // File structure generation response - extract from markdown code blocks or direct tree
+        let fileStructureContent = '';
+        
+        // Try to extract from markdown code blocks with common language identifiers
+        const markdownMatch = response.match(/```(?:markdown|text|bash|tree)?\s*\n?([\s\S]*?)\n?```/);
+        if (markdownMatch) {
+          fileStructureContent = markdownMatch[1].trim();
+          console.log(`[DEBUG] Extracted fileStructure from markdown block, length: ${fileStructureContent.length}`);
+        } else {
+          // If no code block, look for tree-like structures directly in response
+          const lines = response.split('\n');
+          const treeLines = lines.filter(line => 
+            line.includes('├') || line.includes('└') || line.includes('│') ||
+            line.match(/^[a-zA-Z0-9-_.]+\/\s*$/) || 
+            line.match(/^\s*[a-zA-Z0-9-_.]+\.(js|ts|tsx|jsx|py|html|css|md|json|yml|yaml)/)
+          );
+          
+          if (treeLines.length > 0) {
+            fileStructureContent = treeLines.join('\n');
+            console.log(`[DEBUG] Extracted fileStructure from tree lines, count: ${treeLines.length}`);
+          } else {
+            // Fallback to using the entire response
+            fileStructureContent = response.trim();
+            console.log(`[DEBUG] Using entire response as fileStructure, length: ${fileStructureContent.length}`);
+          }
+        }
+        
+        result.fileStructure = fileStructureContent || 'Unable to extract file structure from response.';
+        console.log(`[DEBUG] Final fileStructure length: ${result.fileStructure.length}`);
+      } else if (shapeKeys.includes('context') && shapeKeys.includes('implementationSteps') && shapeKeys.includes('acceptanceCriteria')) {
+        // Research task response - extract the three fields
+        const contextMatch = response.match(/(?:context|Context)['":\s]*([\s\S]*?)(?:implementation|Implementation|acceptance|Acceptance|$)/i);
+        const implementationMatch = response.match(/(?:implementation|Implementation)[^:]*[:\s]*([\s\S]*?)(?:acceptance|Acceptance|$)/i);
+        const acceptanceMatch = response.match(/(?:acceptance|Acceptance)[^:]*[:\s]*([\s\S]*?)$/i);
+        
+        result.context = contextMatch ? contextMatch[1].trim() : 'Context information extracted from response.';
+        result.implementationSteps = implementationMatch ? implementationMatch[1].trim() : 'Implementation steps extracted from response.';
+        result.acceptanceCriteria = acceptanceMatch ? acceptanceMatch[1].trim() : 'Acceptance criteria extracted from response.';
+        
+        console.log(`[DEBUG] Extracted research task - context: ${result.context.length}, implementation: ${result.implementationSteps.length}, acceptance: ${result.acceptanceCriteria.length}`);
       } else {
         // Generic response - use the first shape key as the response field
         const firstKey = shapeKeys[0];
-        console.log(`[DEBUG] Using generic parsing with key:`, firstKey);
         result[firstKey] = response;
+        console.log(`[DEBUG] Using generic parsing with key: ${firstKey}`);
       }
       
-      console.log(`[DEBUG] Final structured result before validation:`, Object.keys(result).reduce((acc, key) => {
-        acc[key] = typeof result[key] === 'string' ? result[key].substring(0, 100) + '...' : result[key];
-        return acc;
-      }, {} as any));
-      
+      console.log(`[DEBUG] Final structured result before validation:`, result);
       return schema.parse(result);
     }
     
     // If all else fails, return the raw response
+    console.error(`[DEBUG] All parsing methods failed for response: ${response.substring(0, 200)}...`);
     throw new Error(`Failed to parse response into expected schema: ${response.substring(0, 200)}...`);
   }
 }
