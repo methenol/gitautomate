@@ -154,12 +154,12 @@ function validateAndSanitizeUrl(baseUrl: string): string {
         hostname.startsWith('fe80:')) {
       // Allow localhost only for development purposes
       if (process.env.NODE_ENV === 'development') {
-        return url.origin;
+        return baseUrl; // Preserve full URL including path for local development
       }
       throw new Error('Access to private networks is not allowed');
     }
     
-    return url.origin;
+    return baseUrl; // Preserve full URL including path
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`Invalid URL: ${error.message}`);
