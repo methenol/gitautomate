@@ -196,7 +196,7 @@ class LiteLLMProvider {
     };
   }
 
-  async generate(params: GenerateParams): Promise<{ output: unknown }> {
+  async generate<TOutput>(params: GenerateParams): Promise<{ output: TOutput }> {
     const { model, prompt, output, config, temperature, maxTokens } = params;
     
     const { provider, actualModel } = this.getProviderFromModel(model);
@@ -251,7 +251,7 @@ class LiteLLMProvider {
       }
     }
 
-    return { output: parsedOutput };
+    return { output: parsedOutput as TOutput };
   }
 
   // Flow definition method (compatible with existing code)

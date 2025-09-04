@@ -40,7 +40,7 @@ export async function generateArchitecture(
   // Use model directly without provider prefix - let LiteLLM handle provider detection
   const modelName = model || 'gpt-4o';
   
-  const { output } = await ai.generate({
+  const { output } = await ai.generate<GenerateArchitectureOutput>({
     model: modelName,
     prompt: `Generate a software architecture and specifications based on the following Product Requirements Document (PRD).
 

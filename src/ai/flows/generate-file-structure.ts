@@ -71,7 +71,7 @@ export async function generateFileStructure(
     .replace('{{{architecture}}}', input.architecture)
     .replace('{{{specifications}}}', input.specifications);
 
-  const { output } = await ai.generate({
+  const { output } = await ai.generate<GenerateFileStructureOutput>({
     model: modelName,
     prompt: prompt,
     output: {

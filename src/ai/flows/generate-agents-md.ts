@@ -55,7 +55,7 @@ export async function generateAgentsMd(
   // Use model directly without provider prefix
   const modelName = model || 'gpt-4o';
   
-  const {output} = await ai.generate({
+  const {output} = await ai.generate<GenerateAgentsMdOutput>({
     model: modelName,
     prompt: `Generate an AGENTS.md file with project-specific instructions for AI agents working on the following software project.
 

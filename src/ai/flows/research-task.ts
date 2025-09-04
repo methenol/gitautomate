@@ -113,7 +113,7 @@ export async function researchTask(
     .replace('{{{specifications}}}', input.specifications)
     .replace('{{{title}}}', input.title);
 
-  const {output} = await ai.generate({
+  const {output} = await ai.generate<ResearchTaskOutput>({
     model: modelName,
     prompt: prompt,
     output: {

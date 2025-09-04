@@ -74,7 +74,7 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
     .replace('{{{fileStructure}}}', input.fileStructure)
     .replace('{{{specifications}}}', input.specifications);
 
-  const {output} = await ai.generate({
+  const {output} = await ai.generate<GenerateTasksOutput>({
     model: modelName,
     prompt: prompt,
     output: {
