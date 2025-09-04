@@ -21,7 +21,8 @@ const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || DEFAULT_KEY;
 
 function encrypt(text: string): string {
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipherGCM('aes-256-gcm', Buffer.from(ENCRYPTION_KEY, 'hex').slice(0, 32), iv);
+  const key = Buffer.from(ENCRYPTION_KEY, 'hex').slice(0, 32);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
   let encrypted = cipher.update(text, 'utf8', 'hex');
   encrypted += cipher.final('hex');
   const authTag = cipher.getAuthTag();
@@ -37,7 +38,8 @@ function decrypt(encrypted: string): string {
         const iv = Buffer.from(parts[0], 'hex');
         const authTag = Buffer.from(parts[1], 'hex');
         const encryptedData = parts[2];
-        const decipher = crypto.createDecipherGCM('aes-256-gcm', Buffer.from(ENCRYPTION_KEY, 'hex').slice(0, 32), iv);
+        const key = Buffer.from(ENCRYPTION_KEY, 'hex').slice(0, 32);
+        const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
         decipher.setAuthTag(authTag);
         let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
         decrypted += decipher.final('utf8');
@@ -45,14 +47,13 @@ function decrypt(encrypted: string): string {
       }
     }
     
-    // Fallback to old format for backward compatibility
-    const decipher = crypto.createDecipher('aes256', ENCRYPTION_KEY);
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
+    // If old format, return empty string to force re-entry
+    console.log('Old format detected, clearing corrupted settings');
+    return '';
   } catch (error) {
     console.error('Failed to decrypt data:', error);
-    throw new Error('Failed to decrypt settings data');
+    // Return empty string to allow user to re-enter settings
+    return '';
   }
 }
 
@@ -66,15 +67,18 @@ async function readSettings(): Promise<Settings> {
     
     // Decrypt sensitive fields
     if (settings.apiKey) {
-      settings.apiKey = decrypt(settings.apiKey);
+      const decrypted = decrypt(settings.apiKey);
+      settings.apiKey = decrypted || undefined; // Clear if decryption failed
     }
     if (settings.githubToken) {
-      settings.githubToken = decrypt(settings.githubToken);
+      const decrypted = decrypt(settings.githubToken);
+      settings.githubToken = decrypted || undefined; // Clear if decryption failed
     }
     
     return settings;
-  } catch (error) {
-    // Return empty settings if file doesn't exist
+  } catch {
+    // Return empty settings if file doesn't exist or is corrupted
+    console.log('Settings file not found or corrupted, returning empty settings');
     return {};
   }
 }
