@@ -33,7 +33,7 @@ const GenerateAgentsMdInputSchema = z.object({
   tasks: z
     .string()
     .describe(
-      'The list of generated tasks to infer development patterns and conventions.'
+      'The list of task titles to understand the scope and patterns of development work.'
     ),
 });
 export type GenerateAgentsMdInput = z.infer<
@@ -76,7 +76,7 @@ ${input.specifications}
 File Structure:
 ${input.fileStructure}
 
-Tasks:
+Tasks (titles only):
 ${input.tasks}
 
 The AGENTS.md file should be 20-50 lines and include:
@@ -86,8 +86,8 @@ The AGENTS.md file should be 20-50 lines and include:
 3. **Project Structure**: Outline key directories and their roles based on file structure
 4. **Setup Instructions**: How to start the project from the file structure
 5. **Testing Guidelines**: Testing approach mentioned in specs or architecture  
-6. **Key Conventions**: Important patterns and conventions used
-7. **Development Rules**: General rules for the project
+6. **Key Conventions**: Important patterns and conventions inferred from project structure and task titles
+7. **Development Rules**: General rules for the project based on architecture and specifications
 
 Content should be concise but comprehensive, providing valuable guidance for AI coding assistants. Use clear markdown formatting with appropriate section headers.`,
     output: {
