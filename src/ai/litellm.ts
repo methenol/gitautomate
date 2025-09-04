@@ -27,11 +27,15 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
     return response;
   }
 
+  console.log(`[DEBUG] Response parsing - first 200 chars:`, response.substring(0, 200));
+
   try {
     // Try to parse as JSON first
     const parsed = JSON.parse(response);
+    console.log(`[DEBUG] Direct JSON parsing successful`);
     return schema.parse(parsed);
   } catch (jsonError) {
+    console.log(`[DEBUG] Direct JSON parsing failed:`, jsonError.message);
     
     // Try to extract JSON from markdown code blocks - improved regex to handle various formats
     const jsonBlockMatches = [
@@ -45,9 +49,12 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
       if (match) {
         try {
           const cleaned = match[1].trim();
+          console.log(`[DEBUG] Markdown JSON parsing attempt:`, cleaned.substring(0, 100));
           const parsed = JSON.parse(cleaned);
+          console.log(`[DEBUG] Markdown JSON parsing successful`);
           return schema.parse(parsed);
         } catch (markdownError) {
+          console.log(`[DEBUG] Markdown JSON parsing failed:`, markdownError.message);
           continue; // Try next pattern
         }
       }
@@ -57,6 +64,7 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
     const jsonObjectMatches = [
       /\{[\s\S]*\}(?=\s*$|```|$)/,  // JSON that ends at string end or before ```
       /\{[^{]*"architecture"[\s\S]*?"specifications"[\s\S]*?\}/,  // More specific for our schema
+      /\{[^{]*"fileStructure"[\s\S]*?\}/,  // Specific for file structure schema
       /\{[\s\S]*?\}(?=\s*\n\s*```|$)/,  // JSON that ends before closing ```
       /\{[\s\S]*\}/  // Fallback greedy match
     ];
@@ -65,9 +73,12 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
       const match = response.match(regex);
       if (match) {
         try {
+          console.log(`[DEBUG] JSON object extraction attempt:`, match[0].substring(0, 100));
           const parsed = JSON.parse(match[0]);
+          console.log(`[DEBUG] JSON object extraction successful`);
           return schema.parse(parsed);
         } catch (extractError) {
+          console.log(`[DEBUG] JSON object extraction failed:`, extractError.message);
           continue; // Try next pattern
         }
       }
@@ -77,6 +88,7 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
     if ((schema as any)._def?.shape) {
       const result: any = {};
       const shapeKeys = Object.keys((schema as any)._def.shape);
+      console.log(`[DEBUG] Creating structured response for required keys:`, shapeKeys);
       
       if (shapeKeys.includes('architecture') && shapeKeys.includes('specifications')) {
         // Architecture generation response - use improved regex matching for JSON fields
@@ -136,18 +148,19 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
         }
       } else if (shapeKeys.includes('fileStructure')) {
         // File structure generation response - extract the file structure content
+        console.log(`[DEBUG] Processing fileStructure response - full response:`, response);
+        
         const fileStructurePatterns = [
           /"fileStructure"\s*:\s*"((?:[^"\\]|\\.)*)"/s,
           /"fileStructure"\s*:\s*`([^`]*)`/s,
           /fileStructure['"]\s*:\s*['"]([^'"]*)['"]/si,
-          /```[\s\S]*?```/g, // Extract code blocks as potential file structure
-          /^\s*[\w-]+\/?\s*$/m // Look for directory/file patterns
         ];
         
-        // Try regex patterns first
-        for (const pattern of fileStructurePatterns.slice(0, 3)) {
+        // Try regex patterns first to find explicit fileStructure field
+        for (const pattern of fileStructurePatterns) {
           const match = response.match(pattern);
           if (match) {
+            console.log(`[DEBUG] Found fileStructure field with regex:`, match[1].substring(0, 100));
             result.fileStructure = match[1]
               .replace(/\\n/g, '\n')
               .replace(/\\"/g, '"')
@@ -158,35 +171,65 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
         
         // If no specific field match, look for code blocks or tree structures
         if (!result.fileStructure) {
-          const codeBlockMatch = response.match(/```[\s\S]*?```/);
-          if (codeBlockMatch) {
-            result.fileStructure = codeBlockMatch[0]
+          console.log(`[DEBUG] No explicit fileStructure field found, looking for code blocks`);
+          
+          // Look for code blocks that might contain file structure
+          const codeBlockRegex = /```[\s\S]*?```/g;
+          const codeBlocks = response.match(codeBlockRegex);
+          
+          if (codeBlocks && codeBlocks.length > 0) {
+            // Use the first (or largest) code block as file structure
+            let bestBlock = codeBlocks[0];
+            for (const block of codeBlocks) {
+              if (block.length > bestBlock.length) {
+                bestBlock = block;
+              }
+            }
+            
+            result.fileStructure = bestBlock
               .replace(/^```[a-zA-Z]*\s*/, '')
               .replace(/```$/, '')
               .trim();
+            
+            console.log(`[DEBUG] Using code block as fileStructure:`, result.fileStructure.substring(0, 100));
           } else {
             // Look for tree-like structures in the response
+            console.log(`[DEBUG] No code blocks found, looking for tree structures`);
             const lines = response.split('\n');
-            const treeLines = lines.filter(line => 
-              line.match(/^\s*[\w.-]+\/?\s*$/) || 
-              line.match(/^\s*[├└│]\s*[\w.-]+/) ||
-              line.match(/^\s*[\w.-]+\/$/) ||
-              line.includes('  ') && line.match(/[\w.-]+\.(js|ts|json|md|css|html|py|java|cpp|go|rs)$/)
-            );
+            const treeLines = lines.filter(line => {
+              const trimmed = line.trim();
+              return trimmed && (
+                trimmed.match(/^[\w.-]+\/?\s*$/) || 
+                trimmed.match(/^\s*[├└│]\s*[\w.-]+/) ||
+                trimmed.match(/^\s*[\w.-]+\/$/) ||
+                (trimmed.includes('  ') && trimmed.match(/[\w.-]+\.(js|ts|json|md|css|html|py|java|cpp|go|rs)$/)) ||
+                trimmed.match(/^\s*[\w.-]+\.[\w]+\s*$/) ||
+                trimmed.match(/^\s+[\w.-]+/)
+              );
+            });
             
             if (treeLines.length > 0) {
               result.fileStructure = treeLines.join('\n');
+              console.log(`[DEBUG] Using tree structure lines as fileStructure:`, result.fileStructure.substring(0, 100));
             } else {
-              // Fallback - use the entire response as file structure
-              result.fileStructure = response.trim();
+              // Final fallback - use the entire response after cleaning
+              console.log(`[DEBUG] No tree structure found, using full response`);
+              result.fileStructure = response
+                .replace(/```[a-zA-Z]*\s*/g, '')
+                .replace(/```/g, '')
+                .trim();
             }
           }
         }
         
-        // Ensure we have some content
+        // Ensure we have some content - this is critical
         if (!result.fileStructure || result.fileStructure.trim().length === 0) {
-          result.fileStructure = 'File structure information extracted from response.';
+          console.log(`[DEBUG] WARNING: fileStructure is empty, using fallback`);
+          result.fileStructure = response.trim() || 'Unable to extract file structure from response.';
         }
+        
+        console.log(`[DEBUG] Final fileStructure length:`, result.fileStructure.length);
+        console.log(`[DEBUG] Final fileStructure preview:`, result.fileStructure.substring(0, 200));
       } else if (shapeKeys.includes('tasks')) {
         // Task generation response - try to extract task list
         const lines = response.split('\n').filter(line => line.trim());
@@ -201,8 +244,14 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
       } else {
         // Generic response - use the first shape key as the response field
         const firstKey = shapeKeys[0];
+        console.log(`[DEBUG] Using generic parsing with key:`, firstKey);
         result[firstKey] = response;
       }
+      
+      console.log(`[DEBUG] Final structured result before validation:`, Object.keys(result).reduce((acc, key) => {
+        acc[key] = typeof result[key] === 'string' ? result[key].substring(0, 100) + '...' : result[key];
+        return acc;
+      }, {} as any));
       
       return schema.parse(result);
     }
