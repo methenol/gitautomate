@@ -134,6 +134,59 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
         if (!result.specifications) {
           result.specifications = 'Specifications information extracted from response.';
         }
+      } else if (shapeKeys.includes('fileStructure')) {
+        // File structure generation response - extract the file structure content
+        const fileStructurePatterns = [
+          /"fileStructure"\s*:\s*"((?:[^"\\]|\\.)*)"/s,
+          /"fileStructure"\s*:\s*`([^`]*)`/s,
+          /fileStructure['"]\s*:\s*['"]([^'"]*)['"]/si,
+          /```[\s\S]*?```/g, // Extract code blocks as potential file structure
+          /^\s*[\w-]+\/?\s*$/m // Look for directory/file patterns
+        ];
+        
+        // Try regex patterns first
+        for (const pattern of fileStructurePatterns.slice(0, 3)) {
+          const match = response.match(pattern);
+          if (match) {
+            result.fileStructure = match[1]
+              .replace(/\\n/g, '\n')
+              .replace(/\\"/g, '"')
+              .replace(/\\t/g, '\t');
+            break;
+          }
+        }
+        
+        // If no specific field match, look for code blocks or tree structures
+        if (!result.fileStructure) {
+          const codeBlockMatch = response.match(/```[\s\S]*?```/);
+          if (codeBlockMatch) {
+            result.fileStructure = codeBlockMatch[0]
+              .replace(/^```[a-zA-Z]*\s*/, '')
+              .replace(/```$/, '')
+              .trim();
+          } else {
+            // Look for tree-like structures in the response
+            const lines = response.split('\n');
+            const treeLines = lines.filter(line => 
+              line.match(/^\s*[\w.-]+\/?\s*$/) || 
+              line.match(/^\s*[├└│]\s*[\w.-]+/) ||
+              line.match(/^\s*[\w.-]+\/$/) ||
+              line.includes('  ') && line.match(/[\w.-]+\.(js|ts|json|md|css|html|py|java|cpp|go|rs)$/)
+            );
+            
+            if (treeLines.length > 0) {
+              result.fileStructure = treeLines.join('\n');
+            } else {
+              // Fallback - use the entire response as file structure
+              result.fileStructure = response.trim();
+            }
+          }
+        }
+        
+        // Ensure we have some content
+        if (!result.fileStructure || result.fileStructure.trim().length === 0) {
+          result.fileStructure = 'File structure information extracted from response.';
+        }
       } else if (shapeKeys.includes('tasks')) {
         // Task generation response - try to extract task list
         const lines = response.split('\n').filter(line => line.trim());
