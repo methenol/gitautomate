@@ -71,7 +71,7 @@ CRITICAL: The specifications MUST be comprehensive and standalone - they should 
 PRD:
 ${input.prd}
 
-Respond with ONLY a valid JSON object that conforms to the output schema. Use markdown formatting for both the "architecture" and "specifications" fields.`,
+Respond with ONLY a valid JSON object that conforms to the output schema. Use markdown formatting for both the "architecture" and "specifications" fields. Both fields must be included, each field must contain all required content for that section.`,
     output: {
       schema: GenerateArchitectureOutputSchema,
     },
