@@ -121,6 +121,32 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
   }
 }
 
+// Validate and normalize URL
+function validateAndNormalizeUrl(url: string): string {
+  try {
+    // Handle empty or undefined URLs
+    if (!url || typeof url !== 'string') {
+      throw new Error('URL is required and must be a string');
+    }
+    
+    // Trim whitespace
+    url = url.trim();
+    
+    // Add protocol if missing
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `https://${url}`;
+    }
+    
+    // Validate URL format
+    const urlObj = new URL(url);
+    
+    // Remove trailing slash for consistency
+    return urlObj.href.replace(/\/$/, '');
+  } catch (error) {
+    throw new Error(`Invalid URL format: ${url}. Please provide a valid URL (e.g., "http://localhost:1234" or "https://api.example.com")`);
+  }
+}
+
 // Make OpenAI-compatible API call
 async function makeOpenAICall(
   model: string,
@@ -128,7 +154,13 @@ async function makeOpenAICall(
   apiKey: string,
   baseUrl: string
 ): Promise<string> {
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  // Validate and normalize the base URL
+  const normalizedBaseUrl = validateAndNormalizeUrl(baseUrl);
+  const fullUrl = `${normalizedBaseUrl}/chat/completions`;
+  
+  console.log(`Making OpenAI API call to: ${fullUrl} with model: ${model}`);
+  
+  const response = await fetch(fullUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -158,7 +190,13 @@ async function makeAnthropicCall(
   apiKey: string,
   baseUrl: string
 ): Promise<string> {
-  const response = await fetch(`${baseUrl}/v1/messages`, {
+  // Validate and normalize the base URL
+  const normalizedBaseUrl = validateAndNormalizeUrl(baseUrl);
+  const fullUrl = `${normalizedBaseUrl}/v1/messages`;
+  
+  console.log(`Making Anthropic API call to: ${fullUrl} with model: ${model}`);
+  
+  const response = await fetch(fullUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -188,7 +226,13 @@ async function makeGeminiCall(
   apiKey: string,
   baseUrl: string
 ): Promise<string> {
-  const response = await fetch(`${baseUrl}/models/${model}:generateContent?key=${apiKey}`, {
+  // Validate and normalize the base URL
+  const normalizedBaseUrl = validateAndNormalizeUrl(baseUrl);
+  const fullUrl = `${normalizedBaseUrl}/models/${model}:generateContent?key=${apiKey}`;
+  
+  console.log(`Making Gemini API call to: ${fullUrl} with model: ${model}`);
+  
+  const response = await fetch(fullUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -217,6 +261,8 @@ export const ai = {
     const { model, prompt, output, config } = options;
     
     try {
+      console.log(`Starting LiteLLM generation with model: ${model}, config:`, config);
+      
       const { provider, model: modelName } = parseModelString(model);
       
       // Get API key - prioritize config, then environment variables
@@ -237,8 +283,10 @@ export const ai = {
       
       if (!baseUrl) {
         // If no base URL found, assume OpenAI-compatible endpoint
-        baseUrl = config?.apiBase || 'https://api.openai.com/v1';
+        baseUrl = 'https://api.openai.com/v1';
       }
+      
+      console.log(`Using provider: ${provider}, model: ${modelName}, baseUrl: ${baseUrl}`);
       
       let responseText: string;
       
@@ -262,6 +310,9 @@ export const ai = {
       
       // Provide more specific error messages
       if (error instanceof Error) {
+        if (error.message.includes('Invalid URL format')) {
+          throw new Error(`LLM API Error: ${error.message}`);
+        }
         if (error.message.includes('API key')) {
           throw new Error(`LLM API Error: ${error.message}`);
         }
@@ -273,6 +324,9 @@ export const ai = {
         }
         if (error.message.includes('parse')) {
           throw new Error(`The model returned an unexpected response format. Try a different model or adjust your prompt.`);
+        }
+        if (error.message.includes('fetch failed') || error.message.includes('getaddrinfo')) {
+          throw new Error(`Network connection failed. Please check your API base URL and network connectivity. Error: ${error.message}`);
         }
       }
       
