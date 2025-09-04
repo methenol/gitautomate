@@ -27,40 +27,94 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
     return response;
   }
 
+  console.log(`[DEBUG] Response parsing - first 200 chars: ${response.substring(0, 200)}`);
+
   try {
     // Try to parse as JSON first
     const parsed = JSON.parse(response);
+    console.log(`[DEBUG] Successfully parsed as direct JSON`);
     return schema.parse(parsed);
   } catch (jsonError) {
-    // If JSON parsing fails, try to extract JSON from markdown code blocks
-    const jsonMatch = response.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-    if (jsonMatch) {
+    console.log(`[DEBUG] Direct JSON parsing failed:`, jsonError.message);
+    
+    // Try to extract JSON from the response - it might be wrapped in other text
+    const jsonBlockMatch = response.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+    if (jsonBlockMatch) {
       try {
-        const parsed = JSON.parse(jsonMatch[1]);
+        const parsed = JSON.parse(jsonBlockMatch[1]);
+        console.log(`[DEBUG] Successfully parsed JSON from code block`);
         return schema.parse(parsed);
       } catch (markdownError) {
-        // Fall through to create structured response
+        console.log(`[DEBUG] Markdown JSON parsing failed:`, markdownError.message);
+      }
+    }
+    
+    // Try to find JSON object in the response (looking for { ... })
+    const jsonObjectMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonObjectMatch) {
+      try {
+        const parsed = JSON.parse(jsonObjectMatch[0]);
+        console.log(`[DEBUG] Successfully parsed extracted JSON object`);
+        return schema.parse(parsed);
+      } catch (extractError) {
+        console.log(`[DEBUG] Extracted JSON parsing failed:`, extractError.message);
       }
     }
     
     // As last resort, try to create a structured response based on common patterns
+    console.log(`[DEBUG] Falling back to pattern-based parsing`);
     if ((schema as any)._def?.shape) {
       const result: any = {};
       const shapeKeys = Object.keys((schema as any)._def.shape);
+      console.log(`[DEBUG] Schema expects keys:`, shapeKeys);
       
       if (shapeKeys.includes('architecture') && shapeKeys.includes('specifications')) {
-        // Architecture generation response - use regex matching
+        // Architecture generation response - use regex matching for JSON fields
         const archMatch = response.match(/"architecture"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
         const specMatch = response.match(/"specifications"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
         
         if (archMatch && specMatch) {
           result.architecture = archMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
           result.specifications = specMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+          console.log(`[DEBUG] Extracted via regex - arch length: ${result.architecture.length}, spec length: ${result.specifications.length}`);
         } else {
-          // Fallback: split by common patterns
-          const parts = response.split(/specifications?[\s\S]*?[:]/i);
-          result.architecture = parts[0] || response;
-          result.specifications = parts[1] || 'Please refer to the architecture above.';
+          // Try alternative patterns - look for the actual field names as they appear
+          const lines = response.split('\n');
+          let currentField = '';
+          let currentContent = '';
+          
+          for (const line of lines) {
+            if (line.includes('"architecture"') || line.toLowerCase().includes('architecture')) {
+              if (currentField && currentContent) {
+                result[currentField] = currentContent.trim();
+              }
+              currentField = 'architecture';
+              currentContent = '';
+            } else if (line.includes('"specifications"') || line.toLowerCase().includes('specifications')) {
+              if (currentField && currentContent) {
+                result[currentField] = currentContent.trim();
+              }
+              currentField = 'specifications';
+              currentContent = '';
+            } else if (currentField) {
+              currentContent += line + '\n';
+            }
+          }
+          
+          // Add the last field
+          if (currentField && currentContent) {
+            result[currentField] = currentContent.trim();
+          }
+          
+          // If we still don't have both fields, use fallback
+          if (!result.architecture) {
+            result.architecture = 'Architecture information extracted from response.';
+          }
+          if (!result.specifications) {
+            result.specifications = 'Specifications information extracted from response.';
+          }
+          
+          console.log(`[DEBUG] Extracted via line parsing - arch: ${!!result.architecture}, spec: ${!!result.specifications}`);
         }
       } else if (shapeKeys.includes('tasks')) {
         // Task generation response - try to extract task list
@@ -79,6 +133,7 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
         result[firstKey] = response;
       }
       
+      console.log(`[DEBUG] Final result before schema validation:`, Object.keys(result));
       return schema.parse(result);
     }
     
