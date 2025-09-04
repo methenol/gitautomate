@@ -122,6 +122,7 @@ export const ai = {
     const { model, prompt, output, config } = options;
     
     try {
+      console.log(`[DEBUG] LiteLLM ai.generate called with model: "${model}"`);
       console.log(`Starting LiteLLM generation with model: ${model}, config:`, config);
       
       // Require API key and base URL to be provided in config

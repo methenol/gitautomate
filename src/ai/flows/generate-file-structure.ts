@@ -64,6 +64,7 @@ export async function generateFileStructure(
   model?: string,
   apiBase?: string
 ): Promise<GenerateFileStructureOutput> {
+  console.log(`[DEBUG] generateFileStructure called with model: "${model}"`);
   if (!model) {
     throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
   }

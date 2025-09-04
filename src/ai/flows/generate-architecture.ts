@@ -38,6 +38,7 @@ export async function generateArchitecture(
   model?: string,
   apiBase?: string
 ): Promise<GenerateArchitectureOutput> {
+  console.log(`[DEBUG] generateArchitecture called with model: "${model}"`);
   if (!model) {
     throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
   }
@@ -60,5 +61,6 @@ Respond with ONLY a valid JSON object that conforms to the output schema. Use ma
     } : undefined,
   });
 
+  console.log(`[DEBUG] generateArchitecture completed with model: "${modelName}"`);
   return output as GenerateArchitectureOutput;
 }

@@ -24,6 +24,7 @@ export async function runGenerateArchitecture(
     throw new Error('PRD is required to generate architecture.');
   }
   try {
+    console.log(`[DEBUG] runGenerateArchitecture called with model: "${options?.model}"`);
     const result = await generateArchitecture(
       input,
       options?.apiKey,

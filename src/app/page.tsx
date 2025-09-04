@@ -263,6 +263,7 @@ export default function Home() {
     setTasks([]);
     setFinalIssueURL('');
     try {
+      console.log(`[DEBUG] Calling runGenerateArchitecture with llmModel: "${llmModel}"`);
       const result = await runGenerateArchitecture({ prd }, { apiKey: apiKey, model: llmModel, apiBase: apiBase });
       setArchitecture(result.architecture);
       setSpecifications(result.specifications);
