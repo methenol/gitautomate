@@ -115,7 +115,10 @@ Provide comprehensive research that includes:
 
 Generate your research results as a JSON object conforming to the output schema.`;
 
-    const modelName = model || 'gpt-4o';
+    if (!model) {
+      throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+    }
+    const modelName = model;
     
     const { output } = await ai.generate({
       model: modelName,

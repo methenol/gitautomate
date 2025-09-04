@@ -161,7 +161,10 @@ ${promptSections.join('\n\n')}
 
 Provide your analysis as a JSON object conforming to the schema.`;
 
-    const modelName = model || 'gpt-4o';
+    if (!model) {
+      throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+    }
+    const modelName = model;
     
     const { output } = await ai.generate({
       model: modelName,
@@ -247,7 +250,10 @@ ${archSuggestions.map(s => `- ${s.issue}: ${s.suggestion} (Priority: ${s.priorit
 
 Provide a refined architecture that addresses these specific issues while maintaining the core design intent.`;
 
-    const modelName = model || 'gpt-4o';
+    if (!model) {
+      throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+    }
+    const modelName = model;
     
     const { output } = await ai.generate({
       model: modelName,
@@ -320,7 +326,10 @@ ${specSuggestions.map(s => `- ${s.issue}: ${s.suggestion}`).join('\n')}
 
 Provide refined specifications that address these issues.`;
 
-    const modelName = model || 'gpt-4o';
+    if (!model) {
+      throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+    }
+    const modelName = model;
     
     const { output } = await ai.generate({
       model: modelName,
