@@ -39,10 +39,12 @@ export async function generateArchitecture(
   apiBase?: string
 ): Promise<GenerateArchitectureOutput> {
   console.log(`[DEBUG] generateArchitecture called with model: "${model}"`);
+  console.log(`[DEBUG] Generate-architecture.ts - model parameter received: "${model}"`);
   if (!model) {
     throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
   }
   const modelName = model;
+  console.log(`[DEBUG] Generate-architecture.ts - modelName assigned: "${modelName}"`);
   
   const {output} = await ai.generate({
     model: modelName,

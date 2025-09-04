@@ -25,6 +25,7 @@ export async function runGenerateArchitecture(
   }
   try {
     console.log(`[DEBUG] runGenerateArchitecture called with model: "${options?.model}"`);
+    console.log(`[DEBUG] Actions.ts - model parameter received: "${options?.model}"`);
     const result = await generateArchitecture(
       input,
       options?.apiKey,

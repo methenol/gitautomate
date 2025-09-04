@@ -27,18 +27,25 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
     return response;
   }
 
+  console.log(`[DEBUG] Parsing AI response: ${response.substring(0, 200)}...`);
+
   try {
     // Try to parse as JSON first
     const parsed = JSON.parse(response);
+    console.log(`[DEBUG] Successfully parsed JSON:`, parsed);
     return schema.parse(parsed);
-  } catch {
+  } catch (jsonError) {
+    console.log(`[DEBUG] JSON parsing failed, trying markdown extraction:`, jsonError);
+    
     // If JSON parsing fails, try to extract JSON from markdown code blocks
     const jsonMatch = response.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
     if (jsonMatch) {
       try {
         const parsed = JSON.parse(jsonMatch[1]);
+        console.log(`[DEBUG] Successfully parsed JSON from markdown:`, parsed);
         return schema.parse(parsed);
-      } catch {
+      } catch (markdownError) {
+        console.log(`[DEBUG] Markdown JSON parsing failed:`, markdownError);
         // Fall through to create structured response
       }
     }
@@ -47,14 +54,43 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
     if ((schema as any)._def.shape) {
       const result: any = {};
       const shapeKeys = Object.keys((schema as any)._def.shape);
+      console.log(`[DEBUG] Creating structured response for keys:`, shapeKeys);
       
       if (shapeKeys.includes('architecture') && shapeKeys.includes('specifications')) {
-        // Architecture generation response
-        const archMatch = response.match(/(?:architecture|Architecture)([\s\S]*?)(?:specification|Specification|$)/i);
-        const specMatch = response.match(/(?:specification|Specification)([\s\S]*?)$/i);
+        // Architecture generation response - improved pattern matching
+        const lines = response.split('\n');
+        let archContent = '';
+        let specContent = '';
+        let currentSection = '';
         
-        result.architecture = archMatch ? archMatch[1].trim() : response;
-        result.specifications = specMatch ? specMatch[1].trim() : 'Please refer to the architecture above.';
+        for (const line of lines) {
+          const lowerLine = line.toLowerCase();
+          if (lowerLine.includes('architecture') && !lowerLine.includes('specification')) {
+            currentSection = 'architecture';
+            continue;
+          } else if (lowerLine.includes('specification')) {
+            currentSection = 'specifications';
+            continue;
+          }
+          
+          if (currentSection === 'architecture' && line.trim()) {
+            archContent += line + '\n';
+          } else if (currentSection === 'specifications' && line.trim()) {
+            specContent += line + '\n';
+          }
+        }
+        
+        // Fallback if section parsing doesn't work
+        if (!archContent.trim()) {
+          const halfPoint = Math.floor(response.length / 2);
+          archContent = response.substring(0, halfPoint);
+          specContent = response.substring(halfPoint);
+        }
+        
+        result.architecture = archContent.trim() || response;
+        result.specifications = specContent.trim() || 'Please refer to the architecture section above for implementation details.';
+        
+        console.log(`[DEBUG] Created architecture/specifications structure:`, result);
       } else if (shapeKeys.includes('tasks')) {
         // Task generation response - try to extract task list
         const lines = response.split('\n').filter(line => line.trim());
@@ -66,16 +102,26 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
           }));
         
         result.tasks = tasks.length > 0 ? tasks : [{ title: response.substring(0, 100), details: '' }];
+        console.log(`[DEBUG] Created tasks structure:`, result);
       } else {
         // Generic response - use the first shape key as the response field
         const firstKey = shapeKeys[0];
         result[firstKey] = response;
+        console.log(`[DEBUG] Created generic structure with key ${firstKey}:`, result);
       }
       
-      return schema.parse(result);
+      try {
+        const validatedResult = schema.parse(result);
+        console.log(`[DEBUG] Schema validation passed:`, validatedResult);
+        return validatedResult;
+      } catch (schemaError) {
+        console.error(`[DEBUG] Schema validation failed:`, schemaError);
+        throw schemaError;
+      }
     }
     
     // If all else fails, return the raw response
+    console.error(`[DEBUG] All parsing methods failed, throwing error`);
     throw new Error(`Failed to parse response into expected schema: ${response.substring(0, 200)}...`);
   }
 }
@@ -123,6 +169,7 @@ export const ai = {
     
     try {
       console.log(`[DEBUG] LiteLLM ai.generate called with model: "${model}"`);
+      console.log(`[DEBUG] LiteLLM.ts - model parameter received: "${model}"`);
       console.log(`Starting LiteLLM generation with model: ${model}, config:`, config);
       
       // Require API key and base URL to be provided in config
