@@ -169,55 +169,69 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
           }
         }
         
-        // If no specific field match, look for code blocks or tree structures
+        // If no specific field match, handle markdown file structure response
         if (!result.fileStructure) {
-          console.log(`[DEBUG] No explicit fileStructure field found, looking for code blocks`);
+          console.log(`[DEBUG] No explicit fileStructure field found, processing markdown response`);
           
-          // Look for code blocks that might contain file structure
-          const codeBlockRegex = /```[\s\S]*?```/g;
-          const codeBlocks = response.match(codeBlockRegex);
+          // For file structure, the AI often returns a direct markdown tree or wrapped in a code block
+          // Try to extract content from markdown code blocks first
+          const markdownBlockRegex = /```(?:markdown|text|bash|tree)?\s*\n?([\s\S]*?)\n?```/;
+          const markdownMatch = response.match(markdownBlockRegex);
           
-          if (codeBlocks && codeBlocks.length > 0) {
-            // Use the first (or largest) code block as file structure
-            let bestBlock = codeBlocks[0];
-            for (const block of codeBlocks) {
-              if (block.length > bestBlock.length) {
-                bestBlock = block;
-              }
-            }
-            
-            result.fileStructure = bestBlock
-              .replace(/^```[a-zA-Z]*\s*/, '')
-              .replace(/```$/, '')
-              .trim();
-            
-            console.log(`[DEBUG] Using code block as fileStructure:`, result.fileStructure.substring(0, 100));
+          if (markdownMatch) {
+            console.log(`[DEBUG] Found markdown code block for fileStructure`);
+            result.fileStructure = markdownMatch[1].trim();
           } else {
-            // Look for tree-like structures in the response
-            console.log(`[DEBUG] No code blocks found, looking for tree structures`);
-            const lines = response.split('\n');
-            const treeLines = lines.filter(line => {
-              const trimmed = line.trim();
-              return trimmed && (
-                trimmed.match(/^[\w.-]+\/?\s*$/) || 
-                trimmed.match(/^\s*[├└│]\s*[\w.-]+/) ||
-                trimmed.match(/^\s*[\w.-]+\/$/) ||
-                (trimmed.includes('  ') && trimmed.match(/[\w.-]+\.(js|ts|json|md|css|html|py|java|cpp|go|rs)$/)) ||
-                trimmed.match(/^\s*[\w.-]+\.[\w]+\s*$/) ||
-                trimmed.match(/^\s+[\w.-]+/)
-              );
-            });
+            // Look for any code blocks that contain file structure
+            const codeBlockRegex = /```[\s\S]*?```/g;
+            const codeBlocks = response.match(codeBlockRegex);
             
-            if (treeLines.length > 0) {
-              result.fileStructure = treeLines.join('\n');
-              console.log(`[DEBUG] Using tree structure lines as fileStructure:`, result.fileStructure.substring(0, 100));
-            } else {
-              // Final fallback - use the entire response after cleaning
-              console.log(`[DEBUG] No tree structure found, using full response`);
-              result.fileStructure = response
-                .replace(/```[a-zA-Z]*\s*/g, '')
-                .replace(/```/g, '')
+            if (codeBlocks && codeBlocks.length > 0) {
+              // Use the first (or largest) code block as file structure
+              let bestBlock = codeBlocks[0];
+              for (const block of codeBlocks) {
+                if (block.length > bestBlock.length) {
+                  bestBlock = block;
+                }
+              }
+              
+              result.fileStructure = bestBlock
+                .replace(/^```[a-zA-Z]*\s*/, '')
+                .replace(/```$/, '')
                 .trim();
+              
+              console.log(`[DEBUG] Using code block as fileStructure:`, result.fileStructure.substring(0, 100));
+            } else if (response.includes('/') || response.includes('├') || response.includes('└') || response.includes('│')) {
+              // If the response looks like a directory tree but isn't in a code block, use it directly
+              console.log(`[DEBUG] Response appears to be a directory tree, using directly`);
+              result.fileStructure = response.trim();
+            } else {
+              // Look for tree-like structures in the response
+              console.log(`[DEBUG] No code blocks found, looking for tree structures`);
+              const lines = response.split('\n');
+              const treeLines = lines.filter(line => {
+                const trimmed = line.trim();
+                return trimmed && (
+                  trimmed.match(/^[\w.-]+\/?\s*$/) || 
+                  trimmed.match(/^\s*[├└│]\s*[\w.-]+/) ||
+                  trimmed.match(/^\s*[\w.-]+\/$/) ||
+                  (trimmed.includes('  ') && trimmed.match(/[\w.-]+\.(js|ts|json|md|css|html|py|java|cpp|go|rs)$/)) ||
+                  trimmed.match(/^\s*[\w.-]+\.[\w]+\s*$/) ||
+                  trimmed.match(/^\s+[\w.-]+/)
+                );
+              });
+              
+              if (treeLines.length > 0) {
+                result.fileStructure = treeLines.join('\n');
+                console.log(`[DEBUG] Using tree structure lines as fileStructure:`, result.fileStructure.substring(0, 100));
+              } else {
+                // Final fallback - use the entire response after cleaning
+                console.log(`[DEBUG] No tree structure found, using full response`);
+                result.fileStructure = response
+                  .replace(/```[a-zA-Z]*\s*/g, '')
+                  .replace(/```/g, '')
+                  .trim();
+              }
             }
           }
         }
