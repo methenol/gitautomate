@@ -6,8 +6,8 @@
  * - GenerateAgentsMdOutput - The return type for the generateAgentsMd function, which includes the AGENTS.md content.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {ai} from '@/ai/litellm';
+import {z} from 'zod';
 
 const GenerateAgentsMdInputSchema = z.object({
   prd: z
@@ -52,20 +52,12 @@ export async function generateAgentsMd(
   apiKey?: string,
   model?: string
 ): Promise<GenerateAgentsMdOutput> {
-  const modelName = model
-    ? `googleai/${model}`
-    : 'googleai/gemini-1.5-flash-latest';
+  // Use model directly without provider prefix
+  const modelName = model || 'gpt-4o';
   
-  const generateAgentsMdFlow = ai.defineFlow(
-    {
-      name: 'generateAgentsMdFlow',
-      inputSchema: GenerateAgentsMdInputSchema,
-      outputSchema: GenerateAgentsMdOutputSchema,
-    },
-    async (input) => {
-      const {output} = await ai.generate({
-        model: modelName,
-        prompt: `Generate an AGENTS.md file with project-specific instructions for AI agents working on the following software project.
+  const {output} = await ai.generate({
+    model: modelName,
+    prompt: `Generate an AGENTS.md file with project-specific instructions for AI agents working on the following software project.
 
 Use ONLY the provided data sources to extract relevant information:
 
@@ -95,15 +87,11 @@ The AGENTS.md file should be 20-50 lines and include:
 7. **Development Rules**: General rules for the project
 
 Content should be concise but comprehensive, providing valuable guidance for AI coding assistants. Use clear markdown formatting with appropriate section headers.`,
-        output: {
-          schema: GenerateAgentsMdOutputSchema,
-        },
-        config: apiKey ? {apiKey} : undefined,
-      });
+    output: {
+      schema: GenerateAgentsMdOutputSchema,
+    },
+    config: apiKey ? {apiKey} : undefined,
+  });
 
-      return output!;
-    }
-  );
-  
-  return await generateAgentsMdFlow(input);
+  return output!;
 }

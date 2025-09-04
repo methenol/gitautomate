@@ -8,8 +8,8 @@
  * - GenerateArchitectureOutput - The return type for the generateArchitecture function, which includes the architecture and specifications.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {ai} from '@/ai/litellm';
+import {z} from 'zod';
 
 const GenerateArchitectureInputSchema = z.object({
   prd: z
@@ -37,34 +37,22 @@ export async function generateArchitecture(
   apiKey?: string,
   model?: string
 ): Promise<GenerateArchitectureOutput> {
-  const modelName = model
-    ? `googleai/${model}`
-    : 'googleai/gemini-1.5-flash-latest';
+  // Use model directly without provider prefix - let LiteLLM handle provider detection
+  const modelName = model || 'gpt-4o';
   
-  const generateArchitectureFlow = ai.defineFlow(
-    {
-      name: 'generateArchitectureFlow',
-      inputSchema: GenerateArchitectureInputSchema,
-      outputSchema: GenerateArchitectureOutputSchema,
-    },
-    async (input) => {
-      const {output} = await ai.generate({
-        model: modelName,
-        prompt: `Generate a software architecture and specifications based on the following Product Requirements Document (PRD).
+  const { output } = await ai.generate({
+    model: modelName,
+    prompt: `Generate a software architecture and specifications based on the following Product Requirements Document (PRD).
 
 PRD:
 ${input.prd}
 
 Respond with ONLY a valid JSON object that conforms to the output schema. Use markdown formatting for the content of the "architecture" and "specifications" fields.`,
-        output: {
-          schema: GenerateArchitectureOutputSchema,
-        },
-        config: apiKey ? {apiKey} : undefined,
-      });
+    output: {
+      schema: GenerateArchitectureOutputSchema,
+    },
+    config: apiKey ? {apiKey} : undefined,
+  });
 
-      return output!;
-    }
-  );
-  
-  return await generateArchitectureFlow(input);
+  return output!;
 }

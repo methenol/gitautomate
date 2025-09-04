@@ -8,7 +8,6 @@ import { generateTasks, GenerateTasksInput } from '@/ai/flows/generate-tasks';
 import { researchTask, ResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
 import { generateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
 import { generateAgentsMd, GenerateAgentsMdInput } from '@/ai/flows/generate-agents-md';
-import { listAvailableModels } from '@/ai/genkit';
 
 type ActionOptions = {
   apiKey?: string;
@@ -176,6 +175,9 @@ export async function runGenerateAgentsMd(
   }
 }
 
+// Model listing functionality removed as per LiteLLM migration requirements
+// Users will specify models directly without provider lookup
+/*
 export async function getModels(options?: ActionOptions): Promise<string[]> {
   try {
     const models = await listAvailableModels(options?.apiKey);
@@ -189,3 +191,4 @@ export async function getModels(options?: ActionOptions): Promise<string[]> {
     throw new Error('An unknown error occurred while fetching models.');
   }
 }
+*/

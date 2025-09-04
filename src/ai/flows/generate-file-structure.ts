@@ -8,8 +8,8 @@
  * - GenerateFileStructureOutput - Output type: { fileStructure: string }
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { ai } from '@/ai/litellm';
+import { z } from 'zod';
 
 const GenerateFileStructureInputSchema = z.object({
   prd: z
@@ -63,39 +63,27 @@ export async function generateFileStructure(
   apiKey?: string,
   model?: string
 ): Promise<GenerateFileStructureOutput> {
-  const modelName = model
-    ? `googleai/${model}`
-    : 'googleai/gemini-1.5-flash-latest';
+  // Use model directly without provider prefix
+  const modelName = model || 'gpt-4o';
 
   const prompt = fileStructurePrompt
     .replace('{{{prd}}}', input.prd)
     .replace('{{{architecture}}}', input.architecture)
     .replace('{{{specifications}}}', input.specifications);
 
-  const generateFileStructureFlow = ai.defineFlow(
-    {
-      name: 'generateFileStructureFlow',
-      inputSchema: GenerateFileStructureInputSchema,
-      outputSchema: GenerateFileStructureOutputSchema,
+  const { output } = await ai.generate({
+    model: modelName,
+    prompt: prompt,
+    output: {
+      schema: GenerateFileStructureOutputSchema,
     },
-    async (_input) => {
-      const { output } = await ai.generate({
-        model: modelName,
-        prompt: prompt,
-        output: {
-          schema: GenerateFileStructureOutputSchema,
-        },
-        config: apiKey ? { apiKey } : undefined,
-      });
+    config: apiKey ? { apiKey } : undefined,
+  });
 
-      if (!output) {
-        throw new Error(
-          'An unexpected response was received from the server.'
-        );
-      }
-      return output;
-    }
-  );
-
-  return await generateFileStructureFlow(input);
+  if (!output) {
+    throw new Error(
+      'An unexpected response was received from the server.'
+    );
+  }
+  return output;
 }

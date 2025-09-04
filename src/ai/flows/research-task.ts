@@ -8,8 +8,8 @@
  * - ResearchTaskOutput - The return type for the researchTask function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {ai} from '@/ai/litellm';
+import {z} from 'zod';
 
 const _ResearchTaskInputSchema = z.object({
   title: z.string().describe('The title of the development task to research.'),
@@ -103,9 +103,8 @@ export async function researchTask(
   model?: string,
   useTDD?: boolean
 ): Promise<ResearchTaskOutput> {
-  const modelName = model
-    ? `googleai/${model}`
-    : 'googleai/gemini-1.5-pro-latest';
+  // Use model directly without provider prefix
+  const modelName = model || 'gpt-4o';
   
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
   const prompt = promptTemplate
@@ -114,30 +113,19 @@ export async function researchTask(
     .replace('{{{specifications}}}', input.specifications)
     .replace('{{{title}}}', input.title);
 
-  const researchTaskFlow = ai.defineFlow(
-    {
-      name: 'researchTaskFlow',
-      inputSchema: z.string(),
-      outputSchema: ResearchTaskOutputSchema,
+  const {output} = await ai.generate({
+    model: modelName,
+    prompt: prompt,
+    output: {
+      schema: ResearchTaskOutputSchema,
     },
-    async (prompt) => {
-      const {output} = await ai.generate({
-        model: modelName,
-        prompt: prompt,
-        output: {
-          schema: ResearchTaskOutputSchema,
-        },
-        config: apiKey ? {apiKey} : undefined,
-      });
+    config: apiKey ? {apiKey} : undefined,
+  });
 
-      if (!output) {
-        throw new Error(
-          'An unexpected response was received from the server.'
-        );
-      }
-      return output;
-    }
-  );
-
-  return await researchTaskFlow(prompt);
+  if (!output) {
+    throw new Error(
+      'An unexpected response was received from the server.'
+    );
+  }
+  return output;
 }

@@ -12,7 +12,6 @@ import {
   runGenerateTasks,
   runResearchTask,
   runGenerateFileStructure,
-  getModels,
 } from './actions';
 import { runGenerateAgentsMd } from '@/app/actions';
 import type { Task } from '@/types';
@@ -113,7 +112,7 @@ const LOCAL_MODE_REPO: Repository = {
   name: 'Local Mode (Export Only)',
   full_name: LOCAL_MODE_REPO_ID,
 };
-const UI_DEFAULT_MODEL = 'gemini-1.5-flash-latest';
+const UI_DEFAULT_MODEL = 'gpt-4o';
 
 export default function Home() {
   const { toast } = useToast();
@@ -160,40 +159,25 @@ export default function Home() {
     },
   });
 
-  const fetchModels = useCallback(async (apiKey?: string) => {
-    setLoading((prev) => ({ ...prev, models: true }));
-    try {
-      const models = await getModels({ apiKey: apiKey || undefined });
-      setAvailableModels(models);
-      
-      if (models.length > 0) {
-        const currentModel = localStorage.getItem('selectedModel') || UI_DEFAULT_MODEL;
-        if (models.includes(currentModel)) {
-          form.setValue('model', currentModel);
-          setSelectedModel(currentModel);
-        } else {
-          form.setValue('model', models[0]);
-          setSelectedModel(models[0]);
-          localStorage.setItem('selectedModel', models[0]);
-        }
-      } else {
-         toast({
-          variant: 'destructive',
-          title: 'No Models Found',
-          description: "Could not find any models. Check your API key in settings or the .env file.",
-        });
-      }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error Fetching Models',
-        description: (error as Error).message || "An unknown error occurred.",
-      });
-      setAvailableModels([]);
-    } finally {
-      setLoading((prev) => ({ ...prev, models: false }));
-    }
-  }, [form, toast]);
+  // Model fetching removed as per LiteLLM migration - users specify models directly
+  const initializeDefaultModels = useCallback(() => {
+    // Provide common model options without API lookups
+    const defaultModels = [
+      'gpt-4o',
+      'gpt-4o-mini', 
+      'gpt-3.5-turbo',
+      'claude-3-5-sonnet-20241022',
+      'claude-3-haiku-20240307',
+      'gemini-1.5-pro-latest',
+      'gemini-1.5-flash-latest'
+    ];
+    
+    setAvailableModels(defaultModels);
+    
+    const currentModel = localStorage.getItem('selectedModel') || 'gpt-4o';
+    form.setValue('model', currentModel);
+    setSelectedModel(currentModel);
+  }, [form]);
 
 
   useEffect(() => {
@@ -212,10 +196,9 @@ export default function Home() {
     form.setValue('model', storedModel);
     form.setValue('useTDD', storedTDD);
     
-    if (storedApiKey || process.env.GOOGLE_API_KEY) {
-      fetchModels(storedApiKey);
-    }
-  }, [fetchModels, form]);
+    // Initialize default models instead of fetching from API
+    initializeDefaultModels();
+  }, [initializeDefaultModels, form]);
 
 
   useEffect(() => {
@@ -243,7 +226,6 @@ export default function Home() {
   }, [githubToken, toast]);
 
   const handleSaveSettings = (values: SettingsFormValues) => {
-    const oldApiKey = googleApiKey;
     const newApiKey = values.googleApiKey || '';
     
     setGithubToken(values.githubToken || '');
@@ -261,9 +243,7 @@ export default function Home() {
     setIsSettingsOpen(false);
     toast({ title: 'Success', description: 'Settings saved.' });
 
-    if (newApiKey !== oldApiKey) {
-      fetchModels(newApiKey);
-    }
+    // Model fetching removed - users specify models directly
   };
 
   const handleGenerateArchitecture = async () => {

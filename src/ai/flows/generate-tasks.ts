@@ -9,10 +9,9 @@
  * - Task - The type for an individual task. Details are populated in a separate step.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai} from '@/ai/litellm';
 import { TaskSchema } from '@/types';
-import {z} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import {z} from 'zod';
 
 
 const _GenerateTasksInputSchema = z.object({
@@ -65,9 +64,8 @@ Specifications:
 Generate the complete, exhaustive, and sequentially ordered list of task titles now.`;
 
 export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
-  const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-flash-latest';
-  const options = apiKey ? {apiKey} : {};
-  const _plugins = apiKey ? [googleAI(options)] : [];
+  // Use model directly without provider prefix
+  const modelName = model || 'gpt-4o';
 
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
 
@@ -81,11 +79,12 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
     prompt: prompt,
     output: {
       schema: GenerateTasksOutputSchema
-    }
+    },
+    config: apiKey ? {apiKey} : undefined,
   });
   
   if (output?.tasks) {
-    output.tasks = output.tasks.map((task) => ({ ...task, details: '' }));
+    output.tasks = output.tasks.map((task: any) => ({ ...task, details: '' }));
   }
   return output!;
 }

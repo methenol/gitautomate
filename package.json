@@ -16,6 +16,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.61.0",
     "@genkit-ai/googleai": "^1.13.0",
     "@genkit-ai/next": "^1.13.0",
     "@google-ai/generativelanguage": "^2.3.0",
@@ -54,6 +55,7 @@
     "jszip": "^3.10.1",
     "lucide-react": "^0.475.0",
     "next": "15.3.3",
+    "openai": "^5.19.1",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
