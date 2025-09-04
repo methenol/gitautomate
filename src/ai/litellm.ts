@@ -37,55 +37,79 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
   } catch (jsonError) {
     console.log(`[DEBUG] Direct JSON parsing failed:`, jsonError.message);
     
-    // Check if this is a fileStructure request and handle markdown responses differently
+    // Detect if this is a fileStructure-only schema by testing what fields are required
     let shapeKeys: string[] = [];
+    let isFileStructureSchema = false;
+    
     try {
-      // Try multiple ways to get schema shape/keys
+      // Method 1: Direct schema shape inspection
       if (schema && (schema as any)._def?.shape) {
         shapeKeys = Object.keys((schema as any)._def.shape);
-      } else if (schema && (schema as any).shape) {
-        shapeKeys = Object.keys((schema as any).shape);
-      } else if (schema && (schema as any)._def?.typeName === 'ZodObject') {
-        // Try to parse the schema to understand its structure
-        try {
-          const testParse = schema.safeParse({});
-          if (!testParse.success && testParse.error?.issues) {
-            shapeKeys = testParse.error.issues.map(issue => issue.path[0]).filter(Boolean) as string[];
-          }
-        } catch (e) {
-          // Fallback to pattern matching
+        isFileStructureSchema = shapeKeys.includes('fileStructure') && shapeKeys.length === 1;
+      }
+      
+      // Method 2: Test parsing to see what fields are required
+      if (!isFileStructureSchema && schema) {
+        const testParse = schema.safeParse({});
+        if (!testParse.success && testParse.error?.issues) {
+          const requiredFields = testParse.error.issues
+            .filter(issue => issue.code === 'invalid_type' && issue.message === 'Required')
+            .map(issue => issue.path[0])
+            .filter(Boolean) as string[];
+          
+          shapeKeys = requiredFields;
+          isFileStructureSchema = requiredFields.includes('fileStructure') && requiredFields.length === 1;
         }
       }
     } catch (e) {
-      console.log(`[DEBUG] Schema introspection failed, using fallback detection`);
+      console.log(`[DEBUG] Schema introspection failed:`, e);
     }
     
     console.log(`[DEBUG] Detected schema keys:`, shapeKeys);
+    console.log(`[DEBUG] Is fileStructure schema:`, isFileStructureSchema);
     
-    // Enhanced fileStructure detection - check for both exact match and pattern matching
-    const isFileStructureSchema = shapeKeys.includes('fileStructure') && shapeKeys.length === 1;
+    // Check if response looks like a file structure (directory tree)
     const looksLikeFileStructureResponse = response.includes('```markdown') || 
                                           response.includes('project-root/') ||
                                           response.includes('├─') || 
                                           response.includes('└─') ||
-                                          response.includes('│');
+                                          response.includes('│') ||
+                                          response.includes('├') ||
+                                          response.includes('└') ||
+                                          response.includes('│') ||
+                                          /^[a-zA-Z0-9-_]+\/\s*$/m.test(response);
     
-    if (isFileStructureSchema || (looksLikeFileStructureResponse && shapeKeys.length <= 1)) {
-      console.log(`[DEBUG] Detected fileStructure-only schema, checking for markdown content`);
+    console.log(`[DEBUG] Looks like file structure response:`, looksLikeFileStructureResponse);
+    
+    // Handle fileStructure responses - if it's a fileStructure schema OR looks like a file structure
+    if (isFileStructureSchema || looksLikeFileStructureResponse) {
+      console.log(`[DEBUG] Processing fileStructure response`);
       
-      // For fileStructure, check for markdown code blocks and return content directly
+      let fileStructureContent = '';
+      
+      // Try to extract from markdown code blocks first
       const markdownBlockRegex = /```(?:markdown|text|bash|tree)?\s*\n?([\s\S]*?)\n?```/;
       const markdownMatch = response.match(markdownBlockRegex);
       
       if (markdownMatch) {
-        console.log(`[DEBUG] Found markdown code block, returning content as fileStructure`);
-        const fileStructureContent = markdownMatch[1].trim();
+        console.log(`[DEBUG] Found markdown code block`);
+        fileStructureContent = markdownMatch[1].trim();
+      } else {
+        // Clean up any stray markdown markers and use the response directly
+        console.log(`[DEBUG] No markdown code block found, cleaning response`);
+        fileStructureContent = response
+          .replace(/^```\w*\s*/, '')  // Remove opening code block
+          .replace(/```$/, '')       // Remove closing code block  
+          .trim();
+      }
+      
+      console.log(`[DEBUG] Extracted fileStructure content (first 100 chars):`, fileStructureContent.substring(0, 100));
+      
+      if (fileStructureContent) {
         return schema.parse({ fileStructure: fileStructureContent });
-      } else if (looksLikeFileStructureResponse) {
-        // If it looks like a file structure but isn't in a code block, use it directly
-        console.log(`[DEBUG] Response looks like file structure, using directly`);
-        const cleanContent = response.replace(/^```\w*\s*/, '').replace(/```$/, '').trim();
-        return schema.parse({ fileStructure: cleanContent });
+      } else {
+        console.log(`[DEBUG] No fileStructure content found, using response as-is`);
+        return schema.parse({ fileStructure: response.trim() });
       }
     }
     
