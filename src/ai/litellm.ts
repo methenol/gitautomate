@@ -140,7 +140,7 @@ async function makeOpenAICall(
 ): Promise<string> {
   const fullUrl = `${baseUrl}/chat/completions`;
   
-  console.log(`Making API call to: ${fullUrl} with model: ${model}`);
+  console.log('Making API call to:', fullUrl, 'with model:', model);
   
   const response = await fetch(fullUrl, {
     method: 'POST',
@@ -171,7 +171,7 @@ export const ai = {
     const { model, prompt, output, config } = options;
     
     try {
-      console.log(`Starting LiteLLM generation with model: ${model}, config:`, config);
+      console.log('Starting LiteLLM generation with model:', model, 'config:', config);
       
       // Require API key and base URL to be provided in config
       const apiKey = config?.apiKey;
@@ -185,7 +185,7 @@ export const ai = {
         throw new Error(`API base URL is required. Please provide it in settings.`);
       }
       
-      console.log(`Using model: ${model}, baseUrl: ${baseUrl}`);
+      console.log('Using model:', model, 'baseUrl:', baseUrl);
       
       // Use OpenAI-compatible API for all providers - let the user configure their endpoint correctly
       const responseText = await makeOpenAICall(model, prompt, apiKey, baseUrl);
