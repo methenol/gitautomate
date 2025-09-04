@@ -38,8 +38,39 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
     console.log(`[DEBUG] Direct JSON parsing failed:`, jsonError.message);
     
     // Check if this is a fileStructure request and handle markdown responses differently
-    const shapeKeys = schema && (schema as any)._def?.shape ? Object.keys((schema as any)._def.shape) : [];
-    if (shapeKeys.includes('fileStructure') && shapeKeys.length === 1) {
+    let shapeKeys: string[] = [];
+    try {
+      // Try multiple ways to get schema shape/keys
+      if (schema && (schema as any)._def?.shape) {
+        shapeKeys = Object.keys((schema as any)._def.shape);
+      } else if (schema && (schema as any).shape) {
+        shapeKeys = Object.keys((schema as any).shape);
+      } else if (schema && (schema as any)._def?.typeName === 'ZodObject') {
+        // Try to parse the schema to understand its structure
+        try {
+          const testParse = schema.safeParse({});
+          if (!testParse.success && testParse.error?.issues) {
+            shapeKeys = testParse.error.issues.map(issue => issue.path[0]).filter(Boolean) as string[];
+          }
+        } catch (e) {
+          // Fallback to pattern matching
+        }
+      }
+    } catch (e) {
+      console.log(`[DEBUG] Schema introspection failed, using fallback detection`);
+    }
+    
+    console.log(`[DEBUG] Detected schema keys:`, shapeKeys);
+    
+    // Enhanced fileStructure detection - check for both exact match and pattern matching
+    const isFileStructureSchema = shapeKeys.includes('fileStructure') && shapeKeys.length === 1;
+    const looksLikeFileStructureResponse = response.includes('```markdown') || 
+                                          response.includes('project-root/') ||
+                                          response.includes('├─') || 
+                                          response.includes('└─') ||
+                                          response.includes('│');
+    
+    if (isFileStructureSchema || (looksLikeFileStructureResponse && shapeKeys.length <= 1)) {
       console.log(`[DEBUG] Detected fileStructure-only schema, checking for markdown content`);
       
       // For fileStructure, check for markdown code blocks and return content directly
@@ -50,6 +81,11 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
         console.log(`[DEBUG] Found markdown code block, returning content as fileStructure`);
         const fileStructureContent = markdownMatch[1].trim();
         return schema.parse({ fileStructure: fileStructureContent });
+      } else if (looksLikeFileStructureResponse) {
+        // If it looks like a file structure but isn't in a code block, use it directly
+        console.log(`[DEBUG] Response looks like file structure, using directly`);
+        const cleanContent = response.replace(/^```\w*\s*/, '').replace(/```$/, '').trim();
+        return schema.parse({ fileStructure: cleanContent });
       }
     }
     
