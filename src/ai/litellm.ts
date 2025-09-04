@@ -27,58 +27,78 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
     return response;
   }
 
-  console.log(`[DEBUG] Response parsing - first 200 chars: ${response.substring(0, 200)}`);
-
   try {
     // Try to parse as JSON first
     const parsed = JSON.parse(response);
-    console.log(`[DEBUG] Successfully parsed as direct JSON`);
     return schema.parse(parsed);
   } catch (jsonError) {
-    console.log(`[DEBUG] Direct JSON parsing failed:`, jsonError.message);
     
-    // Try to extract JSON from the response - it might be wrapped in other text
-    const jsonBlockMatch = response.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-    if (jsonBlockMatch) {
-      try {
-        const parsed = JSON.parse(jsonBlockMatch[1]);
-        console.log(`[DEBUG] Successfully parsed JSON from code block`);
-        return schema.parse(parsed);
-      } catch (markdownError) {
-        console.log(`[DEBUG] Markdown JSON parsing failed:`, markdownError.message);
+    // Try to extract JSON from markdown code blocks - improved regex to handle various formats
+    const jsonBlockMatches = [
+      /```(?:json)?\s*\n?([\s\S]*?)\n?```/,
+      /```(?:json)?\s*([\s\S]*?)```/,
+      /`{3,}(?:json)?\s*\n?([\s\S]*?)\n?`{3,}/
+    ];
+    
+    for (const regex of jsonBlockMatches) {
+      const match = response.match(regex);
+      if (match) {
+        try {
+          const cleaned = match[1].trim();
+          const parsed = JSON.parse(cleaned);
+          return schema.parse(parsed);
+        } catch (markdownError) {
+          continue; // Try next pattern
+        }
       }
     }
     
-    // Try to find JSON object in the response (looking for { ... })
-    const jsonObjectMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonObjectMatch) {
-      try {
-        const parsed = JSON.parse(jsonObjectMatch[0]);
-        console.log(`[DEBUG] Successfully parsed extracted JSON object`);
-        return schema.parse(parsed);
-      } catch (extractError) {
-        console.log(`[DEBUG] Extracted JSON parsing failed:`, extractError.message);
+    // Try to find JSON object with better boundary detection
+    const jsonObjectMatches = [
+      /\{[\s\S]*\}(?=\s*$|```|$)/,  // JSON that ends at string end or before ```
+      /\{[^{]*"architecture"[\s\S]*?"specifications"[\s\S]*?\}/,  // More specific for our schema
+      /\{[\s\S]*?\}(?=\s*\n\s*```|$)/,  // JSON that ends before closing ```
+      /\{[\s\S]*\}/  // Fallback greedy match
+    ];
+    
+    for (const regex of jsonObjectMatches) {
+      const match = response.match(regex);
+      if (match) {
+        try {
+          const parsed = JSON.parse(match[0]);
+          return schema.parse(parsed);
+        } catch (extractError) {
+          continue; // Try next pattern
+        }
       }
     }
     
     // As last resort, try to create a structured response based on common patterns
-    console.log(`[DEBUG] Falling back to pattern-based parsing`);
     if ((schema as any)._def?.shape) {
       const result: any = {};
       const shapeKeys = Object.keys((schema as any)._def.shape);
-      console.log(`[DEBUG] Schema expects keys:`, shapeKeys);
       
       if (shapeKeys.includes('architecture') && shapeKeys.includes('specifications')) {
-        // Architecture generation response - use regex matching for JSON fields
-        const archMatch = response.match(/"architecture"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
-        const specMatch = response.match(/"specifications"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+        // Architecture generation response - use improved regex matching for JSON fields
+        const regexPatterns = [
+          [/"architecture"\s*:\s*"((?:[^"\\]|\\.)*)"/s, /"specifications"\s*:\s*"((?:[^"\\]|\\.)*)"/s],
+          [/"architecture"\s*:\s*`([^`]*)`/s, /"specifications"\s*:\s*`([^`]*)`/s],
+          [/architecture['"]\s*:\s*['"]([^'"]*)['"]/si, /specifications['"]\s*:\s*['"]([^'"]*)['"]/si]
+        ];
         
-        if (archMatch && specMatch) {
-          result.architecture = archMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
-          result.specifications = specMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
-          console.log(`[DEBUG] Extracted via regex - arch length: ${result.architecture.length}, spec length: ${result.specifications.length}`);
-        } else {
-          // Try alternative patterns - look for the actual field names as they appear
+        for (const [archPattern, specPattern] of regexPatterns) {
+          const archMatch = response.match(archPattern);
+          const specMatch = response.match(specPattern);
+          
+          if (archMatch && specMatch) {
+            result.architecture = archMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\t/g, '\t');
+            result.specifications = specMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\t/g, '\t');
+            break;
+          }
+        }
+        
+        // If regex patterns fail, try line-by-line parsing
+        if (!result.architecture || !result.specifications) {
           const lines = response.split('\n');
           let currentField = '';
           let currentContent = '';
@@ -105,16 +125,14 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
           if (currentField && currentContent) {
             result[currentField] = currentContent.trim();
           }
-          
-          // If we still don't have both fields, use fallback
-          if (!result.architecture) {
-            result.architecture = 'Architecture information extracted from response.';
-          }
-          if (!result.specifications) {
-            result.specifications = 'Specifications information extracted from response.';
-          }
-          
-          console.log(`[DEBUG] Extracted via line parsing - arch: ${!!result.architecture}, spec: ${!!result.specifications}`);
+        }
+        
+        // Final fallback if we still don't have both fields
+        if (!result.architecture) {
+          result.architecture = 'Architecture information extracted from response.';
+        }
+        if (!result.specifications) {
+          result.specifications = 'Specifications information extracted from response.';
         }
       } else if (shapeKeys.includes('tasks')) {
         // Task generation response - try to extract task list
@@ -133,7 +151,6 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
         result[firstKey] = response;
       }
       
-      console.log(`[DEBUG] Final result before schema validation:`, Object.keys(result));
       return schema.parse(result);
     }
     
