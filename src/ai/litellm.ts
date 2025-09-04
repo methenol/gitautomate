@@ -87,25 +87,40 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
       
       let fileStructureContent = '';
       
-      // Try to extract from markdown code blocks first
-      const markdownBlockRegex = /```(?:markdown|text|bash|tree)?\s*\n?([\s\S]*?)\n?```/;
-      const markdownMatch = response.match(markdownBlockRegex);
+      // Try to extract from markdown code blocks first - fix the regex to properly handle language identifiers
+      const markdownBlockPatterns = [
+        /```(?:markdown|text|bash|tree)\s*\n([\s\S]*?)\n?```/,  // Language specified
+        /```\s*\n([\s\S]*?)\n?```/,  // No language specified
+        /```([\s\S]*?)```/  // Simple fallback
+      ];
       
-      if (markdownMatch) {
-        console.log(`[DEBUG] Found markdown code block`);
-        fileStructureContent = markdownMatch[1].trim();
-      } else {
-        // Clean up any stray markdown markers and use the response directly
+      for (const pattern of markdownBlockPatterns) {
+        const match = response.match(pattern);
+        if (match) {
+          console.log(`[DEBUG] Found markdown code block with pattern`);
+          fileStructureContent = match[1].trim();
+          // Remove any remaining language identifiers that might have been captured
+          if (fileStructureContent.startsWith('markdown\n') || fileStructureContent.startsWith('text\n') || 
+              fileStructureContent.startsWith('bash\n') || fileStructureContent.startsWith('tree\n')) {
+            fileStructureContent = fileStructureContent.split('\n').slice(1).join('\n').trim();
+          }
+          break;
+        }
+      }
+      
+      // If no code block found, clean up any stray markdown markers and use the response directly
+      if (!fileStructureContent) {
         console.log(`[DEBUG] No markdown code block found, cleaning response`);
         fileStructureContent = response
-          .replace(/^```\w*\s*/, '')  // Remove opening code block
-          .replace(/```$/, '')       // Remove closing code block  
+          .replace(/^```\w*\s*\n?/, '')  // Remove opening code block with optional language
+          .replace(/\n?```$/, '')       // Remove closing code block  
           .trim();
       }
       
       console.log(`[DEBUG] Extracted fileStructure content (first 100 chars):`, fileStructureContent.substring(0, 100));
       
-      if (fileStructureContent) {
+      if (fileStructureContent && fileStructureContent.length > 0) {
+        console.log(`[DEBUG] Parsing fileStructure with schema`);
         return schema.parse({ fileStructure: fileStructureContent });
       } else {
         console.log(`[DEBUG] No fileStructure content found, using response as-is`);
@@ -223,103 +238,9 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
           result.specifications = 'Specifications information extracted from response.';
         }
       } else if (shapeKeys.includes('fileStructure')) {
-        // File structure generation response - extract the file structure content
-        console.log(`[DEBUG] Processing fileStructure response - full response:`, response);
-        
-        const fileStructurePatterns = [
-          /"fileStructure"\s*:\s*"((?:[^"\\]|\\.)*)"/s,
-          /"fileStructure"\s*:\s*`([^`]*)`/s,
-          /fileStructure['"]\s*:\s*['"]([^'"]*)['"]/si,
-        ];
-        
-        // Try regex patterns first to find explicit fileStructure field
-        for (const pattern of fileStructurePatterns) {
-          const match = response.match(pattern);
-          if (match) {
-            console.log(`[DEBUG] Found fileStructure field with regex:`, match[1].substring(0, 100));
-            result.fileStructure = match[1]
-              .replace(/\\n/g, '\n')
-              .replace(/\\"/g, '"')
-              .replace(/\\t/g, '\t');
-            break;
-          }
-        }
-        
-        // If no specific field match, handle markdown file structure response
-        if (!result.fileStructure) {
-          console.log(`[DEBUG] No explicit fileStructure field found, processing markdown response`);
-          
-          // For file structure, the AI often returns a direct markdown tree or wrapped in a code block
-          // Try to extract content from markdown code blocks first
-          const markdownBlockRegex = /```(?:markdown|text|bash|tree)?\s*\n?([\s\S]*?)\n?```/;
-          const markdownMatch = response.match(markdownBlockRegex);
-          
-          if (markdownMatch) {
-            console.log(`[DEBUG] Found markdown code block for fileStructure`);
-            result.fileStructure = markdownMatch[1].trim();
-          } else {
-            // Look for any code blocks that contain file structure
-            const codeBlockRegex = /```[\s\S]*?```/g;
-            const codeBlocks = response.match(codeBlockRegex);
-            
-            if (codeBlocks && codeBlocks.length > 0) {
-              // Use the first (or largest) code block as file structure
-              let bestBlock = codeBlocks[0];
-              for (const block of codeBlocks) {
-                if (block.length > bestBlock.length) {
-                  bestBlock = block;
-                }
-              }
-              
-              result.fileStructure = bestBlock
-                .replace(/^```[a-zA-Z]*\s*/, '')
-                .replace(/```$/, '')
-                .trim();
-              
-              console.log(`[DEBUG] Using code block as fileStructure:`, result.fileStructure.substring(0, 100));
-            } else if (response.includes('/') || response.includes('├') || response.includes('└') || response.includes('│')) {
-              // If the response looks like a directory tree but isn't in a code block, use it directly
-              console.log(`[DEBUG] Response appears to be a directory tree, using directly`);
-              result.fileStructure = response.trim();
-            } else {
-              // Look for tree-like structures in the response
-              console.log(`[DEBUG] No code blocks found, looking for tree structures`);
-              const lines = response.split('\n');
-              const treeLines = lines.filter(line => {
-                const trimmed = line.trim();
-                return trimmed && (
-                  trimmed.match(/^[\w.-]+\/?\s*$/) || 
-                  trimmed.match(/^\s*[├└│]\s*[\w.-]+/) ||
-                  trimmed.match(/^\s*[\w.-]+\/$/) ||
-                  (trimmed.includes('  ') && trimmed.match(/[\w.-]+\.(js|ts|json|md|css|html|py|java|cpp|go|rs)$/)) ||
-                  trimmed.match(/^\s*[\w.-]+\.[\w]+\s*$/) ||
-                  trimmed.match(/^\s+[\w.-]+/)
-                );
-              });
-              
-              if (treeLines.length > 0) {
-                result.fileStructure = treeLines.join('\n');
-                console.log(`[DEBUG] Using tree structure lines as fileStructure:`, result.fileStructure.substring(0, 100));
-              } else {
-                // Final fallback - use the entire response after cleaning
-                console.log(`[DEBUG] No tree structure found, using full response`);
-                result.fileStructure = response
-                  .replace(/```[a-zA-Z]*\s*/g, '')
-                  .replace(/```/g, '')
-                  .trim();
-              }
-            }
-          }
-        }
-        
-        // Ensure we have some content - this is critical
-        if (!result.fileStructure || result.fileStructure.trim().length === 0) {
-          console.log(`[DEBUG] WARNING: fileStructure is empty, using fallback`);
-          result.fileStructure = response.trim() || 'Unable to extract file structure from response.';
-        }
-        
-        console.log(`[DEBUG] Final fileStructure length:`, result.fileStructure.length);
-        console.log(`[DEBUG] Final fileStructure preview:`, result.fileStructure.substring(0, 200));
+        // File structure generation response - this should have been handled above already
+        console.log(`[DEBUG] WARNING: fileStructure processing reached fallback section - this should not happen`);
+        result.fileStructure = response.trim() || 'Unable to extract file structure from response.';
       } else if (shapeKeys.includes('tasks')) {
         // Task generation response - try to extract task list
         const lines = response.split('\n').filter(line => line.trim());
