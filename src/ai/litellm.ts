@@ -37,6 +37,22 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
   } catch (jsonError) {
     console.log(`[DEBUG] Direct JSON parsing failed:`, jsonError.message);
     
+    // Check if this is a fileStructure request and handle markdown responses differently
+    const shapeKeys = schema && (schema as any)._def?.shape ? Object.keys((schema as any)._def.shape) : [];
+    if (shapeKeys.includes('fileStructure') && shapeKeys.length === 1) {
+      console.log(`[DEBUG] Detected fileStructure-only schema, checking for markdown content`);
+      
+      // For fileStructure, check for markdown code blocks and return content directly
+      const markdownBlockRegex = /```(?:markdown|text|bash|tree)?\s*\n?([\s\S]*?)\n?```/;
+      const markdownMatch = response.match(markdownBlockRegex);
+      
+      if (markdownMatch) {
+        console.log(`[DEBUG] Found markdown code block, returning content as fileStructure`);
+        const fileStructureContent = markdownMatch[1].trim();
+        return schema.parse({ fileStructure: fileStructureContent });
+      }
+    }
+    
     // Try to extract JSON from markdown code blocks - improved regex to handle various formats
     const jsonBlockMatches = [
       /```(?:json)?\s*\n?([\s\S]*?)\n?```/,
