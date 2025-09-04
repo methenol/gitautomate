@@ -148,9 +148,9 @@ export async function runGenerateAgentsMd(
   input: GenerateAgentsMdInput,
   options?: ActionOptions
 ) {
-  if (!input.prd || !input.architecture || !input.specifications || !input.fileStructure) {
+  if (!input.prd || !input.architecture || !input.specifications || !input.fileStructure || !input.taskNames || input.taskNames.length === 0) {
     throw new Error(
-      'PRD, architecture, specifications, and file structure are required to generate AGENTS.md content.'
+      'PRD, architecture, specifications, file structure, and task names are required to generate AGENTS.md content.'
     );
   }
   try {

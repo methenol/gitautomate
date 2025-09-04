@@ -461,7 +461,7 @@ const handleExportData = async () => {
           architecture, 
           specifications,
           fileStructure,
-          tasks: tasks.map((task, index) => `### Task ${index + 1}: ${task.title}\n${task.details}`).join('\n\n')
+          taskNames: tasks.map(task => task.title)
         },
         { apiKey: apiKey, model: llmModel, apiBase: apiBase }
       );

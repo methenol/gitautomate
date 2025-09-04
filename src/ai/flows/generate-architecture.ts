@@ -44,12 +44,34 @@ export async function generateArchitecture(
   
   const {output} = await ai.generate({
     model: model,
-    prompt: `Generate a software architecture and specifications based on the following Product Requirements Document (PRD).
+    prompt: `You are a senior software architect tasked with creating a comprehensive software architecture and detailed specifications from a Product Requirements Document (PRD).
+
+Based on the following PRD, generate BOTH a software architecture AND detailed specifications. These are two separate deliverables that must both be fully developed.
+
+**ARCHITECTURE** should include:
+- High-level system design and component structure
+- Technology stack and framework choices
+- Data flow and integration patterns
+- Security considerations and architecture patterns
+- Scalability and performance considerations
+- Deployment and infrastructure approach
+
+**SPECIFICATIONS** should include:
+- Detailed functional requirements
+- User stories and use cases
+- API endpoints and data models
+- User interface requirements
+- Business logic and workflows
+- Non-functional requirements (performance, security, etc.)
+- Integration requirements
+- Data processing and validation rules
+
+CRITICAL: The specifications MUST be comprehensive and standalone - they should NOT reference the architecture or say "see architecture above". Both sections must contain detailed, actionable content. You MUST include BOTH an architecture and specification.
 
 PRD:
 ${input.prd}
 
-Respond with ONLY a valid JSON object that conforms to the output schema. Use markdown formatting for the content of the "architecture" and "specifications" fields.`,
+Respond with ONLY a valid JSON object that conforms to the output schema. Use markdown formatting for both the "architecture" and "specifications" fields.`,
     output: {
       schema: GenerateArchitectureOutputSchema,
     },

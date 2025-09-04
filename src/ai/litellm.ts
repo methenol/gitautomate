@@ -18,6 +18,7 @@ interface GenerateOptions {
   config?: {
     apiKey?: string;
     apiBase?: string;
+    timeout?: number; // Timeout in milliseconds
   };
 }
 
@@ -52,8 +53,8 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
       const testResult = schema.safeParse({});
       if (!testResult.success) {
         detectedFields = testResult.error.issues
-          .filter(issue => issue.code === 'invalid_type' && issue.path.length === 1)
-          .map(issue => issue.path[0] as string);
+          .filter((issue: any) => issue.code === 'invalid_type' && issue.path.length === 1)
+          .map((issue: any) => issue.path[0] as string);
       }
     } catch {
       // Fallback: try the old method
@@ -136,33 +137,48 @@ async function makeOpenAICall(
   model: string,
   prompt: string,
   apiKey: string,
-  baseUrl: string
+  baseUrl: string,
+  timeout: number = 1200000 // Default 20 minutes
 ): Promise<string> {
   const fullUrl = `${baseUrl}/chat/completions`;
   
   console.log(`Making API call to: ${fullUrl} with model: ${model}`);
   
-  const response = await fetch(fullUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      max_tokens: 4000,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(fullUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 4000,
+      }),
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
-    throw new Error(`LLM API error: ${errorData.error?.message || response.statusText}`);
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
+      throw new Error(`LLM API error: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content || '';
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeout}ms`);
+    }
+    throw error;
   }
-
-  const data = await response.json();
-  return data.choices[0]?.message?.content || '';
 }
 
 // LiteLLM implementation
@@ -188,7 +204,7 @@ export const ai = {
       console.log(`Using model: ${model}, baseUrl: ${baseUrl}`);
       
       // Use OpenAI-compatible API for all providers - let the user configure their endpoint correctly
-      const responseText = await makeOpenAICall(model, prompt, apiKey, baseUrl);
+      const responseText = await makeOpenAICall(model, prompt, apiKey, baseUrl, config?.timeout);
       
       // Parse response according to schema
       const parsedOutput = parseResponse(responseText, output?.schema);
