@@ -8,8 +8,8 @@
  * - GenerateFileStructureOutput - Output type: { fileStructure: string }
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { ai } from '@/ai/litellm';
+import { z } from 'zod';
 
 const GenerateFileStructureInputSchema = z.object({
   prd: z

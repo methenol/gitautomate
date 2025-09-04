@@ -4,8 +4,8 @@
  * @fileOverview Enhanced task research engine with full context awareness and dependency propagation
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { ai } from '@/ai/litellm';
+import { z } from 'zod';
 import { UnifiedProjectContext } from '@/types/unified-context';
 
 const EnhancedResearchOutputSchema = z.object({
@@ -115,7 +115,7 @@ Provide comprehensive research that includes:
 
 Generate your research results as a JSON object conforming to the output schema.`;
 
-    const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-pro-latest';
+    const modelName = model || 'gpt-4o';
     
     const { output } = await ai.generate({
       model: modelName,
@@ -128,7 +128,7 @@ Generate your research results as a JSON object conforming to the output schema.
       throw new Error('Failed to generate enhanced research results');
     }
 
-    return output;
+    return output as typeof EnhancedResearchOutputSchema._type;
   }
 
   async validateTaskConsistency(
