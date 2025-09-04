@@ -27,44 +27,41 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
     return response;
   }
 
-  console.log(`[DEBUG] Raw AI response received (first 500 chars): ${response.substring(0, 500)}...`);
-
   try {
     // Try to parse as JSON first
     const parsed = JSON.parse(response);
-    console.log(`[DEBUG] Successfully parsed as direct JSON:`, parsed);
     return schema.parse(parsed);
   } catch (jsonError) {
-    console.log(`[DEBUG] Direct JSON parsing failed, trying markdown extraction`);
-    
     // If JSON parsing fails, try to extract JSON from markdown code blocks
     const jsonMatch = response.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
     if (jsonMatch) {
       try {
         const parsed = JSON.parse(jsonMatch[1]);
-        console.log(`[DEBUG] Successfully parsed JSON from markdown block:`, parsed);
         return schema.parse(parsed);
       } catch (markdownError) {
-        console.log(`[DEBUG] Markdown JSON parsing failed, falling back to text parsing`);
         // Fall through to create structured response
       }
     }
     
     // As last resort, try to create a structured response based on common patterns
-    if ((schema as any)._def.shape) {
+    if ((schema as any)._def?.shape) {
       const result: any = {};
       const shapeKeys = Object.keys((schema as any)._def.shape);
-      console.log(`[DEBUG] Creating structured response for required keys:`, shapeKeys);
       
       if (shapeKeys.includes('architecture') && shapeKeys.includes('specifications')) {
         // Architecture generation response - use regex matching
-        const archMatch = response.match(/(?:architecture|Architecture)([\s\S]*?)(?:specification|Specification|$)/i);
-        const specMatch = response.match(/(?:specification|Specification)([\s\S]*?)$/i);
+        const archMatch = response.match(/"architecture"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+        const specMatch = response.match(/"specifications"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
         
-        result.architecture = archMatch ? archMatch[1].trim() : response;
-        result.specifications = specMatch ? specMatch[1].trim() : 'Please refer to the architecture above.';
-        
-        console.log(`[DEBUG] Extracted architecture length: ${result.architecture.length}, specifications length: ${result.specifications.length}`);
+        if (archMatch && specMatch) {
+          result.architecture = archMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+          result.specifications = specMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+        } else {
+          // Fallback: split by common patterns
+          const parts = response.split(/specifications?[\s\S]*?[:]/i);
+          result.architecture = parts[0] || response;
+          result.specifications = parts[1] || 'Please refer to the architecture above.';
+        }
       } else if (shapeKeys.includes('tasks')) {
         // Task generation response - try to extract task list
         const lines = response.split('\n').filter(line => line.trim());
@@ -76,20 +73,16 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
           }));
         
         result.tasks = tasks.length > 0 ? tasks : [{ title: response.substring(0, 100), details: '' }];
-        console.log(`[DEBUG] Extracted ${result.tasks.length} tasks`);
       } else {
         // Generic response - use the first shape key as the response field
         const firstKey = shapeKeys[0];
         result[firstKey] = response;
-        console.log(`[DEBUG] Using generic parsing with key: ${firstKey}`);
       }
       
-      console.log(`[DEBUG] Final structured result before validation:`, result);
       return schema.parse(result);
     }
     
     // If all else fails, return the raw response
-    console.error(`[DEBUG] All parsing methods failed for response: ${response.substring(0, 200)}...`);
     throw new Error(`Failed to parse response into expected schema: ${response.substring(0, 200)}...`);
   }
 }
