@@ -89,14 +89,14 @@ Configure your preferred LLM provider in the application settings:
 
 ### Running with Docker (Recommended)
 
-This method uses Docker Compose to build the necessary images and run the application in a containerized environment. It simplifies the setup by managing both the Next.js and Genkit services for you.
+This method uses Docker Compose to build the necessary images and run the application in a containerized environment. It simplifies the setup by managing the Next.js application for you.
 
 1.  **Build and start the services:**
     From the root of the project directory, run:
     ```bash
     docker-compose up --build
     ```
-    This command will build the Docker image for the application and start both the Next.js and Genkit services. The `-d` flag can be added to run the containers in detached mode (in the background).
+    This command will build the Docker image for the application and start the Next.js service. The `-d` flag can be added to run the containers in detached mode (in the background).
 
 2.  **Access the application:**
     Once the containers are running, the application will be available at `http://localhost:9002`.
@@ -141,9 +141,10 @@ Using the application involves a simple, sequential process.
 ### 1. Configure Settings
 
 - Click the **Settings** icon (⚙️) in the top-right corner.
-- **GitHub Token**: Add your GitHub Personal Access Token here to enable fetching your repositories and creating issues. This is stored only in your browser's local storage.
-- **Google AI API Key**: You can add a key here to override the one in your `.env` file. This is useful for testing different keys without restarting the application.
-- **AI Model**: Select the generative model you want to use. The list is populated automatically based on your API key. `gemini-1.5-flash-latest` is recommended for speed and cost-effectiveness.
+- **GitHub Token**: Add your GitHub Personal Access Token here to enable fetching your repositories and creating issues. This is stored securely using server-side encryption.
+- **LLM Model**: Enter "provider/model" format (e.g., "openai/gpt-4o", "anthropic/claude-3-haiku", "gemini-pro") 
+- **LLM API Key**: Your provider's API key (optional if set in environment variables)
+- **LLM API Base URL**: Custom endpoint for local providers like LM Studio (e.g., "http://localhost:1234/v1")
 - **Use TDD**: Toggle this switch to generate tasks and implementation plans that follow Test-Driven Development principles.
 
 ### 2. Select Repository

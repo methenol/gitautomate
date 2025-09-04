@@ -132,6 +132,42 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
 
 
 
+// Validate and sanitize URL to prevent SSRF attacks
+function validateAndSanitizeUrl(baseUrl: string): string {
+  try {
+    const url = new URL(baseUrl);
+    
+    // Only allow HTTP/HTTPS protocols
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Only HTTP and HTTPS protocols are allowed');
+    }
+    
+    // Prevent access to localhost and private networks
+    const hostname = url.hostname.toLowerCase();
+    if (hostname === 'localhost' || 
+        hostname.startsWith('127.') ||
+        hostname.startsWith('10.') ||
+        hostname.startsWith('172.') ||
+        hostname.startsWith('192.168.') ||
+        hostname === '::1' ||
+        hostname.startsWith('fc00:') ||
+        hostname.startsWith('fe80:')) {
+      // Allow localhost only for development purposes
+      if (process.env.NODE_ENV === 'development') {
+        return url.origin;
+      }
+      throw new Error('Access to private networks is not allowed');
+    }
+    
+    return url.origin;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Invalid URL: ${error.message}`);
+    }
+    throw new Error('Invalid URL format');
+  }
+}
+
 // Make OpenAI-compatible API call (works for all providers using OpenAI-compatible format)
 async function makeOpenAICall(
   model: string,
@@ -140,7 +176,9 @@ async function makeOpenAICall(
   baseUrl: string,
   timeout: number = 1200000 // Default 20 minutes
 ): Promise<string> {
-  const fullUrl = `${baseUrl}/chat/completions`;
+  // Validate and sanitize the base URL to prevent SSRF
+  const validatedBaseUrl = validateAndSanitizeUrl(baseUrl);
+  const fullUrl = `${validatedBaseUrl}/chat/completions`;
   
   console.log('Making API call to:', fullUrl, 'with model:', model);
   
@@ -187,10 +225,12 @@ export const ai = {
     const { model, prompt, output, config } = options;
     
     try {
-      console.log('Starting LiteLLM generation with model:', model, 'config:', config);
+      // Sanitize config before logging to avoid exposing sensitive information
+      const { apiKey: userApiKey, ...safeConfig } = config || {};
+      console.log('Starting LiteLLM generation with model:', model, 'config:', safeConfig);
       
       // Require API key and base URL to be provided in config
-      const apiKey = config?.apiKey;
+      const apiKey = userApiKey;
       const baseUrl = config?.apiBase;
       
       if (!apiKey) {
@@ -212,7 +252,7 @@ export const ai = {
       return { output: parsedOutput as T };
       
     } catch (error) {
-      console.error('LiteLLM generation error:', error);
+      console.error('LiteLLM generation error:', error instanceof Error ? error.message : String(error));
       
       // Provide more specific error messages
       if (error instanceof Error) {
