@@ -236,14 +236,14 @@ export default function Home() {
     setTasks([]);
     setFinalIssueURL('');
     try {
-      const result = await runGenerateArchitecture({ prd }, { apiKey: apiKey, model: llmModel });
+      const result = await runGenerateArchitecture({ prd }, { apiKey: apiKey, model: llmModel, apiBase: apiBase });
       setArchitecture(result.architecture);
       setSpecifications(result.specifications);
 
       // Automatically generate file structure after architecture/specs
       const fileStructResult = await runGenerateFileStructure(
         { prd, architecture: result.architecture, specifications: result.specifications },
-        { apiKey: apiKey, model: llmModel }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase }
       );
       setFileStructure(fileStructResult.fileStructure || '');
     } catch (error) {
@@ -264,7 +264,7 @@ export default function Home() {
     try {
       const result = await runResearchTask(
         { title: task.title, architecture, fileStructure, specifications },
-        { apiKey: apiKey, model: llmModel, useTDD }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD }
       );
       const formattedDetails = `### Context\n${result.context}\n\n### Implementation Steps\n${result.implementationSteps}\n\n### Acceptance Criteria\n${result.acceptanceCriteria}`;
       setTasks(currentTasks =>
@@ -296,7 +296,7 @@ export default function Home() {
     try {
       const result = await runGenerateTasks(
         { architecture, specifications, fileStructure },
-        { apiKey: apiKey, model: llmModel, useTDD }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD }
       );
       const initialTasks = result.tasks;
 
@@ -436,7 +436,7 @@ const handleExportData = async () => {
           fileStructure,
           tasks: tasks.map((task, index) => `### Task ${index + 1}: ${task.title}\n${task.details}`).join('\n\n')
         },
-        { apiKey: apiKey, model: llmModel }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase }
       );
       
       // Add AGENTS.md at the root level (not inside any subfolder)

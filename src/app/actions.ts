@@ -12,6 +12,7 @@ import { generateAgentsMd, GenerateAgentsMdInput } from '@/ai/flows/generate-age
 type ActionOptions = {
   apiKey?: string;
   model?: string;
+  apiBase?: string;
   useTDD?: boolean;
 };
 
@@ -26,7 +27,8 @@ export async function runGenerateArchitecture(
     const result = await generateArchitecture(
       input,
       options?.apiKey,
-      options?.model
+      options?.model,
+      options?.apiBase
     );
     return result;
   } catch (error) {
@@ -57,7 +59,7 @@ export async function runGenerateTasks(
     );
   }
   try {
-    const result = await generateTasks(input, options?.apiKey, options?.model, options?.useTDD);
+    const result = await generateTasks(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD);
     return result;
   } catch (error) {
     console.error('Error generating tasks:', error);
@@ -86,7 +88,8 @@ export async function runGenerateFileStructure(
     const result = await generateFileStructure(
       input,
       options?.apiKey,
-      options?.model
+      options?.model,
+      options?.apiBase
     );
     return result;
   } catch (error) {
@@ -120,7 +123,7 @@ export async function runResearchTask(
   const MAX_RETRIES = 3;
   for (let i = 0; i < MAX_RETRIES; i++) {
     try {
-      const result = await researchTask(input, options?.apiKey, options?.model, options?.useTDD);
+      const result = await researchTask(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD);
       return result;
     } catch (error) {
       console.error(
@@ -154,7 +157,8 @@ export async function runGenerateAgentsMd(
     const result = await generateAgentsMd(
       input,
       options?.apiKey,
-      options?.model
+      options?.model,
+      options?.apiBase
     );
     return result;
   } catch (error) {

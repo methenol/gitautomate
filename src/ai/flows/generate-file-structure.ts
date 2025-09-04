@@ -61,7 +61,8 @@ Respond with ONLY the proposed file/folder structure as a markdown code block or
 export async function generateFileStructure(
   input: GenerateFileStructureInput,
   apiKey?: string,
-  model?: string
+  model?: string,
+  apiBase?: string
 ): Promise<GenerateFileStructureOutput> {
   const modelName = model || 'gpt-4o';
 
@@ -76,7 +77,10 @@ export async function generateFileStructure(
     output: {
       schema: GenerateFileStructureOutputSchema,
     },
-    config: apiKey ? { apiKey } : undefined,
+    config: (apiKey || apiBase) ? {
+      ...(apiKey && {apiKey}),
+      ...(apiBase && {apiBase})
+    } : undefined,
   });
 
   if (!output) {

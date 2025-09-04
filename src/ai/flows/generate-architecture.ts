@@ -35,7 +35,8 @@ export type GenerateArchitectureOutput = z.infer<
 export async function generateArchitecture(
   input: GenerateArchitectureInput,
   apiKey?: string,
-  model?: string
+  model?: string,
+  apiBase?: string
 ): Promise<GenerateArchitectureOutput> {
   const modelName = model || 'gpt-4o';
   
@@ -50,7 +51,10 @@ Respond with ONLY a valid JSON object that conforms to the output schema. Use ma
     output: {
       schema: GenerateArchitectureOutputSchema,
     },
-    config: apiKey ? {apiKey} : undefined,
+    config: (apiKey || apiBase) ? {
+      ...(apiKey && {apiKey}),
+      ...(apiBase && {apiBase})
+    } : undefined,
   });
 
   return output as GenerateArchitectureOutput;

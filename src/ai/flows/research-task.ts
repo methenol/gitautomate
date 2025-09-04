@@ -101,6 +101,7 @@ export async function researchTask(
   input: ResearchTaskInput,
   apiKey?: string,
   model?: string,
+  apiBase?: string,
   useTDD?: boolean
 ): Promise<ResearchTaskOutput> {
   const modelName = model || 'gpt-4o';
@@ -118,7 +119,10 @@ export async function researchTask(
     output: {
       schema: ResearchTaskOutputSchema,
     },
-    config: apiKey ? {apiKey} : undefined,
+    config: (apiKey || apiBase) ? {
+      ...(apiKey && {apiKey}),
+      ...(apiBase && {apiBase})
+    } : undefined,
   });
 
   if (!output) {

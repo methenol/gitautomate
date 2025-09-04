@@ -50,7 +50,8 @@ export type GenerateAgentsMdOutput = z.infer<
 export async function generateAgentsMd(
   input: GenerateAgentsMdInput,
   apiKey?: string,
-  model?: string
+  model?: string,
+  apiBase?: string
 ): Promise<GenerateAgentsMdOutput> {
   const modelName = model || 'gpt-4o';
   
@@ -89,7 +90,10 @@ Content should be concise but comprehensive, providing valuable guidance for AI 
     output: {
       schema: GenerateAgentsMdOutputSchema,
     },
-    config: apiKey ? {apiKey} : undefined,
+    config: (apiKey || apiBase) ? {
+      ...(apiKey && {apiKey}),
+      ...(apiBase && {apiBase})
+    } : undefined,
   });
 
   return output as GenerateAgentsMdOutput;
