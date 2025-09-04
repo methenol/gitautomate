@@ -64,7 +64,10 @@ export async function generateFileStructure(
   model?: string,
   apiBase?: string
 ): Promise<GenerateFileStructureOutput> {
-  const modelName = model || 'gpt-4o';
+  if (!model) {
+    throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+  }
+  const modelName = model;
 
   const prompt = fileStructurePrompt
     .replace('{{{prd}}}', input.prd)

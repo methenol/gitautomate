@@ -38,7 +38,10 @@ export async function generateArchitecture(
   model?: string,
   apiBase?: string
 ): Promise<GenerateArchitectureOutput> {
-  const modelName = model || 'gpt-4o';
+  if (!model) {
+    throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+  }
+  const modelName = model;
   
   const {output} = await ai.generate({
     model: modelName,

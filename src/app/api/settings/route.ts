@@ -16,20 +16,44 @@ const SettingsSchema = z.object({
 type Settings = z.infer<typeof SettingsSchema>;
 
 // Simple encryption for API keys (in production, use proper key management)
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-key-not-secure';
+const DEFAULT_KEY = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789'; // 64 hex chars = 32 bytes
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || DEFAULT_KEY;
 
 function encrypt(text: string): string {
-  const cipher = crypto.createCipher('aes256', ENCRYPTION_KEY);
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipherGCM('aes-256-gcm', Buffer.from(ENCRYPTION_KEY, 'hex').slice(0, 32), iv);
   let encrypted = cipher.update(text, 'utf8', 'hex');
   encrypted += cipher.final('hex');
-  return encrypted;
+  const authTag = cipher.getAuthTag();
+  return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
 }
 
 function decrypt(encrypted: string): string {
-  const decipher = crypto.createDecipher('aes256', ENCRYPTION_KEY);
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return decrypted;
+  try {
+    // Try new format first (iv:authTag:data)
+    if (encrypted.includes(':')) {
+      const parts = encrypted.split(':');
+      if (parts.length === 3) {
+        const iv = Buffer.from(parts[0], 'hex');
+        const authTag = Buffer.from(parts[1], 'hex');
+        const encryptedData = parts[2];
+        const decipher = crypto.createDecipherGCM('aes-256-gcm', Buffer.from(ENCRYPTION_KEY, 'hex').slice(0, 32), iv);
+        decipher.setAuthTag(authTag);
+        let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+      }
+    }
+    
+    // Fallback to old format for backward compatibility
+    const decipher = crypto.createDecipher('aes256', ENCRYPTION_KEY);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (error) {
+    console.error('Failed to decrypt data:', error);
+    throw new Error('Failed to decrypt settings data');
+  }
 }
 
 // Simple file-based storage (in production, use a proper database)

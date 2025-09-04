@@ -104,7 +104,10 @@ export async function researchTask(
   apiBase?: string,
   useTDD?: boolean
 ): Promise<ResearchTaskOutput> {
-  const modelName = model || 'gpt-4o';
+  if (!model) {
+    throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+  }
+  const modelName = model;
   
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
   const prompt = promptTemplate

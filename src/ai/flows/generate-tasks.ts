@@ -64,7 +64,10 @@ Specifications:
 Generate the complete, exhaustive, and sequentially ordered list of task titles now.`;
 
 export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, apiBase?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
-  const modelName = model || 'gpt-4o';
+  if (!model) {
+    throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+  }
+  const modelName = model;
 
   const promptTemplate = useTDD ? tddPrompt : standardPrompt;
 
