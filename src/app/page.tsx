@@ -12,7 +12,6 @@ import {
   runGenerateTasks,
   runResearchTask,
   runGenerateFileStructure,
-  getModels,
 } from './actions';
 import { runGenerateAgentsMd } from '@/app/actions';
 import type { Task } from '@/types';
@@ -51,6 +50,11 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -58,10 +62,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
 import {
   Bot,
   ChevronRight,
@@ -85,8 +85,9 @@ import { Label } from '@/components/ui/label';
 
 const settingsSchema = z.object({
   githubToken: z.string().optional(),
-  googleApiKey: z.string().optional(),
-  model: z.string(),
+  llmModel: z.string().optional(),
+  apiKey: z.string().optional(),
+  apiBase: z.string().optional(),
   useTDD: z.boolean().default(false),
 });
 
@@ -99,7 +100,6 @@ type LoadingStates = {
   researching: boolean;
   issue: boolean;
   exporting: boolean;
-  models: boolean;
 };
 
 type TaskLoadingStates = {
@@ -113,15 +113,15 @@ const LOCAL_MODE_REPO: Repository = {
   name: 'Local Mode (Export Only)',
   full_name: LOCAL_MODE_REPO_ID,
 };
-const UI_DEFAULT_MODEL = 'gemini-1.5-flash-latest';
+
 
 export default function Home() {
   const { toast } = useToast();
   const [githubToken, setGithubToken] = useState<string>('');
-  const [googleApiKey, setGoogleApiKey] = useState<string>('');
-  const [selectedModel, setSelectedModel] = useState<string>(UI_DEFAULT_MODEL);
+  const [llmModel, setLlmModel] = useState<string>('');
+  const [apiKey, setApiKey] = useState<string>('');
+  const [apiBase, setApiBase] = useState<string>('');
   const [useTDD, setUseTDD] = useState<boolean>(false);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [repositories, setRepositories] = useState<Repository[]>([LOCAL_MODE_REPO]);
@@ -145,7 +145,6 @@ export default function Home() {
     researching: false,
     issue: false,
     exporting: false,
-    models: false,
   });
   
   const [taskLoading, setTaskLoading] = useState<TaskLoadingStates>({});
@@ -154,68 +153,44 @@ export default function Home() {
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       githubToken: '',
-      googleApiKey: '',
-      model: UI_DEFAULT_MODEL,
+      llmModel: '',
+      apiKey: '',
+      apiBase: '',
       useTDD: false,
     },
   });
 
-  const fetchModels = useCallback(async (apiKey?: string) => {
-    setLoading((prev) => ({ ...prev, models: true }));
-    try {
-      const models = await getModels({ apiKey: apiKey || undefined });
-      setAvailableModels(models);
-      
-      if (models.length > 0) {
-        const currentModel = localStorage.getItem('selectedModel') || UI_DEFAULT_MODEL;
-        if (models.includes(currentModel)) {
-          form.setValue('model', currentModel);
-          setSelectedModel(currentModel);
-        } else {
-          form.setValue('model', models[0]);
-          setSelectedModel(models[0]);
-          localStorage.setItem('selectedModel', models[0]);
-        }
-      } else {
-         toast({
-          variant: 'destructive',
-          title: 'No Models Found',
-          description: "Could not find any models. Check your API key in settings or the .env file.",
-        });
-      }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error Fetching Models',
-        description: (error as Error).message || "An unknown error occurred.",
-      });
-      setAvailableModels([]);
-    } finally {
-      setLoading((prev) => ({ ...prev, models: false }));
-    }
-  }, [form, toast]);
 
 
+
+  // Load settings from server-side storage on component mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('githubToken') || '';
-    const storedApiKey = localStorage.getItem('googleApiKey') || '';
-    const storedModel = localStorage.getItem('selectedModel') || UI_DEFAULT_MODEL;
-    const storedTDD = localStorage.getItem('useTDD') === 'true';
+    const loadSettings = async () => {
+      try {
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+          const settings = await response.json();
+          
+          setGithubToken(settings.githubToken || '');
+          setLlmModel(settings.llmModel || '');
+          setApiKey(settings.apiKey || '');
+          setApiBase(settings.apiBase || '');
+          setUseTDD(settings.useTDD || false);
 
-    setGithubToken(storedToken);
-    setGoogleApiKey(storedApiKey);
-    setSelectedModel(storedModel);
-    setUseTDD(storedTDD);
-
-    form.setValue('githubToken', storedToken);
-    form.setValue('googleApiKey', storedApiKey);
-    form.setValue('model', storedModel);
-    form.setValue('useTDD', storedTDD);
+          form.setValue('githubToken', settings.githubToken || '');
+          form.setValue('llmModel', settings.llmModel || '');
+          form.setValue('apiKey', settings.apiKey || '');
+          form.setValue('apiBase', settings.apiBase || '');
+          form.setValue('useTDD', settings.useTDD || false);
+        }
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+        // Continue with empty settings if load fails
+      }
+    };
     
-    if (storedApiKey || process.env.GOOGLE_API_KEY) {
-      fetchModels(storedApiKey);
-    }
-  }, [fetchModels, form]);
+    loadSettings();
+  }, [form]);
 
 
   useEffect(() => {
@@ -242,27 +217,41 @@ export default function Home() {
     }
   }, [githubToken, toast]);
 
-  const handleSaveSettings = (values: SettingsFormValues) => {
-    const oldApiKey = googleApiKey;
-    const newApiKey = values.googleApiKey || '';
-    
-    setGithubToken(values.githubToken || '');
-    localStorage.setItem('githubToken', values.githubToken || '');
-    
-    setGoogleApiKey(newApiKey);
-    localStorage.setItem('googleApiKey', newApiKey);
+  const handleSaveSettings = async (values: SettingsFormValues) => {
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          githubToken: values.githubToken || '',
+          llmModel: values.llmModel || '',
+          apiKey: values.apiKey || '',
+          apiBase: values.apiBase || '',
+          useTDD: values.useTDD,
+        }),
+      });
 
-    setSelectedModel(values.model);
-    localStorage.setItem('selectedModel', values.model);
+      if (!response.ok) {
+        throw new Error('Failed to save settings');
+      }
 
-    setUseTDD(values.useTDD);
-    localStorage.setItem('useTDD', values.useTDD.toString());
-    
-    setIsSettingsOpen(false);
-    toast({ title: 'Success', description: 'Settings saved.' });
-
-    if (newApiKey !== oldApiKey) {
-      fetchModels(newApiKey);
+      // Update local state after successful save
+      setGithubToken(values.githubToken || '');
+      setLlmModel(values.llmModel || '');
+      setApiKey(values.apiKey || '');
+      setApiBase(values.apiBase || '');
+      setUseTDD(values.useTDD);
+      
+      setIsSettingsOpen(false);
+      toast({ title: 'Success', description: 'Settings saved securely.' });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to save settings. Please try again.',
+      });
     }
   };
 
@@ -274,14 +263,14 @@ export default function Home() {
     setTasks([]);
     setFinalIssueURL('');
     try {
-      const result = await runGenerateArchitecture({ prd }, { apiKey: googleApiKey, model: selectedModel });
+      const result = await runGenerateArchitecture({ prd }, { apiKey: apiKey, model: llmModel, apiBase: apiBase });
       setArchitecture(result.architecture);
       setSpecifications(result.specifications);
 
       // Automatically generate file structure after architecture/specs
       const fileStructResult = await runGenerateFileStructure(
         { prd, architecture: result.architecture, specifications: result.specifications },
-        { apiKey: googleApiKey, model: selectedModel }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase }
       );
       setFileStructure(fileStructResult.fileStructure || '');
     } catch (error) {
@@ -302,7 +291,7 @@ export default function Home() {
     try {
       const result = await runResearchTask(
         { title: task.title, architecture, fileStructure, specifications },
-        { apiKey: googleApiKey, model: selectedModel, useTDD }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD }
       );
       const formattedDetails = `### Context\n${result.context}\n\n### Implementation Steps\n${result.implementationSteps}\n\n### Acceptance Criteria\n${result.acceptanceCriteria}`;
       setTasks(currentTasks =>
@@ -322,7 +311,7 @@ export default function Home() {
     } finally {
       setTaskLoading(prev => ({ ...prev, [task.title]: false }));
     }
-  }, [architecture, fileStructure, specifications, googleApiKey, selectedModel, useTDD, selectedTask?.title]);
+  }, [architecture, fileStructure, specifications, apiKey, llmModel, useTDD, selectedTask?.title]);
 
 
   const handleGenerateTasks = async () => {
@@ -334,7 +323,7 @@ export default function Home() {
     try {
       const result = await runGenerateTasks(
         { architecture, specifications, fileStructure },
-        { apiKey: googleApiKey, model: selectedModel, useTDD }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD }
       );
       const initialTasks = result.tasks;
 
@@ -472,9 +461,9 @@ const handleExportData = async () => {
           architecture, 
           specifications,
           fileStructure,
-          tasks: tasks.map((task, index) => `### Task ${index + 1}: ${task.title}\n${task.details}`).join('\n\n')
+          taskNames: tasks.map(task => task.title)
         },
-        { apiKey: googleApiKey, model: selectedModel }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase }
       );
       
       // Add AGENTS.md at the root level (not inside any subfolder)
@@ -579,39 +568,48 @@ const handleExportData = async () => {
                   />
                   <FormField
                     control={form.control}
-                    name="googleApiKey"
+                    name="llmModel"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Google AI API Key</FormLabel>
+                        <FormLabel>LLM Model</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="AIza... (optional, overrides .env)" {...field} />
+                          <Input placeholder="provider/model format" {...field} />
                         </FormControl>
+                        <FormDescription>
+                          Enter the provider/model in format "provider/model"
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <FormField
                     control={form.control}
-                    name="model"
+                    name="apiKey"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>AI Model</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={loading.models}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a model" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {loading.models && <SelectItem value="loading" disabled>Loading models...</SelectItem>}
-                            {availableModels.map(model => (
-                              <SelectItem key={model} value={model}>
-                                {model}
-                              </SelectItem>
-                            ))}
-                             {availableModels.length === 0 && !loading.models && <SelectItem value="none" disabled>No models found.</SelectItem>}
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>LLM API Key</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="API key (optional, can use env vars)" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          API key for your LLM provider (optional if using environment variables)
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="apiBase"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>LLM API Base URL</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Custom API base URL (optional)" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Custom endpoint URL for self-hosted or alternative providers (optional)
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

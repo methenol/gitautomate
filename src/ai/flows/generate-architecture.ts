@@ -8,8 +8,8 @@
  * - GenerateArchitectureOutput - The return type for the generateArchitecture function, which includes the architecture and specifications.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {ai} from '@/ai/litellm';
+import {z} from 'zod';
 
 const GenerateArchitectureInputSchema = z.object({
   prd: z
@@ -35,36 +35,51 @@ export type GenerateArchitectureOutput = z.infer<
 export async function generateArchitecture(
   input: GenerateArchitectureInput,
   apiKey?: string,
-  model?: string
+  model?: string,
+  apiBase?: string
 ): Promise<GenerateArchitectureOutput> {
-  const modelName = model
-    ? `googleai/${model}`
-    : 'googleai/gemini-1.5-flash-latest';
+  if (!model) {
+    throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+  }
   
-  const generateArchitectureFlow = ai.defineFlow(
-    {
-      name: 'generateArchitectureFlow',
-      inputSchema: GenerateArchitectureInputSchema,
-      outputSchema: GenerateArchitectureOutputSchema,
-    },
-    async (input) => {
-      const {output} = await ai.generate({
-        model: modelName,
-        prompt: `Generate a software architecture and specifications based on the following Product Requirements Document (PRD).
+  const {output} = await ai.generate({
+    model: model,
+    prompt: `You are a senior software architect tasked with creating a comprehensive software architecture and detailed specifications from a Product Requirements Document (PRD).
+
+Based on the following PRD, generate BOTH a software architecture AND detailed specifications. These are two separate deliverables that must both be fully developed.
+
+**ARCHITECTURE** should include:
+- High-level system design and component structure
+- Technology stack and framework choices
+- Data flow and integration patterns
+- Security considerations and architecture patterns
+- Scalability and performance considerations
+- Deployment and infrastructure approach
+
+**SPECIFICATIONS** should include:
+- Detailed functional requirements
+- User stories and use cases
+- API endpoints and data models
+- User interface requirements
+- Business logic and workflows
+- Non-functional requirements (performance, security, etc.)
+- Integration requirements
+- Data processing and validation rules
+
+CRITICAL: The specifications MUST be comprehensive and standalone - they should NOT reference the architecture or say "see architecture above". Both sections must contain detailed, actionable content. You MUST include BOTH an architecture and specification.
 
 PRD:
 ${input.prd}
 
-Respond with ONLY a valid JSON object that conforms to the output schema. Use markdown formatting for the content of the "architecture" and "specifications" fields.`,
-        output: {
-          schema: GenerateArchitectureOutputSchema,
-        },
-        config: apiKey ? {apiKey} : undefined,
-      });
+Respond with ONLY a valid JSON object that conforms to the output schema. Use markdown formatting for both the "architecture" and "specifications" fields. Both fields must be included, each field must contain all required content for that section.`,
+    output: {
+      schema: GenerateArchitectureOutputSchema,
+    },
+    config: (apiKey || apiBase) ? {
+      ...(apiKey && {apiKey}),
+      ...(apiBase && {apiBase})
+    } : undefined,
+  });
 
-      return output!;
-    }
-  );
-  
-  return await generateArchitectureFlow(input);
+  return output as GenerateArchitectureOutput;
 }

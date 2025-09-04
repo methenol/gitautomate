@@ -100,7 +100,8 @@ export class ComprehensiveOrchestrator {
       const archResult = await generateArchitecture(
         { prd },
         apiKey,
-        model
+        model,
+        undefined // apiBase - not provided
       );
       
       context.architecture = archResult.architecture;
@@ -117,7 +118,8 @@ export class ComprehensiveOrchestrator {
           specifications: context.specifications
         },
         apiKey,
-        model
+        model,
+        undefined // apiBase - not provided
       );
       
       context.fileStructure = fileStructResult.fileStructure || '';
@@ -134,6 +136,7 @@ export class ComprehensiveOrchestrator {
         },
         apiKey,
         model,
+        undefined, // apiBase - not provided
         useTDD
       );
 

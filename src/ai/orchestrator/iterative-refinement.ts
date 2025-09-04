@@ -8,8 +8,8 @@ import { UnifiedProjectContext, ValidationResult } from '@/types/unified-context
 import { ContextValidator } from '@/ai/validation/context-validator';
 import { generateTasks } from '@/ai/flows/generate-tasks';
 import { generateArchitecture } from '@/ai/flows/generate-architecture';
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { ai } from '@/ai/litellm';
+import { z } from 'zod';
 
 const RefinementSuggestionSchema = z.object({
   component: z.enum(['architecture', 'fileStructure', 'specifications', 'tasks', 'dependencies']),
@@ -161,7 +161,10 @@ ${promptSections.join('\n\n')}
 
 Provide your analysis as a JSON object conforming to the schema.`;
 
-    const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-pro-latest';
+    if (!model) {
+      throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+    }
+    const modelName = model;
     
     const { output } = await ai.generate({
       model: modelName,
@@ -174,7 +177,7 @@ Provide your analysis as a JSON object conforming to the schema.`;
       throw new Error('Failed to generate refinement analysis');
     }
 
-    return output;
+    return output as typeof RefinementAnalysisSchema._type;
   }
 
   async applyRefinements(
@@ -247,9 +250,12 @@ ${archSuggestions.map(s => `- ${s.issue}: ${s.suggestion} (Priority: ${s.priorit
 
 Provide a refined architecture that addresses these specific issues while maintaining the core design intent.`;
 
-    const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-pro-latest';
+    if (!model) {
+      throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+    }
+    const modelName = model;
     
-    const { text } = await ai.generate({
+    const { output } = await ai.generate({
       model: modelName,
       prompt: refinementPrompt,
       config: apiKey ? { apiKey } : undefined,
@@ -257,7 +263,7 @@ Provide a refined architecture that addresses these specific issues while mainta
 
     return {
       ...context,
-      architecture: text || context.architecture,
+      architecture: (output as string) || context.architecture,
     };
   }
 
@@ -320,9 +326,12 @@ ${specSuggestions.map(s => `- ${s.issue}: ${s.suggestion}`).join('\n')}
 
 Provide refined specifications that address these issues.`;
 
-    const modelName = model ? `googleai/${model}` : 'googleai/gemini-1.5-pro-latest';
+    if (!model) {
+      throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+    }
+    const modelName = model;
     
-    const { text } = await ai.generate({
+    const { output } = await ai.generate({
       model: modelName,
       prompt: refinementPrompt,
       config: apiKey ? { apiKey } : undefined,
@@ -330,7 +339,7 @@ Provide refined specifications that address these issues.`;
 
     return {
       ...context,
-      specifications: text || context.specifications,
+      specifications: (output as string) || context.specifications,
     };
   }
 

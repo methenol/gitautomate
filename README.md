@@ -4,9 +4,10 @@ GitAutomate is a powerful web application designed to streamline the initial pha
 
 ## Features
 
-- **AI-Powered Planning**: Uses Google's Gemini models to generate architecture, specifications, and tasks.
+- **AI-Powered Planning**: Uses LiteLLM to support multiple AI providers (OpenAI, Anthropic, Google Gemini, and more).
 - **Step-by-Step Workflow**: A guided, multi-step process from PRD to final output.
-- **Configurable AI**: Select from available Google AI models to suit your needs.
+- **Provider-Agnostic AI**: Use any LLM provider by specifying "provider/model" strings (e.g., "openai/gpt-4o", "anthropic/claude-3-haiku").
+- **Local AI Support**: Compatible with LM Studio and other OpenAI-compatible local endpoints.
 - **TDD Mode**: Optionally generate tasks and implementation steps following Test-Driven Development principles.
 - **GitHub Integration**: Automatically create a main tracking issue and sub-issues for each task in your selected repository.
 - **Local Mode**: Don't want to connect to GitHub? Export the entire project plan as a structured `.zip` file.
@@ -16,7 +17,7 @@ GitAutomate is a powerful web application designed to streamline the initial pha
 
 - **Framework**: [Next.js](https://nextjs.org/) (with App Router)
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
-- **AI Backend**: [Firebase Genkit](https://firebase.google.com/docs/genkit)
+- **AI Backend**: [LiteLLM](https://litellm.ai/) for provider-agnostic LLM integration
 - **UI**: [React](https://reactjs.org/), [ShadCN UI](https://ui.shadcn.com/), [Tailwind CSS](https://tailwindcss.com/)
 - **State Management**: React State & Hooks
 - **Form Handling**: [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/)
@@ -33,7 +34,7 @@ Follow these instructions to get a copy of the project up and running on your lo
 - **Node.js**: Version 20 or later.
 - **npm** package manager.
 - **Docker** and **Docker Compose** (for containerized deployment).
-- A **Google AI API Key**. You can obtain one from [Google AI Studio](https://aistudio.google.com/app/apikey).
+- An **LLM API Key** for your chosen provider (OpenAI, Anthropic, Google AI, etc.).
 - (Optional) A **GitHub Personal Access Token** with `repo` scope if you wish to use the GitHub integration feature.
 
 ### Installation & Setup
@@ -44,50 +45,58 @@ Follow these instructions to get a copy of the project up and running on your lo
     cd gitautomate
     ```
 
-2.  **Set up environment variables:**
-    Create a new file named `.env` in the root of the project and add your Google AI API Key.
+2.  **Set up environment variables (optional):**
+    Create a new file named `.env` in the root of the project to set default API keys:
 
     ```dotenv
-    # .env
-    GOOGLE_API_KEY="YOUR_GOOGLE_AI_API_KEY"
+    # .env - Optional: Set default API keys
+    OPENAI_API_KEY="your_openai_api_key"
+    ANTHROPIC_API_KEY="your_anthropic_api_key"  
+    GOOGLE_API_KEY="your_google_ai_api_key"
     ```
-    This key will be used by default for all AI operations. You can also override this by providing a key in the application's UI settings.
+    You can also configure API keys directly in the application's settings UI.
 
 ### Running the Application (Local npm)
 
-This method requires two concurrent terminal sessions to run: one for the Next.js frontend and one for the Genkit AI backend.
+This application now runs as a single Next.js server with integrated LiteLLM support.
 
 1.  **Install dependencies:**
     ```bash
     npm install
     ```
 
-2.  **Run the Genkit development server:**
-    Open a terminal and run the following command. This will start the Genkit backend and make the AI flows available.
-
-    ```bash
-    npm run genkit:watch
-    ```
-
-3.  **Run the Next.js development server:**
-    Open a *second* terminal and run the following command to start the frontend application.
-
+2.  **Run the development server:**
     ```bash
     npm run dev
     ```
 
 The application will be available at `http://localhost:9002`.
 
+## LLM Configuration
+
+Configure your preferred LLM provider in the application settings:
+
+- **LLM Model**: Enter "provider/model" format (e.g., "openai/gpt-4o", "anthropic/claude-3-haiku", "gemini-pro")
+- **LLM API Key**: Your provider's API key (optional if set in environment variables)
+- **LLM API Base URL**: Custom endpoint for local providers like LM Studio (e.g., "http://localhost:1234/v1")
+
+### Supported Providers
+
+- **OpenAI**: "openai/gpt-4o", "openai/gpt-3.5-turbo", etc.
+- **Anthropic**: "anthropic/claude-3-haiku", "anthropic/claude-3-sonnet", etc.
+- **Google**: "gemini-pro", "gemini-1.5-pro", etc.
+- **Local/Custom**: Any OpenAI-compatible endpoint (LM Studio, Ollama, etc.)
+
 ### Running with Docker (Recommended)
 
-This method uses Docker Compose to build the necessary images and run the application in a containerized environment. It simplifies the setup by managing both the Next.js and Genkit services for you.
+This method uses Docker Compose to build the necessary images and run the application in a containerized environment. It simplifies the setup by managing the Next.js application for you.
 
 1.  **Build and start the services:**
     From the root of the project directory, run:
     ```bash
     docker-compose up --build
     ```
-    This command will build the Docker image for the application and start both the Next.js and Genkit services. The `-d` flag can be added to run the containers in detached mode (in the background).
+    This command will build the Docker image for the application and start the Next.js service. The `-d` flag can be added to run the containers in detached mode (in the background).
 
 2.  **Access the application:**
     Once the containers are running, the application will be available at `http://localhost:9002`.
@@ -132,9 +141,10 @@ Using the application involves a simple, sequential process.
 ### 1. Configure Settings
 
 - Click the **Settings** icon (⚙️) in the top-right corner.
-- **GitHub Token**: Add your GitHub Personal Access Token here to enable fetching your repositories and creating issues. This is stored only in your browser's local storage.
-- **Google AI API Key**: You can add a key here to override the one in your `.env` file. This is useful for testing different keys without restarting the application.
-- **AI Model**: Select the generative model you want to use. The list is populated automatically based on your API key. `gemini-1.5-flash-latest` is recommended for speed and cost-effectiveness.
+- **GitHub Token**: Add your GitHub Personal Access Token here to enable fetching your repositories and creating issues. This is stored securely using server-side encryption.
+- **LLM Model**: Enter "provider/model" format (e.g., "openai/gpt-4o", "anthropic/claude-3-haiku", "gemini-pro") 
+- **LLM API Key**: Your provider's API key (optional if set in environment variables)
+- **LLM API Base URL**: Custom endpoint for local providers like LM Studio (e.g., "http://localhost:1234/v1")
 - **Use TDD**: Toggle this switch to generate tasks and implementation plans that follow Test-Driven Development principles.
 
 ### 2. Select Repository

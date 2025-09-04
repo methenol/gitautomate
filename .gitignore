@@ -40,6 +40,9 @@ next-env.d.ts
 .genkit/*
 .env*
 
+# settings file contains encrypted sensitive data
+.settings.json
+
 # firebase
 firebase-debug.log
 firestore-debug.log

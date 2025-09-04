@@ -8,11 +8,11 @@ import { generateTasks, GenerateTasksInput } from '@/ai/flows/generate-tasks';
 import { researchTask, ResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
 import { generateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
 import { generateAgentsMd, GenerateAgentsMdInput } from '@/ai/flows/generate-agents-md';
-import { listAvailableModels } from '@/ai/genkit';
 
 type ActionOptions = {
   apiKey?: string;
   model?: string;
+  apiBase?: string;
   useTDD?: boolean;
 };
 
@@ -27,7 +27,8 @@ export async function runGenerateArchitecture(
     const result = await generateArchitecture(
       input,
       options?.apiKey,
-      options?.model
+      options?.model,
+      options?.apiBase
     );
     return result;
   } catch (error) {
@@ -36,10 +37,10 @@ export async function runGenerateArchitecture(
       error instanceof Error &&
       (error.message.includes('API key not found') ||
         error.message.includes('API key is invalid') ||
-        error.message.includes('Please check your Google AI API key'))
+        error.message.includes('Please check your LLM API key'))
     ) {
       throw new Error(
-        'Failed to generate architecture: Your Google AI API key is missing or invalid. Please check it in settings.'
+        'Failed to generate architecture: Your LLM API key is missing or invalid. Please check it in settings.'
       );
     }
     throw new Error(
@@ -58,7 +59,7 @@ export async function runGenerateTasks(
     );
   }
   try {
-    const result = await generateTasks(input, options?.apiKey, options?.model, options?.useTDD);
+    const result = await generateTasks(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD);
     return result;
   } catch (error) {
     console.error('Error generating tasks:', error);
@@ -87,7 +88,8 @@ export async function runGenerateFileStructure(
     const result = await generateFileStructure(
       input,
       options?.apiKey,
-      options?.model
+      options?.model,
+      options?.apiBase
     );
     return result;
   } catch (error) {
@@ -96,10 +98,10 @@ export async function runGenerateFileStructure(
       error instanceof Error &&
       (error.message.includes('API key not found') ||
         error.message.includes('API key is invalid') ||
-        error.message.includes('Please check your Google AI API key'))
+        error.message.includes('Please check your LLM API key'))
     ) {
       throw new Error(
-        'Failed to generate file structure: Your Google AI API key is missing or invalid. Please check it in settings.'
+        'Failed to generate file structure: Your LLM API key is missing or invalid. Please check it in settings.'
       );
     }
     throw new Error(
@@ -121,7 +123,7 @@ export async function runResearchTask(
   const MAX_RETRIES = 3;
   for (let i = 0; i < MAX_RETRIES; i++) {
     try {
-      const result = await researchTask(input, options?.apiKey, options?.model, options?.useTDD);
+      const result = await researchTask(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD);
       return result;
     } catch (error) {
       console.error(
@@ -146,16 +148,17 @@ export async function runGenerateAgentsMd(
   input: GenerateAgentsMdInput,
   options?: ActionOptions
 ) {
-  if (!input.prd || !input.architecture || !input.specifications || !input.fileStructure) {
+  if (!input.prd || !input.architecture || !input.specifications || !input.fileStructure || !input.taskNames || input.taskNames.length === 0) {
     throw new Error(
-      'PRD, architecture, specifications, and file structure are required to generate AGENTS.md content.'
+      'PRD, architecture, specifications, file structure, and task names are required to generate AGENTS.md content.'
     );
   }
   try {
     const result = await generateAgentsMd(
       input,
       options?.apiKey,
-      options?.model
+      options?.model,
+      options?.apiBase
     );
     return result;
   } catch (error) {
@@ -164,10 +167,10 @@ export async function runGenerateAgentsMd(
       error instanceof Error &&
       (error.message.includes('API key not found') ||
         error.message.includes('API key is invalid') ||
-        error.message.includes('Please check your Google AI API key'))
+        error.message.includes('Please check your LLM API key'))
     ) {
       throw new Error(
-        'Failed to generate AGENTS.md content: Your Google AI API key is missing or invalid. Please check it in settings.'
+        'Failed to generate AGENTS.md content: Your LLM API key is missing or invalid. Please check it in settings.'
       );
     }
     throw new Error(
@@ -176,16 +179,4 @@ export async function runGenerateAgentsMd(
   }
 }
 
-export async function getModels(options?: ActionOptions): Promise<string[]> {
-  try {
-    const models = await listAvailableModels(options?.apiKey);
-    return models;
-  } catch (error) {
-    console.error('Failed to fetch models:', error);
-    if (error instanceof Error) {
-      // Pass the specific error message to the client.
-      throw new Error(`Failed to fetch models: ${error.message}`);
-    }
-    throw new Error('An unknown error occurred while fetching models.');
-  }
-}
+

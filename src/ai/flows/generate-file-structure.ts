@@ -8,8 +8,8 @@
  * - GenerateFileStructureOutput - Output type: { fileStructure: string }
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { ai } from '@/ai/litellm';
+import { z } from 'zod';
 
 const GenerateFileStructureInputSchema = z.object({
   prd: z
@@ -61,41 +61,37 @@ Respond with ONLY the proposed file/folder structure as a markdown code block or
 export async function generateFileStructure(
   input: GenerateFileStructureInput,
   apiKey?: string,
-  model?: string
+  model?: string,
+  apiBase?: string
 ): Promise<GenerateFileStructureOutput> {
-  const modelName = model
-    ? `googleai/${model}`
-    : 'googleai/gemini-1.5-flash-latest';
+  console.log('[DEBUG] generateFileStructure called with model:', model);
+  if (!model) {
+    throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+  }
+  const modelName = model;
 
   const prompt = fileStructurePrompt
     .replace('{{{prd}}}', input.prd)
     .replace('{{{architecture}}}', input.architecture)
     .replace('{{{specifications}}}', input.specifications);
 
-  const generateFileStructureFlow = ai.defineFlow(
-    {
-      name: 'generateFileStructureFlow',
-      inputSchema: GenerateFileStructureInputSchema,
-      outputSchema: GenerateFileStructureOutputSchema,
+  const { output } = await ai.generate({
+    model: modelName,
+    prompt: prompt,
+    output: {
+      schema: GenerateFileStructureOutputSchema,
     },
-    async (_input) => {
-      const { output } = await ai.generate({
-        model: modelName,
-        prompt: prompt,
-        output: {
-          schema: GenerateFileStructureOutputSchema,
-        },
-        config: apiKey ? { apiKey } : undefined,
-      });
+    config: (apiKey || apiBase) ? {
+      ...(apiKey && {apiKey}),
+      ...(apiBase && {apiBase})
+    } : undefined,
+  });
 
-      if (!output) {
-        throw new Error(
-          'An unexpected response was received from the server.'
-        );
-      }
-      return output;
-    }
-  );
-
-  return await generateFileStructureFlow(input);
+  if (!output) {
+    throw new Error(
+      'An unexpected response was received from the server.'
+    );
+  }
+  
+  return output as GenerateFileStructureOutput;
 }

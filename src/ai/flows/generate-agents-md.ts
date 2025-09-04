@@ -1,13 +1,13 @@
 /**
  * @fileOverview This file defines a Genkit flow for generating an AGENTS.md file with project-specific instructions for AI agents.
  *
- * - generateAgentsMd - A function that takes PRD, architecture, specifications, and file structure as input and returns an AGENTS.md content.
+ * - generateAgentsMd - A function that takes PRD, architecture, specifications, file structure, and task names as input and returns an AGENTS.md content.
  * - GenerateAgentsMdInput - The input type for the generateAgentsMd function, which includes project data.
  * - GenerateAgentsMdOutput - The return type for the generateAgentsMd function, which includes the AGENTS.md content.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {ai} from '@/ai/litellm';
+import {z} from 'zod';
 
 const GenerateAgentsMdInputSchema = z.object({
   prd: z
@@ -30,10 +30,10 @@ const GenerateAgentsMdInputSchema = z.object({
     .describe(
       'The proposed file structure to understand project setup requirements.'
     ),
-  tasks: z
-    .string()
+  taskNames: z
+    .array(z.string())
     .describe(
-      'The list of generated tasks to infer development patterns and conventions.'
+      'The list of task names to infer development patterns and conventions.'
     ),
 });
 export type GenerateAgentsMdInput = z.infer<
@@ -50,22 +50,17 @@ export type GenerateAgentsMdOutput = z.infer<
 export async function generateAgentsMd(
   input: GenerateAgentsMdInput,
   apiKey?: string,
-  model?: string
+  model?: string,
+  apiBase?: string
 ): Promise<GenerateAgentsMdOutput> {
-  const modelName = model
-    ? `googleai/${model}`
-    : 'googleai/gemini-1.5-flash-latest';
+  if (!model) {
+    throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+  }
+  const modelName = model;
   
-  const generateAgentsMdFlow = ai.defineFlow(
-    {
-      name: 'generateAgentsMdFlow',
-      inputSchema: GenerateAgentsMdInputSchema,
-      outputSchema: GenerateAgentsMdOutputSchema,
-    },
-    async (input) => {
-      const {output} = await ai.generate({
-        model: modelName,
-        prompt: `Generate an AGENTS.md file with project-specific instructions for AI agents working on the following software project.
+  const {output} = await ai.generate({
+    model: modelName,
+    prompt: `Generate an AGENTS.md file with project-specific instructions for AI agents working on the following software project.
 
 Use ONLY the provided data sources to extract relevant information:
 
@@ -81,29 +76,29 @@ ${input.specifications}
 File Structure:
 ${input.fileStructure}
 
-Tasks:
-${input.tasks}
+Task Names:
+${input.taskNames.join('\n- ')}
 
 The AGENTS.md file should be 20-50 lines and include:
 
 1. **Project Overview**: Brief description based on PRD
 2. **Tech Stack**: Extract technologies, tools, and versions from architecture/specs  
 3. **Project Structure**: Outline key directories and their roles based on file structure
-4. **Setup Instructions**: How to start the project from the file structure
-5. **Testing Guidelines**: Testing approach mentioned in specs or architecture  
-6. **Key Conventions**: Important patterns and conventions used
-7. **Development Rules**: General rules for the project
+4. **Development Tasks**: Key development tasks and patterns inferred from task names
+5. **Setup Instructions**: How to start the project based on architecture and specs
+6. **Testing Guidelines**: Testing approach mentioned in specs or architecture  
+7. **Key Conventions**: Important patterns and conventions used
+8. **Development Rules**: General rules for the project
 
 Content should be concise but comprehensive, providing valuable guidance for AI coding assistants. Use clear markdown formatting with appropriate section headers.`,
-        output: {
-          schema: GenerateAgentsMdOutputSchema,
-        },
-        config: apiKey ? {apiKey} : undefined,
-      });
+    output: {
+      schema: GenerateAgentsMdOutputSchema,
+    },
+    config: (apiKey || apiBase) ? {
+      ...(apiKey && {apiKey}),
+      ...(apiBase && {apiBase})
+    } : undefined,
+  });
 
-      return output!;
-    }
-  );
-  
-  return await generateAgentsMdFlow(input);
+  return output as GenerateAgentsMdOutput;
 }

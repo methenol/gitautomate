@@ -121,7 +121,7 @@ const MOCK_TASKS = [
   { title: 'Add testing framework', details: '' }
 ];
 
-jest.mock('@/ai/genkit', () => ({
+jest.mock('@/ai/litellm', () => ({
   ai: {
     generate: jest.fn().mockImplementation(({ prompt }) => {
       if (prompt.includes('consistency analysis')) {
