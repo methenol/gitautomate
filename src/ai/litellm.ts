@@ -121,8 +121,8 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
   }
 }
 
-// Validate and normalize URL
-function validateAndNormalizeUrl(url: string): string {
+// Validate URL without aggressive normalization
+function validateUrl(url: string): string {
   try {
     // Handle empty or undefined URLs
     if (!url || typeof url !== 'string') {
@@ -132,18 +132,13 @@ function validateAndNormalizeUrl(url: string): string {
     // Trim whitespace
     url = url.trim();
     
-    // Add protocol if missing
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = `https://${url}`;
-    }
-    
-    // Validate URL format
+    // Just validate that the URL is parseable - don't modify it
     const urlObj = new URL(url);
     
-    // Remove trailing slash for consistency
-    return urlObj.href.replace(/\/$/, '');
+    // Return the original trimmed URL, not the normalized version
+    return url;
   } catch (error) {
-    throw new Error(`Invalid URL format: ${url}. Please provide a valid URL (e.g., "http://localhost:1234" or "https://api.example.com")`);
+    throw new Error(`Invalid URL format: ${url}. Please provide a valid URL with protocol (e.g., "http://localhost:1234" or "https://api.example.com")`);
   }
 }
 
@@ -154,9 +149,9 @@ async function makeOpenAICall(
   apiKey: string,
   baseUrl: string
 ): Promise<string> {
-  // Validate and normalize the base URL
-  const normalizedBaseUrl = validateAndNormalizeUrl(baseUrl);
-  const fullUrl = `${normalizedBaseUrl}/chat/completions`;
+  // Validate the base URL
+  const validatedBaseUrl = validateUrl(baseUrl);
+  const fullUrl = `${validatedBaseUrl}/chat/completions`;
   
   console.log(`Making OpenAI API call to: ${fullUrl} with model: ${model}`);
   
@@ -190,9 +185,9 @@ async function makeAnthropicCall(
   apiKey: string,
   baseUrl: string
 ): Promise<string> {
-  // Validate and normalize the base URL
-  const normalizedBaseUrl = validateAndNormalizeUrl(baseUrl);
-  const fullUrl = `${normalizedBaseUrl}/v1/messages`;
+  // Validate the base URL
+  const validatedBaseUrl = validateUrl(baseUrl);
+  const fullUrl = `${validatedBaseUrl}/v1/messages`;
   
   console.log(`Making Anthropic API call to: ${fullUrl} with model: ${model}`);
   
@@ -226,9 +221,9 @@ async function makeGeminiCall(
   apiKey: string,
   baseUrl: string
 ): Promise<string> {
-  // Validate and normalize the base URL
-  const normalizedBaseUrl = validateAndNormalizeUrl(baseUrl);
-  const fullUrl = `${normalizedBaseUrl}/models/${model}:generateContent?key=${apiKey}`;
+  // Validate the base URL
+  const validatedBaseUrl = validateUrl(baseUrl);
+  const fullUrl = `${validatedBaseUrl}/models/${model}:generateContent?key=${apiKey}`;
   
   console.log(`Making Gemini API call to: ${fullUrl} with model: ${model}`);
   
