@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import sanitize from 'sanitize-filename';
 
 export interface MarkdownLintResult {
   isValid: boolean;
@@ -13,20 +14,21 @@ export class MarkdownLinter {
    * Sanitize filename to prevent command injection and path traversal
    */
   private static sanitizeFilename(filename: string): string {
-    if (!filename || typeof filename !== 'string') {
-      return 'document.md';
+    let sanitized = '';
+    if (typeof filename === 'string') {
+      sanitized = sanitize(filename);
     }
-    
-    // Remove any path separators and dangerous characters, only allow safe characters
-    const sanitized = filename
-      .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace non-alphanumeric chars with underscore
-      .replace(/^\.+/, '') // Remove leading dots
-      .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-      .substring(0, 50); // Limit length to reasonable size
-    
-    // Ensure it's not empty and ends with .md
-    const result = sanitized || 'document';
-    return result.endsWith('.md') ? result : `${result}.md`;
+    // Ensure fallback and enforced .md extension
+    if (!sanitized) {
+      sanitized = 'document.md';
+    } else if (!sanitized.endsWith('.md')) {
+      sanitized += '.md';
+    }
+    // Limiting length, extra safety
+    if (sanitized.length > 50) {
+      sanitized = sanitized.slice(0, 50);
+    }
+    return sanitized;
   }
 
   /**
