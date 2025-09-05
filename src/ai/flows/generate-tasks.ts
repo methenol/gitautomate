@@ -37,6 +37,22 @@ The tasks must be generated in a strict, sequential order that a developer would
 
 These tasks are for an AI programmer, so they must be clear, unambiguous, and represent a single, contained unit of work. The tasks should represent meaningful chunks of work. Avoid creating tasks that are too small or trivial. For example, "Implement user login page" is a good task, but "Add password input to login form" is too granular.
 
+IMPORTANT: For each task, you MUST include at the end of the details field a section starting with "REQUIRED LIBRARIES:" followed by a comma-separated list of the specific libraries/packages/frameworks that will be needed for that task. For example:
+"REQUIRED LIBRARIES: react, typescript, @types/node, tailwindcss"
+"REQUIRED LIBRARIES: express, mongodb, mongoose, bcryptjs, jsonwebtoken"
+"REQUIRED LIBRARIES: jest, @testing-library/react, @testing-library/jest-dom"
+
+Be specific and include all necessary libraries, frameworks, tools, databases, and packages that would be needed to complete each task. This includes but is not limited to:
+- Frontend frameworks (react, vue, angular, svelte)
+- Backend frameworks (express, fastify, django, flask, spring)
+- Databases (mongodb, mysql, postgresql, redis, sqlite)
+- Testing tools (jest, mocha, cypress, playwright)
+- Build tools (webpack, vite, rollup, esbuild)
+- Styling (tailwindcss, styled-components, sass, bootstrap)
+- Type systems (typescript, flow)
+- Authentication (jsonwebtoken, passport, auth0)
+- DevOps tools (docker, kubernetes, nginx)
+
 Architecture:
 {{{architecture}}}
 
@@ -46,7 +62,7 @@ File Structure:
 Specifications:
 {{{specifications}}}
 
-Respond with ONLY a valid JSON object that conforms to the output schema. The "tasks" field should be an array of objects, each with "title" (the task title) and "details" (leave as empty string). Generate multiple tasks covering all requirements.`;
+Respond with ONLY a valid JSON object that conforms to the output schema. The "tasks" field should be an array of objects, each with "title" (the task title) and "details" (leave as empty string initially - the details will be populated later but must include the REQUIRED LIBRARIES section). Generate multiple tasks covering all requirements.`;
 
 const tddPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable, granular development task *titles*.
 
@@ -60,6 +76,22 @@ These tasks are for an AI programmer, so they must be clear, unambiguous, and re
 
 For each task, the implementation must strictly follow all phases of Test-Driven Development (Red-Green-Refactor).
 
+IMPORTANT: For each task, you MUST include at the end of the details field a section starting with "REQUIRED LIBRARIES:" followed by a comma-separated list of the specific libraries/packages/frameworks that will be needed for that task. For example:
+"REQUIRED LIBRARIES: react, typescript, @types/node, tailwindcss"
+"REQUIRED LIBRARIES: express, mongodb, mongoose, bcryptjs, jsonwebtoken"
+"REQUIRED LIBRARIES: jest, @testing-library/react, @testing-library/jest-dom"
+
+Be specific and include all necessary libraries, frameworks, tools, databases, and packages that would be needed to complete each task. This includes but is not limited to:
+- Frontend frameworks (react, vue, angular, svelte)
+- Backend frameworks (express, fastify, django, flask, spring)
+- Databases (mongodb, mysql, postgresql, redis, sqlite)
+- Testing tools (jest, mocha, cypress, playwright)
+- Build tools (webpack, vite, rollup, esbuild)
+- Styling (tailwindcss, styled-components, sass, bootstrap)
+- Type systems (typescript, flow)
+- Authentication (jsonwebtoken, passport, auth0)
+- DevOps tools (docker, kubernetes, nginx)
+
 Architecture:
 {{{architecture}}}
 
@@ -69,7 +101,7 @@ File Structure:
 Specifications:
 {{{specifications}}}
 
-Respond with ONLY a valid JSON object that conforms to the output schema. The "tasks" field should be an array of objects, each with "title" (the task title) and "details" (leave as empty string). Generate multiple tasks covering all requirements.`;
+Respond with ONLY a valid JSON object that conforms to the output schema. The "tasks" field should be an array of objects, each with "title" (the task title) and "details" (leave as empty string initially - the details will be populated later but must include the REQUIRED LIBRARIES section). Generate multiple tasks covering all requirements.`;
 
 export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, apiBase?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
   if (!model) {

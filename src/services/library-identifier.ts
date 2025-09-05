@@ -46,7 +46,26 @@ export class LibraryIdentifier {
   private static extractLibraryNamesFromText(text: string): Array<{ name: string; confidence: number; context: string }> {
     const libraries: Array<{ name: string; confidence: number; context: string }> = [];
     
-    // Pattern 1: Import/require statements (highest confidence)
+    // Pattern 0: REQUIRED LIBRARIES sections (highest confidence - this is our new explicit format)
+    const requiredLibrariesPattern = /REQUIRED LIBRARIES:\s*([^\n\r.]+)/gi;
+    let match;
+    while ((match = requiredLibrariesPattern.exec(text)) !== null) {
+      const libraryList = match[1].trim();
+      // Split by comma and extract individual libraries
+      const libs = libraryList.split(/[,\s]+/).filter(lib => lib.trim().length > 0);
+      for (const lib of libs) {
+        const libName = this.normalizeLibraryName(lib.trim());
+        if (libName && this.isValidLibraryName(libName)) {
+          libraries.push({
+            name: libName,
+            confidence: 0.98,
+            context: `Required libraries section: ${match[0]}`
+          });
+        }
+      }
+    }
+    
+    // Pattern 1: Import/require statements (high confidence)
     const importPatterns = [
       /import\s+.*?from\s+['"`]([a-zA-Z][\w\-@/]*?)['"`]/gi,
       /import\s+['"`]([a-zA-Z][\w\-@/]*?)['"`]/gi,
@@ -189,6 +208,12 @@ export class LibraryIdentifier {
     // Must be at least 2 characters
     if (name.length < 2) return false;
     
+    // Reject names that contain dots (these are usually property paths, not library names)
+    if (name.includes('.')) return false;
+    
+    // Reject names with multiple consecutive hyphens or underscores
+    if (name.includes('--') || name.includes('__')) return false;
+    
     // Exclude common words that aren't libraries
     const excludeWords = [
       // Common directory/file words
@@ -208,7 +233,7 @@ export class LibraryIdentifier {
       // Common English words
       'the', 'and', 'for', 'with', 'from', 'this', 'that', 'using',
       'file', 'path', 'font', 'sprite', 'base', 'name', 'hooks', 'state',
-      'props', 'context', 'custom', 'utils'
+      'props', 'context', 'custom', 'utils', 'invalid-name'
     ];
     
     return !excludeWords.includes(name.toLowerCase());

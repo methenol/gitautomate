@@ -502,7 +502,7 @@ const handleExportData = async () => {
             
             // Add documentation to zip if fetched successfully
             if (documentationResult && documentationResult.libraries && documentationResult.libraries.length > 0) {
-              const libraryDocsFolder = zip.folder('library-documentation');
+              const libraryDocsFolder = zip.folder('reference');
               if (libraryDocsFolder) {
                 // Create index of all libraries
                 const libraryIndex = documentationResult.libraries.map((lib: any) => 
@@ -648,7 +648,7 @@ const handleExportData = async () => {
                 <Settings className="h-5 w-5" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
+            <DialogContent className="max-w-2xl h-[90vh] flex flex-col">
               <DialogHeader className="flex-shrink-0">
                 <DialogTitle>Settings</DialogTitle>
                 <DialogDescription>
@@ -656,10 +656,10 @@ const handleExportData = async () => {
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
-                <div className="max-h-[calc(90vh-8rem)] overflow-y-auto px-1">
+                <div className="flex-1 overflow-y-auto px-1 min-h-0">
                   <form
                     onSubmit={form.handleSubmit(handleSaveSettings)}
-                    className="space-y-4"
+                    className="space-y-4 pb-4"
                   >
                   <FormField
                     control={form.control}

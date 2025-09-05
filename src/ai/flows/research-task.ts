@@ -53,6 +53,15 @@ For the given task, provide a detailed breakdown for each of the following field
   - Integration points with other system components
   - The expected behavior and functionality
   - Any specific considerations or edge cases
+  
+  CRITICAL: At the end of the implementationSteps, you MUST include a section that starts with "REQUIRED LIBRARIES:" followed by a comma-separated list of all libraries, packages, frameworks, and tools needed for this specific task. Be comprehensive and specific. Examples:
+  "REQUIRED LIBRARIES: react, typescript, @types/node, tailwindcss, react-router-dom"
+  "REQUIRED LIBRARIES: express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors"
+  "REQUIRED LIBRARIES: jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event"
+  
+  CRITICAL: At the very end of implementationSteps, you MUST also include this exact instruction:
+  "DOCUMENTATION: Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development."
+
 - acceptanceCriteria: Define what it means for this task to be considered "done".
 
 Overall Project Architecture:
@@ -81,6 +90,15 @@ For the given task, provide a detailed breakdown for each of the following field
   - Integration points with other system components
   - The expected behavior and functionality
   - Any specific considerations or edge cases. The implementation plan must strictly follow all phases of Test-Driven Development (Red-Green-Refactor).
+  
+  CRITICAL: At the end of the implementationSteps, you MUST include a section that starts with "REQUIRED LIBRARIES:" followed by a comma-separated list of all libraries, packages, frameworks, and tools needed for this specific task. Be comprehensive and specific. Examples:
+  "REQUIRED LIBRARIES: react, typescript, @types/node, tailwindcss, react-router-dom"
+  "REQUIRED LIBRARIES: express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors"
+  "REQUIRED LIBRARIES: jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event"
+  
+  CRITICAL: At the very end of implementationSteps, you MUST also include this exact instruction:
+  "DOCUMENTATION: Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development."
+
 - acceptanceCriteria: Define what it means for this task to be considered "done".
 
 Overall Project Architecture:

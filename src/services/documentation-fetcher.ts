@@ -10,6 +10,7 @@ import { Octokit } from '@octokit/rest';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as cheerio from 'cheerio';
+import { ai } from '@/ai/litellm';
 
 export class DocumentationFetcher {
   private octokit: Octokit | null = null;
@@ -64,11 +65,14 @@ export class DocumentationFetcher {
           continue;
         }
 
+        // Clean and enhance documentation using AI
+        const cleanedDocs = await this.cleanDocumentationWithAI(docs, library.name);
+
         const libraryDoc: LibraryDocumentation = {
           libraryName: library.name,
           category: library.category,
-          sources: docs,
-          sizeKB: docs.reduce((sum, doc) => sum + doc.sizeKB, 0),
+          sources: cleanedDocs,
+          sizeKB: cleanedDocs.reduce((sum, doc) => sum + doc.sizeKB, 0),
           fetchedAt: new Date(),
           cacheExpiry: new Date(Date.now() + this.settings.cacheDocumentationDays * 24 * 60 * 60 * 1000),
         };
@@ -533,6 +537,76 @@ export class DocumentationFetcher {
       await fs.writeFile(cacheFile, JSON.stringify(doc, null, 2));
     } catch (error) {
       console.warn(`Failed to cache documentation for ${doc.libraryName}:`, error);
+    }
+  }
+
+  /**
+   * Clean and enhance documentation using AI to make it more useful for developers
+   */
+  private async cleanDocumentationWithAI(sources: DocumentationSource[], libraryName: string): Promise<DocumentationSource[]> {
+    const cleanedSources: DocumentationSource[] = [];
+
+    for (const source of sources) {
+      try {
+        // Only clean if the content is substantial but not too large for AI processing
+        if (source.content.length > 500 && source.content.length < 10000) {
+          const cleanedContent = await this.cleanDocumentationContent(source.content, libraryName, source.type);
+          
+          cleanedSources.push({
+            ...source,
+            content: cleanedContent,
+            title: `${source.title} (AI Enhanced)`,
+            sizeKB: Math.round(cleanedContent.length / 1024),
+          });
+        } else {
+          // Keep original content for very short or very long documents
+          cleanedSources.push(source);
+        }
+      } catch (error) {
+        console.warn(`Failed to clean documentation for ${libraryName} from ${source.type}:`, error);
+        // Fallback to original content if AI cleaning fails
+        cleanedSources.push(source);
+      }
+    }
+
+    return cleanedSources;
+  }
+
+  /**
+   * Use AI to clean and enhance raw scraped documentation
+   */
+  private async cleanDocumentationContent(rawContent: string, libraryName: string, sourceType: string): Promise<string> {
+    try {
+      const prompt = `You are a technical documentation editor. Your task is to clean up and enhance the following raw documentation content for the library "${libraryName}" from source "${sourceType}".
+
+Transform the raw content into clear, concise, and useful developer documentation by:
+
+1. **Removing noise**: Strip out navigation elements, ads, footers, unrelated content, and HTML artifacts
+2. **Organizing structure**: Create clear sections with proper markdown headers
+3. **Adding clarity**: Rewrite confusing sentences to be clearer and more developer-friendly
+4. **Highlighting key info**: Emphasize installation instructions, quick start guides, API basics, and common use cases
+5. **Preserving examples**: Keep all code examples and technical details intact
+6. **Adding sections**: If missing, add sections for Installation, Quick Start, Key Features, and Basic Usage
+
+Output clean, well-structured markdown documentation that a developer would find immediately useful.
+
+Raw content to clean:
+---
+${rawContent}
+---
+
+Return only the cleaned documentation content in markdown format.`;
+
+      const { output } = await ai.generate({
+        model: 'gemini-1.5-flash', // Use a fast model for documentation cleaning
+        prompt,
+      });
+
+      return output as string;
+    } catch (error) {
+      console.warn(`AI documentation cleaning failed for ${libraryName}:`, error);
+      // Return original content if AI fails
+      return rawContent;
     }
   }
 }
