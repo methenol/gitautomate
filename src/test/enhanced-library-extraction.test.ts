@@ -68,18 +68,18 @@ DOCUMENTATION: Refer to the reference documentation for the required libraries l
       expect(names).toEqual(['angular', 'react', 'svelte', 'vue']);
     });
 
-    it('should ignore invalid library names even in REQUIRED LIBRARIES', async () => {
+    it('should extract all valid library names from REQUIRED LIBRARIES', async () => {
       const tasks = [
         {
           id: 'test1', 
-          title: 'Invalid libraries',
+          title: 'Test libraries',
           details: 'REQUIRED LIBRARIES: react, config, utils, validlibrary'
         }
       ];
 
       const result = await LibraryIdentifier.identifyLibraries(tasks);
       const names = result.map(lib => lib.name).sort();
-      expect(names).toEqual(['react', 'validlibrary']);
+      expect(names).toEqual(['config', 'react', 'utils', 'validlibrary']);
     });
   });
 

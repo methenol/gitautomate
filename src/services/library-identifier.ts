@@ -238,31 +238,7 @@ export class LibraryIdentifier {
     // Reject names with multiple consecutive hyphens or underscores
     if (name.includes('--') || name.includes('__')) return false;
     
-    // Exclude common words that aren't libraries
-    const excludeWords = [
-      // Common directory/file words
-      'config', 'utils', 'helper', 'common', 'shared', 'base', 'core',
-      'main', 'index', 'app', 'src', 'lib', 'dist', 'build', 'test',
-      'spec', 'mock', 'fixture', 'data', 'assets', 'public', 'static',
-      'component', 'service', 'controller', 'model', 'view', 'route',
-      'middleware', 'plugin', 'extension', 'addon', 'theme', 'template',
-      // Common action words that aren't libraries
-      'setup', 'configure', 'install', 'create', 'build', 'deploy',
-      'authentication', 'authorization', 'validation', 'monitoring',
-      // Additional noise words
-      'dependencies', 'frontend', 'backend', 'testing', 'project', 'application',
-      'routing', 'components', 'server', 'connection', 'limiting', 'pipeline',
-      'proxy', 'navigation', 'push', 'management', 'notifications', 'analytics',
-      'request', 'ui', 'api', 'client', 'database', 'db', 'framework',
-      // Common English words
-      'the', 'and', 'for', 'with', 'from', 'this', 'that', 'using',
-      'file', 'path', 'font', 'sprite', 'base', 'name', 'hooks', 'state',
-      'props', 'context', 'custom', 'utils', 'invalid-name',
-      // Programming keywords that shouldn't be libraries
-      'import', 'export', 'require', 'module', 'package', 'include'
-    ];
-    
-    return !excludeWords.includes(name.toLowerCase());
+    return true;
   }
 
   /**
