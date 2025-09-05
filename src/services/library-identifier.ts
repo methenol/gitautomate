@@ -25,7 +25,7 @@ export class LibraryIdentifier {
           identified.set(key, {
             name: libraryInfo.name,
             confidenceScore: libraryInfo.confidence,
-            category: this.guessCategory(libraryInfo.name, libraryInfo.context),
+            category: 'library', // Simple generic category since no hardcoding allowed
             detectedIn: [task.id],
             source: 'pattern' as const,
             context: libraryInfo.context,
@@ -115,6 +115,13 @@ export class LibraryIdentifier {
 
     // Pattern 3: Common technology keywords (medium confidence) - only very well-known ones
     const keywordPatterns = [
+      // Category colon patterns: "Frontend: React, Vue" etc. - more restrictive to avoid noise
+      /(?:frontend|ui|frontend\s*technologies?):\s*([a-zA-Z][a-zA-Z0-9-]*(?:\s*,\s*[a-zA-Z][a-zA-Z0-9-]*)*)/gi,
+      /(?:backend|server|api|backend\s*technologies?):\s*([a-zA-Z][a-zA-Z0-9-]*(?:\s*,\s*[a-zA-Z][a-zA-Z0-9-]*)*)/gi,
+      /(?:database|db|databases?):\s*([a-zA-Z][a-zA-Z0-9-]*(?:\s*,\s*[a-zA-Z][a-zA-Z0-9-]*)*)/gi,
+      /(?:testing|tests?):\s*([a-zA-Z][a-zA-Z0-9-]*(?:\s*,\s*[a-zA-Z][a-zA-Z0-9-]*)*)/gi,
+      /(?:devops|deployment|infrastructure):\s*([a-zA-Z][a-zA-Z0-9-]*(?:\s*,\s*[a-zA-Z][a-zA-Z0-9-]*)*)/gi,
+      
       // Database patterns
       /\b(?:setup|configure|use|using|with)\s+(mysql|postgresql|postgres|mongodb|redis|sqlite)\b/gi,
       /\b(mysql|postgresql|postgres|mongodb|redis|sqlite)\s+(?:database|db|server)\b/gi,
@@ -147,13 +154,30 @@ export class LibraryIdentifier {
     for (const pattern of keywordPatterns) {
       let match;
       while ((match = pattern.exec(text)) !== null) {
-        const libName = this.normalizeLibraryName(match[1]);
-        if (libName && this.isValidLibraryName(libName)) {
-          libraries.push({
-            name: libName,
-            confidence: 0.8,
-            context: `Keyword mention: ${match[0]}`
-          });
+        const matchedText = match[1];
+        
+        // Handle comma-separated lists from category colon patterns
+        if (matchedText.includes(',')) {
+          const libNames = matchedText.split(',').map(lib => lib.trim());
+          for (const libName of libNames) {
+            const normalizedName = this.normalizeLibraryName(libName);
+            if (normalizedName && this.isValidLibraryName(normalizedName)) {
+              libraries.push({
+                name: normalizedName,
+                confidence: 0.8,
+                context: `Keyword mention: ${match[0]}`
+              });
+            }
+          }
+        } else {
+          const libName = this.normalizeLibraryName(matchedText);
+          if (libName && this.isValidLibraryName(libName)) {
+            libraries.push({
+              name: libName,
+              confidence: 0.8,
+              context: `Keyword mention: ${match[0]}`
+            });
+          }
         }
       }
     }
@@ -233,64 +257,12 @@ export class LibraryIdentifier {
       // Common English words
       'the', 'and', 'for', 'with', 'from', 'this', 'that', 'using',
       'file', 'path', 'font', 'sprite', 'base', 'name', 'hooks', 'state',
-      'props', 'context', 'custom', 'utils', 'invalid-name'
+      'props', 'context', 'custom', 'utils', 'invalid-name',
+      // Programming keywords that shouldn't be libraries
+      'import', 'export', 'require', 'module', 'package', 'include'
     ];
     
     return !excludeWords.includes(name.toLowerCase());
-  }
-
-  /**
-   * Guess category based on library name and context
-   */
-  private static guessCategory(name: string, context?: string): IdentifiedLibrary['category'] {
-    const lowerName = name.toLowerCase();
-    const lowerContext = context?.toLowerCase() || '';
-    
-    // Frontend frameworks/libraries based on name patterns and context
-    if (lowerName.match(/^(react|vue|angular|svelte|next|nuxt|gatsby|jquery|typescript)$/) ||
-        lowerName.includes('component') || lowerName.includes('ui') ||
-        lowerContext.includes('frontend') || lowerContext.includes('ui') || lowerContext.includes('component')) {
-      return 'frontend';
-    }
-    
-    // Backend frameworks and auth libraries
-    if (lowerName.match(/^(express|fastify|django|flask|spring|laravel|rails|node|graphql|jwt|passport|bcrypt)$/) ||
-        lowerName.includes('auth') || lowerName.includes('server') || lowerName.includes('api') ||
-        lowerContext.includes('backend') || lowerContext.includes('server') || lowerContext.includes('api') || lowerContext.includes('auth')) {
-      return 'backend';
-    }
-    
-    // Databases
-    if (lowerName.match(/^(mysql|postgresql|postgres|mongodb|mongo|redis|sqlite|sequelize|mongoose|prisma)$/) ||
-        lowerContext.includes('database') || lowerContext.includes('db')) {
-      return 'database';
-    }
-    
-    // Testing frameworks
-    if (lowerName.match(/^(jest|mocha|cypress|playwright|selenium|chai|supertest)$/) ||
-        lowerContext.includes('test') || lowerContext.includes('spec')) {
-      return 'testing';
-    }
-    
-    // DevOps tools
-    if (lowerName.match(/^(docker|kubernetes|k8s|terraform|ansible|jenkins|nginx|prometheus|grafana)$/) ||
-        lowerContext.includes('deploy') || lowerContext.includes('infrastructure') || lowerContext.includes('container')) {
-      return 'devops';
-    }
-    
-    // Mobile frameworks
-    if (lowerName.match(/^(react-native|flutter|ionic|xamarin)$/) ||
-        lowerContext.includes('mobile') || lowerContext.includes('android') || lowerContext.includes('ios')) {
-      return 'mobile';
-    }
-    
-    // ML/Data science
-    if (lowerName.match(/^(tensorflow|pytorch|pandas|numpy|scikit-learn)$/) ||
-        lowerContext.includes('machine learning') || lowerContext.includes('data science') || lowerContext.includes('ml')) {
-      return 'ml';
-    }
-    
-    return 'utility';
   }
 
   /**
@@ -300,7 +272,7 @@ export class LibraryIdentifier {
     libraries: IdentifiedLibrary[], 
     options: {
       minConfidence?: number;
-      categories?: IdentifiedLibrary['category'][];
+      categories?: string[];
       maxCount?: number;
     } = {}
   ): IdentifiedLibrary[] {

@@ -122,7 +122,9 @@ describe('Library Extraction - Core Functionality', () => {
     }, {} as Record<string, number>);
     
     console.log('Categories:', categories);
-    expect(Object.keys(categories).length).toBeGreaterThan(1);
+    // Since no hardcoded categories, all libraries should have 'library' category
+    expect(Object.keys(categories).length).toBe(1);
+    expect(categories['library']).toBeDefined();
   });
 
   it('should filter libraries by confidence and count', () => {

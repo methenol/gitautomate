@@ -13,7 +13,7 @@ export type DocumentationSettings = z.infer<typeof DocumentationSettingsSchema>;
 export interface IdentifiedLibrary {
   name: string;
   confidenceScore: number;
-  category: 'frontend' | 'backend' | 'database' | 'testing' | 'utility' | 'devops' | 'mobile' | 'ml';
+  category: string; // Dynamic category, not hardcoded
   detectedIn: string[]; // Task IDs where this library was mentioned
   source: 'ai' | 'pattern' | 'combined';
   context?: string; // Where/how it was detected

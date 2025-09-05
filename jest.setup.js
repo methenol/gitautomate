@@ -4,3 +4,8 @@
 // Used for __tests__/testing-library.js
 // Learn more: https://github.com/testing-library/jest-dom
 // import '@testing-library/jest-dom'
+
+// Mock external dependencies that cause ES module issues
+jest.mock('@octokit/rest');
+jest.mock('cheerio');
+jest.mock('@/ai/litellm');

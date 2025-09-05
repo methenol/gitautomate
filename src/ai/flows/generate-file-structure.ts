@@ -10,6 +10,7 @@
 
 import { ai } from '@/ai/litellm';
 import { z } from 'zod';
+import { MarkdownLinter } from '@/services/markdown-linter';
 
 const GenerateFileStructureInputSchema = z.object({
   prd: z
@@ -75,23 +76,43 @@ export async function generateFileStructure(
     .replace('{{{architecture}}}', input.architecture)
     .replace('{{{specifications}}}', input.specifications);
 
-  const { output } = await ai.generate({
-    model: modelName,
-    prompt: prompt,
-    output: {
-      schema: GenerateFileStructureOutputSchema,
-    },
-    config: (apiKey || apiBase) ? {
-      ...(apiKey && {apiKey}),
-      ...(apiBase && {apiBase})
-    } : undefined,
-  });
+  let retries = 3;
+  while (retries > 0) {
+    const { output } = await ai.generate({
+      model: modelName,
+      prompt: prompt + '\n\n**CRITICAL: You MUST output valid markdown format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**',
+      output: {
+        schema: GenerateFileStructureOutputSchema,
+      },
+      config: (apiKey || apiBase) ? {
+        ...(apiKey && {apiKey}),
+        ...(apiBase && {apiBase})
+      } : undefined,
+    });
 
-  if (!output) {
-    throw new Error(
-      'An unexpected response was received from the server.'
-    );
+    if (!output) {
+      throw new Error('An unexpected response was received from the server.');
+    }
+
+    // Lint and fix the generated file structure
+    const lintResult = await MarkdownLinter.lintAndFix(output.fileStructure, 'file-structure.md');
+
+    // If document is valid or can be fixed, return the result
+    if (lintResult.isValid) {
+      return {
+        fileStructure: lintResult.fixedContent || output.fileStructure
+      };
+    }
+
+    // If markdown is invalid and can't be fixed, retry
+    retries--;
+    if (retries === 0) {
+      // Return the best we have with fixes applied
+      return {
+        fileStructure: lintResult.fixedContent || output.fileStructure
+      };
+    }
   }
-  
-  return output as GenerateFileStructureOutput;
+
+  throw new Error('Failed to generate valid markdown after retries');
 }

@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/litellm';
 import {z} from 'zod';
+import { MarkdownLinter } from '@/services/markdown-linter';
 
 const GenerateArchitectureInputSchema = z.object({
   prd: z
@@ -42,11 +43,15 @@ export async function generateArchitecture(
     throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
   }
   
-  const {output} = await ai.generate({
-    model: model,
-    prompt: `You are a senior software architect tasked with creating a comprehensive software architecture and detailed specifications from a Product Requirements Document (PRD).
+  let retries = 3;
+  while (retries > 0) {
+    const {output} = await ai.generate({
+      model: model,
+      prompt: `You are a senior software architect tasked with creating a comprehensive software architecture and detailed specifications from a Product Requirements Document (PRD).
 
 Based on the following PRD, generate BOTH a software architecture AND detailed specifications. These are two separate deliverables that must both be fully developed.
+
+**CRITICAL: You MUST output valid markdown format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
 
 **ARCHITECTURE** should include:
 - High-level system design and component structure
@@ -72,14 +77,37 @@ PRD:
 ${input.prd}
 
 Respond with ONLY a valid JSON object that conforms to the output schema. Use markdown formatting for both the "architecture" and "specifications" fields. Both fields must be included, each field must contain all required content for that section.`,
-    output: {
-      schema: GenerateArchitectureOutputSchema,
-    },
-    config: (apiKey || apiBase) ? {
-      ...(apiKey && {apiKey}),
-      ...(apiBase && {apiBase})
-    } : undefined,
-  });
+      output: {
+        schema: GenerateArchitectureOutputSchema,
+      },
+      config: (apiKey || apiBase) ? {
+        ...(apiKey && {apiKey}),
+        ...(apiBase && {apiBase})
+      } : undefined,
+    });
 
-  return output as GenerateArchitectureOutput;
+    // Lint and fix the generated architecture and specifications
+    const architectureLintResult = await MarkdownLinter.lintAndFix(output.architecture, 'architecture.md');
+    const specificationsLintResult = await MarkdownLinter.lintAndFix(output.specifications, 'specifications.md');
+
+    // If both documents are valid or can be fixed, return the result
+    if (architectureLintResult.isValid && specificationsLintResult.isValid) {
+      return {
+        architecture: architectureLintResult.fixedContent || output.architecture,
+        specifications: specificationsLintResult.fixedContent || output.specifications
+      };
+    }
+
+    // If markdown is invalid and can't be fixed, retry
+    retries--;
+    if (retries === 0) {
+      // Return the best we have with fixes applied
+      return {
+        architecture: architectureLintResult.fixedContent || output.architecture,
+        specifications: specificationsLintResult.fixedContent || output.specifications
+      };
+    }
+  }
+
+  throw new Error('Failed to generate valid markdown after retries');
 }

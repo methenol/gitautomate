@@ -14,6 +14,7 @@ import {
   formatFileStructureMarkdown,
   formatPRDMarkdown,
 } from '@/lib/markdown';
+import { BrowserMarkdownLinter } from '@/lib/browser-markdown-linter';
 import {
   runGenerateArchitecture,
   runGenerateTasks,
@@ -471,11 +472,16 @@ const handleExportData = async () => {
         throw new Error('Could not create folders in zip file.');
       }
 
-      // Add docs with proper markdown formatting
-      docsFolder.file('PRD.md', formatPRDMarkdown(prd));
-      docsFolder.file('ARCHITECTURE.md', formatArchitectureMarkdown(architecture));
-      docsFolder.file('SPECIFICATION.md', formatSpecificationsMarkdown(specifications));
-      docsFolder.file('FILE_STRUCTURE.md', formatFileStructureMarkdown(fileStructure));
+      // Add docs with proper markdown formatting and linting
+      const prdFixed = BrowserMarkdownLinter.getFixedContent(formatPRDMarkdown(prd), 'PRD.md');
+      const architectureFixed = BrowserMarkdownLinter.getFixedContent(formatArchitectureMarkdown(architecture), 'ARCHITECTURE.md');
+      const specificationsFixed = BrowserMarkdownLinter.getFixedContent(formatSpecificationsMarkdown(specifications), 'SPECIFICATION.md');
+      const fileStructureFixed = BrowserMarkdownLinter.getFixedContent(formatFileStructureMarkdown(fileStructure), 'FILE_STRUCTURE.md');
+
+      docsFolder.file('PRD.md', prdFixed);
+      docsFolder.file('ARCHITECTURE.md', architectureFixed);
+      docsFolder.file('SPECIFICATION.md', specificationsFixed);
+      docsFolder.file('FILE_STRUCTURE.md', fileStructureFixed);
 
       // Fetch documentation if enabled
       let documentationResult = null;
@@ -510,12 +516,14 @@ const handleExportData = async () => {
             if (documentationResult && documentationResult.libraries && documentationResult.libraries.length > 0) {
               const libraryDocsFolder = zip.folder('reference');
               if (libraryDocsFolder) {
-                // Create index of all libraries
+                // Create index of all libraries with proper markdown
                 const libraryIndex = documentationResult.libraries.map((lib: any) => 
                   `- [${lib.libraryName}](${lib.libraryName}/README.md) - ${lib.category} (${lib.sources.length} sources, ${lib.sizeKB}KB)`
                 ).join('\n');
                 
-                libraryDocsFolder.file('README.md', `# Library Documentation\n\nThe following libraries were identified and documented for this project:\n\n${libraryIndex}\n\nTotal: ${documentationResult.fetchedCount} libraries, ${documentationResult.totalSizeKB}KB`);
+                const libraryIndexContent = `# Library Documentation\n\nThe following libraries were identified and documented for this project:\n\n${libraryIndex}\n\nTotal: ${documentationResult.fetchedCount} libraries, ${documentationResult.totalSizeKB}KB`;
+                const libraryIndexFixed = BrowserMarkdownLinter.getFixedContent(libraryIndexContent, 'library-index.md');
+                libraryDocsFolder.file('README.md', libraryIndexFixed);
                 
                 // Add each library's documentation
                 for (const lib of documentationResult.libraries) {
@@ -529,12 +537,16 @@ const handleExportData = async () => {
                       const source = lib.sources[i];
                       libContent += `## Source ${i + 1}: ${source.title}\n\n**Type:** ${source.type}\n**URL:** ${source.url}\n\n${source.content}\n\n---\n\n`;
                       
-                      // Also create individual source files
+                      // Also create individual source files with linting
                       const sourceFileName = `source-${i + 1}-${source.type}.md`;
-                      libFolder.file(sourceFileName, `# ${source.title}\n\n**Type:** ${source.type}\n**URL:** ${source.url}\n**Size:** ${source.sizeKB}KB\n\n${source.content}`);
+                      const sourceContent = `# ${source.title}\n\n**Type:** ${source.type}\n**URL:** ${source.url}\n**Size:** ${source.sizeKB}KB\n\n${source.content}`;
+                      const sourceContentFixed = BrowserMarkdownLinter.getFixedContent(sourceContent, sourceFileName);
+                      libFolder.file(sourceFileName, sourceContentFixed);
                     }
                     
-                    libFolder.file('README.md', libContent);
+                    // Apply linting to main library content
+                    const libContentFixed = BrowserMarkdownLinter.getFixedContent(libContent, `${lib.libraryName}-README.md`);
+                    libFolder.file('README.md', libContentFixed);
                   }
                 }
               }
@@ -553,15 +565,17 @@ const handleExportData = async () => {
         }
       }
 
-      // Create main tasks file
+      // Create main tasks file with linting
       const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
-      tasksFolder.file('tasks.md', `# Task List\n\n${mainTasksContent}`);
+      const mainTasksFixed = BrowserMarkdownLinter.getFixedContent(`# Task List\n\n${mainTasksContent}`, 'tasks.md');
+      tasksFolder.file('tasks.md', mainTasksFixed);
 
-      // Create individual task files with proper markdown formatting
+      // Create individual task files with proper markdown formatting and linting
       tasks.forEach((task, index) => {
         const taskNumber = (index + 1).toString().padStart(3, '0');
         const formattedTaskContent = formatTaskMarkdown(task.details);
-        tasksFolder.file(`task-${taskNumber}.md`, formattedTaskContent);
+        const lintedTaskContent = BrowserMarkdownLinter.getFixedContent(formattedTaskContent, `task-${taskNumber}.md`);
+        tasksFolder.file(`task-${taskNumber}.md`, lintedTaskContent);
       });
 
       // Generate and add AGENTS.md file at the root of zip
@@ -576,12 +590,13 @@ const handleExportData = async () => {
         { apiKey: apiKey, model: llmModel, apiBase: apiBase }
       );
       
-      // Add AGENTS.md at the root level (not inside any subfolder)
-      zip.file('AGENTS.md', agentsMdResult.agentsMdContent);
+      // Add AGENTS.md at the root level (not inside any subfolder) with linting
+      const agentsMdFixed = BrowserMarkdownLinter.getFixedContent(agentsMdResult.agentsMdContent, 'AGENTS.md');
+      zip.file('AGENTS.md', agentsMdFixed);
       
-      // Add additional copies of AGENTS.md to specified locations
-      zip.file('.openhands/microagents/repo.md', agentsMdResult.agentsMdContent);
-      zip.file('.github/copilot-instructions.md', agentsMdResult.agentsMdContent);
+      // Add additional copies of AGENTS.md to specified locations with linting
+      zip.file('.openhands/microagents/repo.md', agentsMdFixed);
+      zip.file('.github/copilot-instructions.md', agentsMdFixed);
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       saveAs(zipBlob, 'gitautomate-export.zip');

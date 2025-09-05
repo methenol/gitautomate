@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/litellm';
 import {z} from 'zod';
+import { MarkdownLinter } from '@/services/markdown-linter';
 
 const _ResearchTaskInputSchema = z.object({
   title: z.string().describe('The title of the development task to research.'),
@@ -146,23 +147,43 @@ export async function researchTask(
     .replace('{{{specifications}}}', input.specifications)
     .replace('{{{title}}}', input.title);
 
-  const {output} = await ai.generate({
-    model: modelName,
-    prompt: prompt,
-    output: {
-      schema: ResearchTaskOutputSchema,
-    },
-    config: (apiKey || apiBase) ? {
-      ...(apiKey && {apiKey}),
-      ...(apiBase && {apiBase})
-    } : undefined,
-  });
+  let retries = 3;
+  while (retries > 0) {
+    const {output} = await ai.generate({
+      model: modelName,
+      prompt: prompt + '\n\n**CRITICAL: You MUST output valid markdown format in the markdownContent field. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**',
+      output: {
+        schema: ResearchTaskOutputSchema,
+      },
+      config: (apiKey || apiBase) ? {
+        ...(apiKey && {apiKey}),
+        ...(apiBase && {apiBase})
+      } : undefined,
+    });
 
-  if (!output) {
-    throw new Error(
-      'An unexpected response was received from the server.'
-    );
+    if (!output) {
+      throw new Error('An unexpected response was received from the server.');
+    }
+
+    // Lint and fix the generated task markdown
+    const lintResult = await MarkdownLinter.lintAndFix(output.markdownContent, `task-${input.title.replace(/[^a-zA-Z0-9]/g, '-')}.md`);
+
+    // If document is valid or can be fixed, return the result
+    if (lintResult.isValid) {
+      return {
+        markdownContent: lintResult.fixedContent || output.markdownContent
+      };
+    }
+
+    // If markdown is invalid and can't be fixed, retry
+    retries--;
+    if (retries === 0) {
+      // Return the best we have with fixes applied
+      return {
+        markdownContent: lintResult.fixedContent || output.markdownContent
+      };
+    }
   }
-  
-  return output as ResearchTaskOutput;
+
+  throw new Error('Failed to generate valid markdown after retries');
 }
