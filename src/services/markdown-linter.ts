@@ -48,7 +48,7 @@ export class MarkdownLinter {
           fixedContent: fixedContent !== content ? fixedContent : undefined
         };
       } catch (lintError) {
-        const errorOutput = lintError.toString();
+        const errorOutput = lintError instanceof Error ? lintError.toString() : String(lintError);
         const errors = this.parseMarkdownLintErrors(errorOutput);
         
         // Clean up temp file
@@ -87,7 +87,7 @@ export class MarkdownLinter {
     } catch (error) {
       return {
         isValid: false,
-        errors: [`Linting failed: ${error.message}`]
+        errors: [`Linting failed: ${error instanceof Error ? error.message : 'Unknown error'}`]
       };
     }
   }

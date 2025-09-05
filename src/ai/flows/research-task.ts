@@ -165,13 +165,16 @@ export async function researchTask(
       throw new Error('An unexpected response was received from the server.');
     }
 
+    // Cast output to proper type
+    const typedOutput = output as ResearchTaskOutput;
+
     // Lint and fix the generated task markdown
-    const lintResult = await MarkdownLinter.lintAndFix(output.markdownContent, `task-${input.title.replace(/[^a-zA-Z0-9]/g, '-')}.md`);
+    const lintResult = await MarkdownLinter.lintAndFix(typedOutput.markdownContent, `task-${input.title.replace(/[^a-zA-Z0-9]/g, '-')}.md`);
 
     // If document is valid or can be fixed, return the result
     if (lintResult.isValid) {
       return {
-        markdownContent: lintResult.fixedContent || output.markdownContent
+        markdownContent: lintResult.fixedContent || typedOutput.markdownContent
       };
     }
 
@@ -180,7 +183,7 @@ export async function researchTask(
     if (retries === 0) {
       // Return the best we have with fixes applied
       return {
-        markdownContent: lintResult.fixedContent || output.markdownContent
+        markdownContent: lintResult.fixedContent || typedOutput.markdownContent
       };
     }
   }

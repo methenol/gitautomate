@@ -91,8 +91,8 @@ export class DocumentationFetcher {
         await this.cacheDocumentation(libraryDoc);
 
       } catch (_error) {
-        console.error(`Error fetching documentation for ${library.name}:`, error);
-        errors.push(`Failed to fetch ${library.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error(`Error fetching documentation for ${library.name}:`, _error);
+        errors.push(`Failed to fetch ${library.name}: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
         skippedCount++;
       }
     }

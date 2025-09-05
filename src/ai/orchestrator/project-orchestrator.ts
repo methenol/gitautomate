@@ -164,7 +164,7 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
         );
 
         // Update task with research results
-        const formattedDetails = `### Context\n${researchResult.context}\n\n### Implementation Steps\n${researchResult.implementationSteps}\n\n### Acceptance Criteria\n${researchResult.acceptanceCriteria}`;
+        const formattedDetails = researchResult.markdownContent;
         
         updatedTasks[taskIndex] = {
           ...task,

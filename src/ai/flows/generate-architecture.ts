@@ -86,15 +86,18 @@ Respond with ONLY a valid JSON object that conforms to the output schema. Use ma
       } : undefined,
     });
 
+    // Cast output to proper type
+    const typedOutput = output as GenerateArchitectureOutput;
+
     // Lint and fix the generated architecture and specifications
-    const architectureLintResult = await MarkdownLinter.lintAndFix(output.architecture, 'architecture.md');
-    const specificationsLintResult = await MarkdownLinter.lintAndFix(output.specifications, 'specifications.md');
+    const architectureLintResult = await MarkdownLinter.lintAndFix(typedOutput.architecture, 'architecture.md');
+    const specificationsLintResult = await MarkdownLinter.lintAndFix(typedOutput.specifications, 'specifications.md');
 
     // If both documents are valid or can be fixed, return the result
     if (architectureLintResult.isValid && specificationsLintResult.isValid) {
       return {
-        architecture: architectureLintResult.fixedContent || output.architecture,
-        specifications: specificationsLintResult.fixedContent || output.specifications
+        architecture: architectureLintResult.fixedContent || typedOutput.architecture,
+        specifications: specificationsLintResult.fixedContent || typedOutput.specifications
       };
     }
 
@@ -103,8 +106,8 @@ Respond with ONLY a valid JSON object that conforms to the output schema. Use ma
     if (retries === 0) {
       // Return the best we have with fixes applied
       return {
-        architecture: architectureLintResult.fixedContent || output.architecture,
-        specifications: specificationsLintResult.fixedContent || output.specifications
+        architecture: architectureLintResult.fixedContent || typedOutput.architecture,
+        specifications: specificationsLintResult.fixedContent || typedOutput.specifications
       };
     }
   }

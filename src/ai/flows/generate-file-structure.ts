@@ -94,13 +94,16 @@ export async function generateFileStructure(
       throw new Error('An unexpected response was received from the server.');
     }
 
+    // Cast output to proper type
+    const typedOutput = output as GenerateFileStructureOutput;
+
     // Lint and fix the generated file structure
-    const lintResult = await MarkdownLinter.lintAndFix(output.fileStructure, 'file-structure.md');
+    const lintResult = await MarkdownLinter.lintAndFix(typedOutput.fileStructure, 'file-structure.md');
 
     // If document is valid or can be fixed, return the result
     if (lintResult.isValid) {
       return {
-        fileStructure: lintResult.fixedContent || output.fileStructure
+        fileStructure: lintResult.fixedContent || typedOutput.fileStructure
       };
     }
 
@@ -109,7 +112,7 @@ export async function generateFileStructure(
     if (retries === 0) {
       // Return the best we have with fixes applied
       return {
-        fileStructure: lintResult.fixedContent || output.fileStructure
+        fileStructure: lintResult.fixedContent || typedOutput.fileStructure
       };
     }
   }

@@ -99,7 +99,7 @@ export class BrowserMarkdownLinter {
       });
 
     } catch (error) {
-      errors.push(`Error applying fixes: ${error.message}`);
+      errors.push(`Error applying fixes: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
     return fixed;
