@@ -122,15 +122,16 @@ export class MarkdownLinter {
       let realTempFile: string;
       try {
         realTempDir = await fs.realpath(tempDir);
-        realTempFile = await fs.realpath(path.dirname(tempFile)).then(dir => path.join(dir, path.basename(tempFile))).catch(() => tempFile);
+        // Join the sanitized filename with the resolved temp directory
+        realTempFile = path.join(realTempDir, safeFilename);
       } catch {
         return {
           isValid: false,
           errors: ['Failed to resolve temporary directory or file path']
         };
       }
-      // Ensure tempFile is inside tempDir after normalization
-      if (!realTempFile.startsWith(realTempDir + path.sep)) {
+      // Ensure realTempFile is inside realTempDir after normalization
+      if (!(realTempFile.startsWith(realTempDir + path.sep) || realTempFile === realTempDir)) {
         return {
           isValid: false,
           errors: ['Invalid filename provided - security violation']
