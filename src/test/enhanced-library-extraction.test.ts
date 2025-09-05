@@ -30,7 +30,12 @@ DOCUMENTATION: Refer to the reference documentation for the required libraries l
         }
       ];
 
-      const result = await LibraryIdentifier.identifyLibraries(tasks);
+      const result = await LibraryIdentifier.identifyLibraries(
+        tasks,
+        'test-api-key',
+        'test/model',
+        'test-base'
+      );
       
       // Should extract all explicitly required libraries
       const libraryNames = result.map(lib => lib.name).sort();
@@ -44,13 +49,13 @@ DOCUMENTATION: Refer to the reference documentation for the required libraries l
       expect(libraryNames).toContain('bcryptjs');
       expect(libraryNames).toContain('cors');
 
-      // All REQUIRED LIBRARIES should have highest confidence (0.98)
-      const requiredLibs = result.filter(lib => lib.confidenceScore === 0.98);
+      // All REQUIRED LIBRARIES should have high confidence (0.9 for LLM)
+      const requiredLibs = result.filter(lib => lib.confidenceScore === 0.9);
       expect(requiredLibs.length).toBeGreaterThan(6);
       
-      // All should be detected from the required libraries pattern
+      // All should be detected from LLM extraction
       requiredLibs.forEach(lib => {
-        expect(lib.context).toContain('Required libraries section');
+        expect(lib.source).toBe('llm');
       });
     });
 
@@ -63,7 +68,12 @@ DOCUMENTATION: Refer to the reference documentation for the required libraries l
         }
       ];
 
-      const result = await LibraryIdentifier.identifyLibraries(tasks);
+      const result = await LibraryIdentifier.identifyLibraries(
+        tasks,
+        'test-api-key',
+        'test/model',
+        'test-base'
+      );
       const names = result.map(lib => lib.name).sort();
       expect(names).toEqual(['angular', 'react', 'svelte', 'vue']);
     });
@@ -77,9 +87,14 @@ DOCUMENTATION: Refer to the reference documentation for the required libraries l
         }
       ];
 
-      const result = await LibraryIdentifier.identifyLibraries(tasks);
+      const result = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
       const names = result.map(lib => lib.name).sort();
-      expect(names).toEqual(['config', 'react', 'utils', 'validlibrary']);
+      // Now that we have better filtering, only valid library names should be extracted
+      expect(names).toEqual(['react', 'validlibrary']);
+      
+      // Should filter out common non-library words like 'config' and 'utils'
+      expect(names).not.toContain('config');
+      expect(names).not.toContain('utils');
     });
   });
 
@@ -98,18 +113,25 @@ REQUIRED LIBRARIES: fastify, vue
         }
       ];
 
-      const result = await LibraryIdentifier.identifyLibraries(tasks);
+      const result = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
       
-      // Should have all libraries but REQUIRED LIBRARIES should have highest confidence
+      // All libraries should be extracted with LLM confidence
       const expressLib = result.find(lib => lib.name === 'express');
       const reactLib = result.find(lib => lib.name === 'react');
       const fastifyLib = result.find(lib => lib.name === 'fastify');
       const vueLib = result.find(lib => lib.name === 'vue');
 
-      expect(expressLib?.confidenceScore).toBe(0.9); // Package manager pattern
-      expect(reactLib?.confidenceScore).toBe(0.95); // Import pattern
-      expect(fastifyLib?.confidenceScore).toBe(0.98); // Required libraries pattern
-      expect(vueLib?.confidenceScore).toBe(0.98); // Required libraries pattern
+      // All libraries extracted by LLM have the same confidence score
+      expect(expressLib?.confidenceScore).toBe(0.9); // LLM extracted
+      expect(reactLib?.confidenceScore).toBe(0.9); // LLM extracted
+      expect(fastifyLib?.confidenceScore).toBe(0.9); // LLM extracted
+      expect(vueLib?.confidenceScore).toBe(0.9); // LLM extracted
+      
+      // All should have LLM source
+      expect(expressLib?.source).toBe('llm');
+      expect(reactLib?.source).toBe('llm');
+      expect(fastifyLib?.source).toBe('llm');
+      expect(vueLib?.source).toBe('llm');
     });
   });
 
@@ -164,7 +186,7 @@ DOCUMENTATION: Refer to the reference documentation for the required libraries l
         }
       ];
 
-      const result = await LibraryIdentifier.identifyLibraries(tasks);
+      const result = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
       
       // Should extract 12+ distinct libraries
       expect(result.length).toBeGreaterThanOrEqual(12);
@@ -202,7 +224,7 @@ Should NOT extract: pygame.sprite.sprite, config.font_path, base.collision.detec
         }
       ];
 
-      const result = await LibraryIdentifier.identifyLibraries(tasks);
+      const result = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
       const names = result.map(lib => lib.name);
       
       // Should only extract valid library names

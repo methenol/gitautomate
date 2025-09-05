@@ -111,7 +111,7 @@ describe('Integration Tests - Real Functionality', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(tasks);
+      const libraries = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
       
       const react = libraries.find(lib => lib.name === 'react');
       const express = libraries.find(lib => lib.name === 'express');

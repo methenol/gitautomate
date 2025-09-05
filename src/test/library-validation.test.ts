@@ -71,7 +71,7 @@ describe('Library Extraction - Core Functionality', () => {
       }
     ];
 
-    const libraries = await LibraryIdentifier.identifyLibraries(tasks);
+    const libraries = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
     const libraryNames = libraries.map(lib => lib.name);
     
     expect(libraryNames).toContain('react');
@@ -80,7 +80,7 @@ describe('Library Extraction - Core Functionality', () => {
     
     // Should get high confidence for import statements
     const reactLib = libraries.find(lib => lib.name === 'react');
-    expect(reactLib?.confidenceScore).toBeGreaterThan(0.9);
+    expect(reactLib?.confidenceScore).toBeGreaterThanOrEqual(0.9);
   });
 
   it('should handle package manager commands', async () => {
@@ -96,7 +96,7 @@ describe('Library Extraction - Core Functionality', () => {
       }
     ];
 
-    const libraries = await LibraryIdentifier.identifyLibraries(tasks);
+    const libraries = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
     const libraryNames = libraries.map(lib => lib.name);
     
     expect(libraryNames).toContain('lodash');
@@ -114,7 +114,7 @@ describe('Library Extraction - Core Functionality', () => {
       }
     ];
 
-    const libraries = await LibraryIdentifier.identifyLibraries(tasks);
+    const libraries = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
     
     const categories = libraries.reduce((acc, lib) => {
       acc[lib.category] = (acc[lib.category] || 0) + 1;

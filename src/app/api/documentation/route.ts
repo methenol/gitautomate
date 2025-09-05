@@ -45,8 +45,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Identify libraries mentioned in tasks
-    const identifiedLibraries = await LibraryIdentifier.identifyLibraries(tasks);
+    // Identify libraries mentioned in tasks using LLM extraction
+    const identifiedLibraries = await LibraryIdentifier.identifyLibraries(
+      tasks,
+      apiKey,
+      llmModel,
+      apiBase
+    );
     const filteredLibraries = LibraryIdentifier.filterLibraries(identifiedLibraries, {
       minConfidence: 0.6,
       maxCount: 15, // Limit to avoid overwhelming the export

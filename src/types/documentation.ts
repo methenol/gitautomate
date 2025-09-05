@@ -15,7 +15,7 @@ export interface IdentifiedLibrary {
   confidenceScore: number;
   category: string; // Dynamic category, not hardcoded
   detectedIn: string[]; // Task IDs where this library was mentioned
-  source: 'ai' | 'pattern' | 'combined';
+  source: 'ai' | 'pattern' | 'combined' | 'llm';
   context?: string; // Where/how it was detected
 }
 

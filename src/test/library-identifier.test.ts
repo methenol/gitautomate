@@ -11,7 +11,12 @@ describe('LibraryIdentifier', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(tasks);
+      const libraries = await LibraryIdentifier.identifyLibraries(
+        tasks,
+        'test-api-key',
+        'test/model',
+        'test-base'
+      );
       
       expect(libraries).toHaveLength(2);
       expect(libraries.map(lib => lib.name)).toContain('react');
@@ -19,7 +24,8 @@ describe('LibraryIdentifier', () => {
       
       const reactLib = libraries.find(lib => lib.name === 'react');
       expect(reactLib?.category).toBe('library');
-      expect(reactLib?.confidenceScore).toBeGreaterThan(0.9);
+      expect(reactLib?.confidenceScore).toBe(0.9);
+      expect(reactLib?.source).toBe('llm');
     });
 
     it('should extract libraries from package manager commands', async () => {
@@ -31,7 +37,12 @@ describe('LibraryIdentifier', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(tasks);
+      const libraries = await LibraryIdentifier.identifyLibraries(
+        tasks,
+        'test-api-key',
+        'test/model',
+        'test-base'
+      );
       
       expect(libraries.length).toBeGreaterThan(0);
       expect(libraries.map(lib => lib.name)).toContain('express');
@@ -53,7 +64,12 @@ describe('LibraryIdentifier', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(tasks);
+      const libraries = await LibraryIdentifier.identifyLibraries(
+        tasks,
+        'test-api-key',
+        'test/model',
+        'test-base'
+      );
       
       expect(libraries.map(lib => lib.name)).toContain('postgresql');
       expect(libraries.map(lib => lib.name)).toContain('redis');
@@ -77,7 +93,12 @@ describe('LibraryIdentifier', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(tasks);
+      const libraries = await LibraryIdentifier.identifyLibraries(
+        tasks,
+        'test-api-key',
+        'test/model',
+        'test-base'
+      );
       
       // Should not include invalid names like config.font_path.sprite
       expect(libraries.map(lib => lib.name)).not.toContain('config.font_path.sprite');
@@ -93,32 +114,38 @@ describe('LibraryIdentifier', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(tasks);
+      const libraries = await LibraryIdentifier.identifyLibraries(
+        tasks,
+        'test-api-key',
+        'test/model',
+        'test-base'
+      );
       
       // Should extract libraries without hardcoded categorization
       const libraryNames = libraries.map(lib => lib.name);
-      // Make the test more flexible since descriptive text detection varies
       expect(libraryNames.length).toBeGreaterThan(0);
-      
-      // Some of these may be extracted, but not all due to descriptive text format
-      // expect(libraryNames).toContain('react');
-      // expect(libraryNames).toContain('vue');
-      // expect(libraryNames).toContain('express');
-      // expect(libraryNames).toContain('django');
-      // expect(libraryNames).toContain('mongodb');
-      // expect(libraryNames).toContain('jest');
-      // expect(libraryNames).toContain('docker');
+      expect(libraryNames).toContain('react');
+      expect(libraryNames).toContain('express');
+      expect(libraryNames).toContain('mongodb');
+      expect(libraryNames).toContain('jest');
+      expect(libraryNames).toContain('docker');
       
       // All should have 'library' category since no hardcoding allowed
       libraries.forEach(lib => {
         expect(lib.category).toBe('library');
+        expect(lib.source).toBe('llm');
       });
     });
 
     it('should handle empty tasks gracefully', async () => {
       const tasks: Array<{ id: string; title: string; details: string }> = [];
       
-      const libraries = await LibraryIdentifier.identifyLibraries(tasks);
+      const libraries = await LibraryIdentifier.identifyLibraries(
+        tasks,
+        'test-api-key',
+        'test/model',
+        'test-base'
+      );
       
       expect(libraries).toHaveLength(0);
     });
@@ -132,16 +159,21 @@ describe('LibraryIdentifier', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(tasks);
+      const libraries = await LibraryIdentifier.identifyLibraries(
+        tasks,
+        'test-api-key',
+        'test/model',
+        'test-base'
+      );
       
       expect(libraries).toHaveLength(0);
     });
 
     it('should filter libraries by confidence score', () => {
       const mockLibraries = [
-        { name: 'react', confidenceScore: 0.95, category: 'library', detectedIn: ['1'], source: 'pattern' as const },
-        { name: 'express', confidenceScore: 0.8, category: 'library', detectedIn: ['1'], source: 'pattern' as const },
-        { name: 'lowconf', confidenceScore: 0.3, category: 'library', detectedIn: ['1'], source: 'pattern' as const },
+        { name: 'react', confidenceScore: 0.95, category: 'library', detectedIn: ['1'], source: 'llm' as const },
+        { name: 'express', confidenceScore: 0.8, category: 'library', detectedIn: ['1'], source: 'llm' as const },
+        { name: 'lowconf', confidenceScore: 0.3, category: 'library', detectedIn: ['1'], source: 'llm' as const },
       ];
 
       const filtered = LibraryIdentifier.filterLibraries(mockLibraries, { minConfidence: 0.6 });
@@ -158,7 +190,7 @@ describe('LibraryIdentifier', () => {
         confidenceScore: 0.8,
         category: 'library',
         detectedIn: ['1'],
-        source: 'pattern' as const,
+        source: 'llm' as const,
       }));
 
       const filtered = LibraryIdentifier.filterLibraries(mockLibraries, { maxCount: 5 });
