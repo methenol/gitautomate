@@ -641,6 +641,12 @@ export class DocumentationFetcher {
    */
   private async cleanDocumentationContent(rawContent: string, libraryName: string, sourceType: string): Promise<string> {
     try {
+      // Only use AI cleaning if model is configured in settings
+      if (!this.settings.model) {
+        console.warn('No LLM model configured for documentation cleaning, returning original content');
+        return rawContent;
+      }
+
       const prompt = `You are a technical documentation editor. Your task is to clean up and enhance the following raw documentation content for the library "${libraryName}" from source "${sourceType}".
 
 Transform the raw content into clear, concise, and useful developer documentation by:
@@ -662,8 +668,12 @@ ${rawContent}
 Return only the cleaned documentation content in markdown format.`;
 
       const { output } = await ai.generate({
-        model: 'gemini-1.5-flash', // Use a fast model for documentation cleaning
+        model: this.settings.model,
         prompt,
+        config: {
+          ...(this.settings.apiKey && { apiKey: this.settings.apiKey }),
+          ...(this.settings.apiBase && { apiBase: this.settings.apiBase }),
+        },
       });
 
       return output as string;
