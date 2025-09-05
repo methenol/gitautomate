@@ -165,7 +165,7 @@ export class MarkdownLinter {
         
         if (lintResult.success) {
           // Clean up and return success
-          await fs.unlink(tempFile).catch(() => {});
+          await fs.unlink(realTempFile).catch(() => {});
           return {
             isValid: true,
             errors: [],
@@ -206,7 +206,7 @@ export class MarkdownLinter {
           };
         }
       } catch (error) {
-        await fs.unlink(tempFile).catch(() => {});
+        await fs.unlink(realTempFile).catch(() => {});
         return {
           isValid: false,
           errors: [`Linting failed: ${error instanceof Error ? error.message : 'Unknown error'}`]
