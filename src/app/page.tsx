@@ -252,6 +252,7 @@ export default function Home() {
           apiKey: values.apiKey || '',
           apiBase: values.apiBase || '',
           useTDD: values.useTDD,
+          documentation: values.documentation,
         }),
       });
 
