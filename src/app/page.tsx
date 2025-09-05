@@ -506,9 +506,9 @@ const handleExportData = async () => {
                 enabled: true,
               },
               githubToken: githubToken,
-              // Pass LLM configuration for documentation enhancement
+              // Pass existing LLM configuration for documentation enhancement
               apiKey: apiKey,
-              model: llmModel,
+              llmModel: llmModel,
               apiBase: apiBase,
             }),
           });

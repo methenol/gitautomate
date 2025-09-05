@@ -16,9 +16,23 @@ export class DocumentationFetcher {
   private octokit: Octokit | null = null;
   private cacheDir: string;
   private settings: DocumentationSettings;
+  private llmConfig?: {
+    apiKey: string;
+    model: string;
+    apiBase: string;
+  };
 
-  constructor(settings: DocumentationSettings, githubToken?: string) {
+  constructor(
+    settings: DocumentationSettings, 
+    githubToken?: string,
+    llmConfig?: {
+      apiKey: string;
+      model: string;
+      apiBase: string;
+    }
+  ) {
     this.settings = settings;
+    this.llmConfig = llmConfig;
     this.cacheDir = path.join(process.cwd(), '.doc-cache');
     
     if (githubToken) {
@@ -641,9 +655,9 @@ export class DocumentationFetcher {
    */
   private async cleanDocumentationContent(rawContent: string, libraryName: string, sourceType: string): Promise<string> {
     try {
-      // Only use AI cleaning if model is configured in settings
-      if (!this.settings.model) {
-        console.warn('No LLM model configured for documentation cleaning, returning original content');
+      // Only use AI cleaning if LLM config is provided
+      if (!this.llmConfig?.model) {
+        console.warn('No LLM configuration provided for documentation cleaning, returning original content');
         return rawContent;
       }
 
@@ -668,11 +682,11 @@ ${rawContent}
 Return only the cleaned documentation content in markdown format.`;
 
       const { output } = await ai.generate({
-        model: this.settings.model,
+        model: this.llmConfig.model,
         prompt,
         config: {
-          ...(this.settings.apiKey && { apiKey: this.settings.apiKey }),
-          ...(this.settings.apiBase && { apiBase: this.settings.apiBase }),
+          apiKey: this.llmConfig.apiKey,
+          apiBase: this.llmConfig.apiBase,
         },
       });
 

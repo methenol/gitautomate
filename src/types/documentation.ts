@@ -6,10 +6,6 @@ export const DocumentationSettingsSchema = z.object({
   includeStackOverflow: z.boolean().default(false),
   maxDocumentationSizeKB: z.number().min(100).max(2048).default(512),
   cacheDocumentationDays: z.number().min(1).max(30).default(7),
-  // LLM configuration for documentation enhancement
-  apiKey: z.string().optional(),
-  model: z.string().optional(),
-  apiBase: z.string().optional(),
 });
 
 export type DocumentationSettings = z.infer<typeof DocumentationSettingsSchema>;

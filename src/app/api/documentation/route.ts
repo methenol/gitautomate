@@ -12,9 +12,9 @@ const FetchDocumentationRequestSchema = z.object({
   })),
   settings: DocumentationSettingsSchema.optional(),
   githubToken: z.string().optional(),
-  // LLM configuration for documentation enhancement
+  // Existing LLM configuration from main application settings
   apiKey: z.string().optional(),
-  model: z.string().optional(),
+  llmModel: z.string().optional(),
   apiBase: z.string().optional(),
 });
 
@@ -23,7 +23,7 @@ type FetchDocumentationRequest = z.infer<typeof FetchDocumentationRequestSchema>
 export async function POST(request: NextRequest) {
   try {
     const body: FetchDocumentationRequest = await request.json();
-    const { tasks, settings, githubToken, apiKey, model, apiBase } = FetchDocumentationRequestSchema.parse(body);
+    const { tasks, settings, githubToken, apiKey, llmModel, apiBase } = FetchDocumentationRequestSchema.parse(body);
 
     // Use default settings if none provided
     const docSettings = settings || {
@@ -33,11 +33,6 @@ export async function POST(request: NextRequest) {
       cacheDocumentationDays: 7,
       enabled: true,
     };
-
-    // Add LLM configuration to settings if provided
-    if (apiKey) docSettings.apiKey = apiKey;
-    if (model) docSettings.model = model;
-    if (apiBase) docSettings.apiBase = apiBase;
 
     if (!docSettings.enabled) {
       return NextResponse.json({
@@ -68,8 +63,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Prepare LLM configuration if provided
+    const llmConfig = (apiKey && llmModel && apiBase) ? {
+      apiKey,
+      model: llmModel,
+      apiBase,
+    } : undefined;
+
     // Fetch documentation for identified libraries
-    const fetcher = new DocumentationFetcher(docSettings, githubToken);
+    const fetcher = new DocumentationFetcher(docSettings, githubToken, llmConfig);
     const fetchResult = await fetcher.fetchLibraryDocumentation(filteredLibraries);
 
     return NextResponse.json(fetchResult);
