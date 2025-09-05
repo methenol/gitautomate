@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { spawn } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -13,109 +13,190 @@ export class MarkdownLinter {
    * Sanitize filename to prevent command injection and path traversal
    */
   private static sanitizeFilename(filename: string): string {
-    // Remove any path separators and dangerous characters
+    if (!filename || typeof filename !== 'string') {
+      return 'document.md';
+    }
+    
+    // Remove any path separators and dangerous characters, only allow safe characters
     const sanitized = filename
       .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace non-alphanumeric chars with underscore
       .replace(/^\.+/, '') // Remove leading dots
-      .substring(0, 100); // Limit length
+      .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+      .substring(0, 50); // Limit length to reasonable size
     
-    // Ensure it ends with .md
-    return sanitized.endsWith('.md') ? sanitized : `${sanitized}.md`;
+    // Ensure it's not empty and ends with .md
+    const result = sanitized || 'document';
+    return result.endsWith('.md') ? result : `${result}.md`;
   }
 
   /**
-   * Validate that the path is within the expected directory
+   * Validate that the path is within the expected directory and secure
    */
   private static validatePath(filePath: string, expectedDir: string): boolean {
-    const resolvedPath = path.resolve(filePath);
-    const resolvedDir = path.resolve(expectedDir);
-    return resolvedPath.startsWith(resolvedDir + path.sep) || resolvedPath === resolvedDir;
+    try {
+      const resolvedPath = path.resolve(filePath);
+      const resolvedDir = path.resolve(expectedDir);
+      
+      // Ensure the path is within the expected directory
+      const isWithinDir = resolvedPath.startsWith(resolvedDir + path.sep) || resolvedPath === resolvedDir;
+      
+      // Additional security checks
+      const pathComponents = resolvedPath.split(path.sep);
+      const hasTraversal = pathComponents.some(component => component === '..' || component === '.');
+      
+      return isWithinDir && !hasTraversal;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Safely execute markdownlint command with proper argument handling
+   */
+  private static async executeMarkdownLint(args: string[], cwd: string): Promise<{ success: boolean; output: string }> {
+    return new Promise((resolve) => {
+      const child = spawn('npx', ['markdownlint-cli2', ...args], {
+        cwd,
+        stdio: 'pipe',
+        shell: false // Prevent shell injection
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout?.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      child.stderr?.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      child.on('close', (code) => {
+        resolve({
+          success: code === 0,
+          output: stderr || stdout
+        });
+      });
+
+      child.on('error', (error) => {
+        resolve({
+          success: false,
+          output: error.message
+        });
+      });
+
+      // Set timeout to prevent hanging
+      setTimeout(() => {
+        child.kill('SIGTERM');
+        resolve({
+          success: false,
+          output: 'Command timed out'
+        });
+      }, 30000); // 30 second timeout
+    });
   }
   /**
    * Lint markdown content and attempt to fix common issues
    */
   static async lintAndFix(content: string, filename = 'document.md'): Promise<MarkdownLintResult> {
     try {
+      // Input validation
+      if (!content || typeof content !== 'string') {
+        return {
+          isValid: false,
+          errors: ['Invalid content provided']
+        };
+      }
+
       // Sanitize the filename to prevent security issues
       const safeFilename = this.sanitizeFilename(filename);
       
-      // Create a temporary file for linting
-      const tempDir = '/tmp/markdown-lint';
+      // Create a secure temporary directory
+      const tempDir = path.resolve('/tmp/markdown-lint');
       await fs.mkdir(tempDir, { recursive: true });
-      const tempFile = path.join(tempDir, safeFilename);
+      const tempFile = path.resolve(tempDir, safeFilename);
       
-      // Validate the path is within our temp directory
+      // Validate the path is within our temp directory and secure
       if (!this.validatePath(tempFile, tempDir)) {
         return {
           isValid: false,
-          errors: ['Invalid filename provided']
+          errors: ['Invalid filename provided - security violation']
         };
       }
       
-      await fs.writeFile(tempFile, content);
+      // Write content to temp file with size limit
+      if (content.length > 1024 * 1024) { // 1MB limit
+        return {
+          isValid: false,
+          errors: ['Content too large for processing']
+        };
+      }
+      
+      await fs.writeFile(tempFile, content, { mode: 0o600 }); // Restrict file permissions
 
-      // First, try to fix automatically
+      // First, try to fix automatically using secure command execution
       let fixedContent = content;
       try {
-        // Use array form to avoid shell injection
-        execSync('npx markdownlint-cli2 --fix ' + JSON.stringify(tempFile), { 
-          cwd: process.cwd(),
-          stdio: 'pipe' 
-        });
-        fixedContent = await fs.readFile(tempFile, 'utf-8');
+        const fixResult = await this.executeMarkdownLint(['--fix', safeFilename], tempDir);
+        if (fixResult.success) {
+          fixedContent = await fs.readFile(tempFile, 'utf-8');
+        }
       } catch {
         // Auto-fix failed, content may have issues
       }
 
-      // Now check if the fixed content is valid
+      // Now check if the fixed content is valid using secure command execution
       try {
-        execSync('npx markdownlint-cli2 ' + JSON.stringify(tempFile), { 
-          cwd: process.cwd(),
-          stdio: 'pipe' 
-        });
+        const lintResult = await this.executeMarkdownLint([safeFilename], tempDir);
         
-        // Clean up and return success
-        await fs.unlink(tempFile).catch(() => {});
-        return {
-          isValid: true,
-          errors: [],
-          fixedContent: fixedContent !== content ? fixedContent : undefined
-        };
-      } catch (lintError) {
-        const errorOutput = lintError instanceof Error ? lintError.toString() : String(lintError);
-        const errors = this.parseMarkdownLintErrors(errorOutput);
-        
-        // Clean up temp file
-        await fs.unlink(tempFile).catch(() => {});
-        
-        // Apply manual fixes for common issues
-        const manuallyFixed = this.applyManualFixes(fixedContent);
-        
-        // If we made manual fixes, test again
-        if (manuallyFixed !== fixedContent) {
-          await fs.writeFile(tempFile, manuallyFixed);
-          try {
-            execSync('npx markdownlint-cli2 ' + JSON.stringify(tempFile), { 
-              cwd: process.cwd(),
-              stdio: 'pipe' 
-            });
-            // Manual fixes worked
-            await fs.unlink(tempFile).catch(() => {});
-            return {
-              isValid: true,
-              errors: [],
-              fixedContent: manuallyFixed
-            };
-          } catch {
-            // Still has errors
-            await fs.unlink(tempFile).catch(() => {});
+        if (lintResult.success) {
+          // Clean up and return success
+          await fs.unlink(tempFile).catch(() => {});
+          return {
+            isValid: true,
+            errors: [],
+            fixedContent: fixedContent !== content ? fixedContent : undefined
+          };
+        } else {
+          const errors = this.parseMarkdownLintErrors(lintResult.output);
+          
+          // Clean up temp file
+          await fs.unlink(tempFile).catch(() => {});
+          
+          // Apply manual fixes for common issues
+          const manuallyFixed = this.applyManualFixes(fixedContent);
+          
+          // If we made manual fixes, test again
+          if (manuallyFixed !== fixedContent) {
+            await fs.writeFile(tempFile, manuallyFixed, { mode: 0o600 });
+            const finalResult = await this.executeMarkdownLint([safeFilename], tempDir);
+            
+            if (finalResult.success) {
+              // Manual fixes worked
+              await fs.unlink(tempFile).catch(() => {});
+              return {
+                isValid: true,
+                errors: [],
+                fixedContent: manuallyFixed
+              };
+            } else {
+              // Still has errors
+              await fs.unlink(tempFile).catch(() => {});
+            }
           }
+          
+          return {
+            isValid: false,
+            errors,
+            fixedContent: manuallyFixed !== content ? manuallyFixed : undefined
+          };
         }
-        
+      } catch (error) {
+        await fs.unlink(tempFile).catch(() => {});
         return {
           isValid: false,
-          errors,
-          fixedContent: manuallyFixed !== content ? manuallyFixed : undefined
+          errors: [`Linting failed: ${error instanceof Error ? error.message : 'Unknown error'}`]
         };
       }
     } catch (error) {
