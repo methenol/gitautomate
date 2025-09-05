@@ -116,15 +116,27 @@ export class MarkdownLinter {
       const tempDir = path.resolve('/tmp/markdown-lint');
       await fs.mkdir(tempDir, { recursive: true });
       const tempFile = path.resolve(tempDir, safeFilename);
-      
-      // Validate the path is within our temp directory and secure
-      if (!this.validatePath(tempFile, tempDir)) {
+
+      // Strong containment check: Normalize and resolve path
+      let realTempDir: string;
+      let realTempFile: string;
+      try {
+        realTempDir = await fs.realpath(tempDir);
+        realTempFile = await fs.realpath(path.dirname(tempFile)).then(dir => path.join(dir, path.basename(tempFile))).catch(() => tempFile);
+      } catch {
+        return {
+          isValid: false,
+          errors: ['Failed to resolve temporary directory or file path']
+        };
+      }
+      // Ensure tempFile is inside tempDir after normalization
+      if (!realTempFile.startsWith(realTempDir + path.sep)) {
         return {
           isValid: false,
           errors: ['Invalid filename provided - security violation']
         };
       }
-      
+
       // Write content to temp file with size limit
       if (content.length > 1024 * 1024) { // 1MB limit
         return {
@@ -132,15 +144,15 @@ export class MarkdownLinter {
           errors: ['Content too large for processing']
         };
       }
-      
-      await fs.writeFile(tempFile, content, { mode: 0o600 }); // Restrict file permissions
+      await fs.writeFile(realTempFile, content, { mode: 0o600 }); // Restrict file permissions
+
 
       // First, try to fix automatically using secure command execution
       let fixedContent = content;
       try {
         const fixResult = await this.executeMarkdownLint(['--fix', safeFilename], tempDir);
         if (fixResult.success) {
-          fixedContent = await fs.readFile(tempFile, 'utf-8');
+          fixedContent = await fs.readFile(realTempFile, 'utf-8');
         }
       } catch {
         // Auto-fix failed, content may have issues
