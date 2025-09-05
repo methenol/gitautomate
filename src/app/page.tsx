@@ -8,6 +8,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import {
+  formatTaskMarkdown,
+  formatArchitectureMarkdown,
+  formatSpecificationsMarkdown,
+  formatFileStructureMarkdown,
+  formatPRDMarkdown,
+} from '@/lib/markdown';
+import {
   runGenerateArchitecture,
   runGenerateTasks,
   runResearchTask,
@@ -320,12 +327,11 @@ export default function Home() {
         { title: task.title, architecture, fileStructure, specifications },
         { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD }
       );
-      const formattedDetails = `### Context\n${result.context}\n\n### Implementation Steps\n${result.implementationSteps}\n\n### Acceptance Criteria\n${result.acceptanceCriteria}`;
       setTasks(currentTasks =>
-        currentTasks.map(t => t.title === task.title ? { ...t, details: formattedDetails } : t)
+        currentTasks.map(t => t.title === task.title ? { ...t, details: result.markdownContent } : t)
       );
       if (selectedTask?.title === task.title) {
-        setEditedTaskDetails(formattedDetails);
+        setEditedTaskDetails(result.markdownContent);
       }
     } catch (researchError) {
       const errorMessage = `Failed to research task: ${(researchError as Error).message}`;
@@ -465,11 +471,11 @@ const handleExportData = async () => {
         throw new Error('Could not create folders in zip file.');
       }
 
-      // Add docs
-      docsFolder.file('PRD.md', prd);
-      docsFolder.file('ARCHITECTURE.md', architecture);
-      docsFolder.file('SPECIFICATION.md', specifications);
-      docsFolder.file('FILE_STRUCTURE.md', fileStructure);
+      // Add docs with proper markdown formatting
+      docsFolder.file('PRD.md', formatPRDMarkdown(prd));
+      docsFolder.file('ARCHITECTURE.md', formatArchitectureMarkdown(architecture));
+      docsFolder.file('SPECIFICATION.md', formatSpecificationsMarkdown(specifications));
+      docsFolder.file('FILE_STRUCTURE.md', formatFileStructureMarkdown(fileStructure));
 
       // Fetch documentation if enabled
       let documentationResult = null;
@@ -551,10 +557,11 @@ const handleExportData = async () => {
       const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
       tasksFolder.file('tasks.md', `# Task List\n\n${mainTasksContent}`);
 
-      // Create individual task files
+      // Create individual task files with proper markdown formatting
       tasks.forEach((task, index) => {
         const taskNumber = (index + 1).toString().padStart(3, '0');
-        tasksFolder.file(`task-${taskNumber}.md`, `# ${task.title}\n\n${task.details}`);
+        const formattedTaskContent = formatTaskMarkdown(task.details);
+        tasksFolder.file(`task-${taskNumber}.md`, formattedTaskContent);
       });
 
       // Generate and add AGENTS.md file at the root of zip

@@ -20,49 +20,47 @@ const _ResearchTaskInputSchema = z.object({
 export type ResearchTaskInput = { title: string; architecture: string; fileStructure: string; specifications: string };
 
 const ResearchTaskOutputSchema = z.object({
-  context: z
+  markdownContent: z
     .string()
-    .describe(
-      'Briefly explain how this task fits into the overall architecture.'
-    ),
-  implementationSteps: z
-    .string()
-    .describe(
-      `Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
+    .describe('Complete markdown-formatted task documentation ready for GitHub issues. Must include proper markdown headers, formatting, and structure.'),
+});
+export type ResearchTaskOutput = z.infer<typeof ResearchTaskOutputSchema>;
+
+const standardPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format.
+
+You MUST return your response as a valid JSON object with a single "markdownContent" field containing a complete, properly formatted markdown document that is ready to be submitted as a GitHub issue.
+
+The markdown content must follow this exact structure:
+
+# {Task Title}
+
+## Context
+
+{Briefly explain how this task fits into the overall architecture}
+
+## Implementation Steps
+
+{Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
 - Files that need to be created or modified
 - Functions/components that need to be implemented
 - Integration points with other system components
 - The expected behavior and functionality
-- Any specific considerations or edge cases`
-    ),
-  acceptanceCriteria: z
-    .string()
-    .describe('Define what it means for this task to be considered "done".'),
-});
-export type ResearchTaskOutput = z.infer<typeof ResearchTaskOutputSchema>;
+- Any specific considerations or edge cases}
 
-const standardPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan.
+## Required Libraries
 
-You MUST return your response as a valid JSON object that conforms to the output schema.
+{List all libraries, packages, frameworks, and tools needed for this specific task as a comma-separated list. Be comprehensive and specific. Examples:
+- react, typescript, @types/node, tailwindcss, react-router-dom
+- express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors
+- jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event}
 
-For the given task, provide a detailed breakdown for each of the following fields:
-- context: Briefly explain how this task fits into the overall architecture.
-- implementationSteps: Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
-  - Files that need to be created or modified
-  - Functions/components that need to be implemented
-  - Integration points with other system components
-  - The expected behavior and functionality
-  - Any specific considerations or edge cases
-  
-  CRITICAL: At the end of the implementationSteps, you MUST include a section that starts with "REQUIRED LIBRARIES:" followed by a comma-separated list of all libraries, packages, frameworks, and tools needed for this specific task. Be comprehensive and specific. Examples:
-  "REQUIRED LIBRARIES: react, typescript, @types/node, tailwindcss, react-router-dom"
-  "REQUIRED LIBRARIES: express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors"
-  "REQUIRED LIBRARIES: jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event"
-  
-  CRITICAL: At the very end of implementationSteps, you MUST also include this exact instruction:
-  "DOCUMENTATION: Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development."
+## Documentation
 
-- acceptanceCriteria: Define what it means for this task to be considered "done".
+Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development.
+
+## Acceptance Criteria
+
+{Define what it means for this task to be considered "done" as a bulleted list}
 
 Overall Project Architecture:
 {{{architecture}}}
@@ -73,33 +71,47 @@ File Structure:
 Overall Project Specifications:
 {{{specifications}}}
 
-Now, provide the detailed implementation plan as a JSON object for the following task:
+Now, provide the detailed implementation plan as a JSON object with properly formatted markdown content for the following task:
 
 **Task Title: {{{title}}}**
 `;
 
-const tddPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan.
+const tddPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format following Test-Driven Development (TDD) methodology.
 
-You MUST return your response as a valid JSON object that conforms to the output schema.
+You MUST return your response as a valid JSON object with a single "markdownContent" field containing a complete, properly formatted markdown document that is ready to be submitted as a GitHub issue.
 
-For the given task, provide a detailed breakdown for each of the following fields:
-- context: Briefly explain how this task fits into the overall architecture.
-- implementationSteps: Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
-  - Files that need to be created or modified
-  - Functions/components that need to be implemented
-  - Integration points with other system components
-  - The expected behavior and functionality
-  - Any specific considerations or edge cases. The implementation plan must strictly follow all phases of Test-Driven Development (Red-Green-Refactor).
-  
-  CRITICAL: At the end of the implementationSteps, you MUST include a section that starts with "REQUIRED LIBRARIES:" followed by a comma-separated list of all libraries, packages, frameworks, and tools needed for this specific task. Be comprehensive and specific. Examples:
-  "REQUIRED LIBRARIES: react, typescript, @types/node, tailwindcss, react-router-dom"
-  "REQUIRED LIBRARIES: express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors"
-  "REQUIRED LIBRARIES: jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event"
-  
-  CRITICAL: At the very end of implementationSteps, you MUST also include this exact instruction:
-  "DOCUMENTATION: Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development."
+The markdown content must follow this exact structure:
 
-- acceptanceCriteria: Define what it means for this task to be considered "done".
+# {Task Title}
+
+## Context
+
+{Briefly explain how this task fits into the overall architecture}
+
+## Implementation Steps (TDD Approach)
+
+{Provide a detailed, step-by-step implementation guide following Red-Green-Refactor methodology. Describe what needs to be implemented without including actual code snippets. Focus on:
+- Files that need to be created or modified
+- Functions/components that need to be implemented
+- Integration points with other system components
+- The expected behavior and functionality
+- Any specific considerations or edge cases
+- Test-Driven Development phases (Red-Green-Refactor)}
+
+## Required Libraries
+
+{List all libraries, packages, frameworks, and tools needed for this specific task as a comma-separated list. Be comprehensive and specific. Examples:
+- react, typescript, @types/node, tailwindcss, react-router-dom
+- express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors
+- jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event}
+
+## Documentation
+
+Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development.
+
+## Acceptance Criteria
+
+{Define what it means for this task to be considered "done" as a bulleted list}
 
 Overall Project Architecture:
 {{{architecture}}}
@@ -110,7 +122,7 @@ File Structure:
 Overall Project Specifications:
 {{{specifications}}}
 
-Now, provide the detailed implementation plan as a JSON object for the following task:
+Now, provide the detailed implementation plan as a JSON object with properly formatted markdown content for the following task:
 
 **Task Title: {{{title}}}**
 `;
