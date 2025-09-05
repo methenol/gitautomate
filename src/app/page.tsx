@@ -649,8 +649,8 @@ const handleExportData = async () => {
                 <Settings className="h-5 w-5" />
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
+            <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+              <DialogHeader className="flex-shrink-0">
                 <DialogTitle>Settings</DialogTitle>
                 <DialogDescription>
                   Configure your API keys and select your preferred AI model. Your Google AI API Key from the .env file will be used if left blank here.
@@ -659,8 +659,10 @@ const handleExportData = async () => {
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(handleSaveSettings)}
-                  className="space-y-4"
+                  className="flex flex-col flex-1 min-h-0"
                 >
+                  <div className="flex-1 overflow-y-auto space-y-4 pr-2"
+                       style={{ maxHeight: 'calc(85vh - 200px)' }}>
                   <FormField
                     control={form.control}
                     name="githubToken"
@@ -836,8 +838,9 @@ const handleExportData = async () => {
                       )}
                     />
                   </div>
+                  </div>
 
-                  <DialogFooter>
+                  <DialogFooter className="flex-shrink-0 mt-4 pt-4 border-t">
                     <Button type="submit">Save Settings</Button>
                   </DialogFooter>
                 </form>
