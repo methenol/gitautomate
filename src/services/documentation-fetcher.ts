@@ -2,11 +2,14 @@ import type {
   LibraryDocumentation, 
   IdentifiedLibrary, 
   DocumentationSettings,
-  DocumentationFetchResult 
+  DocumentationFetchResult,
+  DocumentationSource,
+  LibrarySearchResult
 } from '@/types/documentation';
 import { Octokit } from '@octokit/rest';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as cheerio from 'cheerio';
 
 export class DocumentationFetcher {
   private octokit: Octokit | null = null;
@@ -44,39 +47,49 @@ export class DocumentationFetcher {
           continue;
         }
 
-        // Fetch from enabled sources
-        const docs = await this.fetchFromSources(library);
-        
-        if (docs.length === 0) {
+        // First, search and verify the library exists
+        const verifiedLibrary = await this.searchAndVerifyLibrary(library.name);
+        if (!verifiedLibrary) {
+          errors.push(`Library "${library.name}" not found or not verified`);
           skippedCount++;
           continue;
         }
 
-        // Take the best documentation (prioritize by source)
-        const bestDoc = this.selectBestDocumentation(docs);
+        // Fetch from enabled sources
+        const docs = await this.fetchFromSources(verifiedLibrary, library);
         
-        // Check size limit
-        if (bestDoc.sizeKB > this.settings.maxDocumentationSizeKB) {
-          // Truncate content
-          const maxBytes = this.settings.maxDocumentationSizeKB * 1024;
-          const truncatedContent = bestDoc.content.substring(0, maxBytes);
-          bestDoc.content = truncatedContent + '\n\n... (content truncated due to size limit)';
-          bestDoc.sizeKB = this.settings.maxDocumentationSizeKB;
+        if (docs.length === 0) {
+          errors.push(`No documentation found for ${library.name}`);
+          skippedCount++;
+          continue;
         }
 
-        results.push(bestDoc);
-        totalSizeKB += bestDoc.sizeKB;
+        const libraryDoc: LibraryDocumentation = {
+          libraryName: library.name,
+          category: library.category,
+          sources: docs,
+          sizeKB: docs.reduce((sum, doc) => sum + doc.sizeKB, 0),
+          fetchedAt: new Date(),
+          cacheExpiry: new Date(Date.now() + this.settings.cacheDocumentationDays * 24 * 60 * 60 * 1000),
+        };
+
+        // Check size limit
+        if (libraryDoc.sizeKB > this.settings.maxDocumentationSizeKB) {
+          // Trim sources to fit within limit
+          libraryDoc.sources = this.trimDocumentationSources(libraryDoc.sources, this.settings.maxDocumentationSizeKB);
+          libraryDoc.sizeKB = libraryDoc.sources.reduce((sum, doc) => sum + doc.sizeKB, 0);
+        }
+
+        results.push(libraryDoc);
+        totalSizeKB += libraryDoc.sizeKB;
 
         // Cache the result
-        await this.cacheDocumentation(library.name, bestDoc);
-
-        // Rate limiting - small delay between requests
-        await this.delay(500);
+        await this.cacheDocumentation(libraryDoc);
 
       } catch (error) {
-        const errorMsg = `Failed to fetch documentation for ${library.name}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        errors.push(errorMsg);
-        console.warn(errorMsg);
+        console.error(`Error fetching documentation for ${library.name}:`, error);
+        errors.push(`Failed to fetch ${library.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        skippedCount++;
       }
     }
 
@@ -91,224 +104,400 @@ export class DocumentationFetcher {
   }
 
   /**
-   * Fetch documentation from all enabled sources
+   * Search and verify that a library actually exists
    */
-  private async fetchFromSources(library: IdentifiedLibrary): Promise<LibraryDocumentation[]> {
-    const docs: LibraryDocumentation[] = [];
+  private async searchAndVerifyLibrary(libraryName: string): Promise<LibrarySearchResult | null> {
+    try {
+      // Try GitHub search first
+      if (this.octokit) {
+        const searchResult = await this.octokit.search.repos({
+          q: `${libraryName} in:name`,
+          sort: 'stars',
+          order: 'desc',
+          per_page: 5,
+        });
 
-    for (const source of this.settings.sources) {
-      try {
-        switch (source) {
-          case 'github': {
-            if (this.octokit) {
-              const githubDoc = await this.fetchFromGitHub(library);
-              if (githubDoc) docs.push(githubDoc);
-            }
-            break;
-          }
-          case 'official': {
-            const officialDoc = await this.fetchFromOfficialSite(library);
-            if (officialDoc) docs.push(officialDoc);
-            break;
-          }
-          case 'mdn': {
-            if (this.isWebTechnology(library.name)) {
-              const mdnDoc = await this.fetchFromMDN(library);
-              if (mdnDoc) docs.push(mdnDoc);
-            }
-            break;
-          }
-          case 'npm': {
-            if (library.category === 'frontend' || library.category === 'backend') {
-              const npmDoc = await this.fetchFromNPM(library);
-              if (npmDoc) docs.push(npmDoc);
-            }
-            break;
+        for (const repo of searchResult.data.items) {
+          if (repo.name.toLowerCase() === libraryName.toLowerCase() || 
+              repo.full_name.toLowerCase().includes(libraryName.toLowerCase())) {
+            return {
+              name: libraryName,
+              fullName: repo.full_name,
+              description: repo.description || '',
+              url: repo.html_url,
+              stars: repo.stargazers_count,
+              language: repo.language || '',
+              isVerified: repo.stargazers_count > 100, // Basic verification
+            };
           }
         }
-      } catch (error) {
-        console.warn(`Error fetching from ${source} for ${library.name}:`, error);
       }
-    }
 
-    return docs;
+      // Try NPM registry
+      const npmResult = await this.searchNPMRegistry(libraryName);
+      if (npmResult) {
+        return npmResult;
+      }
+
+      return null;
+    } catch (error) {
+      console.warn(`Failed to verify library ${libraryName}:`, error);
+      return null;
+    }
   }
 
   /**
-   * Fetch documentation from GitHub repository
+   * Search NPM registry for the library
    */
-  private async fetchFromGitHub(library: IdentifiedLibrary): Promise<LibraryDocumentation | null> {
-    if (!this.octokit) return null;
-
+  private async searchNPMRegistry(libraryName: string): Promise<LibrarySearchResult | null> {
     try {
-      // Search for the repository
-      const searchResult = await this.octokit.search.repos({
-        q: `${library.name} language:${this.getLanguageForCategory(library.category)}`,
-        sort: 'stars',
-        order: 'desc',
-        per_page: 1,
-      });
-
-      if (searchResult.data.items.length === 0) {
-        return null;
-      }
-
-      const repo = searchResult.data.items[0];
-      
-      // Try to get README
-      try {
-        const readmeResult = await this.octokit.repos.getReadme({
-          owner: repo.owner?.login || '',
-          repo: repo.name,
-        });
-
-        const content = Buffer.from(readmeResult.data.content, 'base64').toString('utf-8');
-        
+      const response = await fetch(`https://registry.npmjs.org/${libraryName}`);
+      if (response.ok) {
+        const data = await response.json();
         return {
-          name: library.name,
-          source: 'github',
-          url: repo.html_url,
-          content,
-          contentType: 'markdown',
-          lastFetched: new Date().toISOString(),
-          sizeKB: Math.ceil(content.length / 1024),
-        };
-      } catch {
-        // Try to get repository description as fallback
-        return {
-          name: library.name,
-          source: 'github',
-          url: repo.html_url,
-          content: `# ${repo.name}\n\n${repo.description || 'No description available'}\n\n[View on GitHub](${repo.html_url})`,
-          contentType: 'markdown',
-          lastFetched: new Date().toISOString(),
-          sizeKB: 1,
+          name: libraryName,
+          fullName: data.name,
+          description: data.description || '',
+          url: `https://www.npmjs.com/package/${libraryName}`,
+          isVerified: data['dist-tags']?.latest ? true : false,
         };
       }
     } catch (error) {
-      console.warn(`GitHub API error for ${library.name}:`, error);
-      return null;
+      // Ignore NPM registry errors
     }
+    return null;
+  }
+
+  /**
+   * Fetch documentation from multiple sources
+   */
+  private async fetchFromSources(verifiedLibrary: LibrarySearchResult, library: IdentifiedLibrary): Promise<DocumentationSource[]> {
+    const sources: DocumentationSource[] = [];
+
+    for (const sourceType of this.settings.sources) {
+      try {
+        switch (sourceType) {
+          case 'github':
+            if (verifiedLibrary.fullName) {
+              const githubSources = await this.fetchFromGitHub(verifiedLibrary.fullName);
+              sources.push(...githubSources);
+            }
+            break;
+          
+          case 'official':
+            const officialSources = await this.fetchFromOfficialSite(library.name);
+            sources.push(...officialSources);
+            break;
+          
+          case 'mdn':
+            if (this.isWebTechnology(library.name)) {
+              const mdnSources = await this.fetchFromMDN(library.name);
+              sources.push(...mdnSources);
+            }
+            break;
+          
+          case 'npm':
+            const npmSources = await this.fetchFromNPM(library.name);
+            sources.push(...npmSources);
+            break;
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch from ${sourceType} for ${library.name}:`, error);
+      }
+    }
+
+    return sources;
+  }
+
+  /**
+   * Fetch documentation from GitHub
+   */
+  private async fetchFromGitHub(fullName: string): Promise<DocumentationSource[]> {
+    if (!this.octokit) return [];
+
+    const sources: DocumentationSource[] = [];
+    const [owner, repo] = fullName.split('/');
+
+    try {
+      // Fetch README
+      try {
+        const readme = await this.octokit.repos.getReadme({ owner, repo });
+        const content = Buffer.from(readme.data.content, 'base64').toString('utf-8');
+        sources.push({
+          type: 'github-readme',
+          url: readme.data.html_url || `https://github.com/${owner}/${repo}`,
+          title: `${repo} README`,
+          content,
+          sizeKB: Math.round(content.length / 1024),
+        });
+      } catch (error) {
+        // README not found, continue
+      }
+
+      // Fetch docs folder if it exists
+      try {
+        const docsContents = await this.octokit.repos.getContent({
+          owner,
+          repo,
+          path: 'docs',
+        });
+
+        if (Array.isArray(docsContents.data)) {
+          for (const item of docsContents.data.slice(0, 5)) { // Limit to first 5 docs
+            if (item.type === 'file' && item.name.endsWith('.md')) {
+              try {
+                const docFile = await this.octokit.repos.getContent({
+                  owner,
+                  repo,
+                  path: item.path,
+                });
+
+                if ('content' in docFile.data) {
+                  const content = Buffer.from(docFile.data.content, 'base64').toString('utf-8');
+                  sources.push({
+                    type: 'github-docs',
+                    url: docFile.data.html_url || `https://github.com/${owner}/${repo}/blob/main/${item.path}`,
+                    title: `${repo} - ${item.name}`,
+                    content,
+                    sizeKB: Math.round(content.length / 1024),
+                  });
+                }
+              } catch (error) {
+                // Skip this doc file
+              }
+            }
+          }
+        }
+      } catch (error) {
+        // Docs folder not found, continue
+      }
+
+      // Fetch wiki if it exists
+      try {
+        const wikiResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/wiki`);
+        if (wikiResponse.ok) {
+          // Wiki exists, but GitHub doesn't provide direct API access to wiki content
+          // We'll add a placeholder for now
+          sources.push({
+            type: 'github-wiki',
+            url: `https://github.com/${owner}/${repo}/wiki`,
+            title: `${repo} Wiki`,
+            content: `This library has a GitHub wiki available at: https://github.com/${owner}/${repo}/wiki`,
+            sizeKB: 1,
+          });
+        }
+      } catch (error) {
+        // Wiki not found or not accessible
+      }
+
+    } catch (error) {
+      console.warn(`Failed to fetch GitHub documentation for ${fullName}:`, error);
+    }
+
+    return sources;
   }
 
   /**
    * Fetch documentation from official websites
    */
-  private async fetchFromOfficialSite(library: IdentifiedLibrary): Promise<LibraryDocumentation | null> {
-    const officialUrls = this.getOfficialDocumentationUrls(library.name);
+  private async fetchFromOfficialSite(libraryName: string): Promise<DocumentationSource[]> {
+    const sources: DocumentationSource[] = [];
     
+    // Common official documentation URL patterns
+    const officialUrls = [
+      `https://${libraryName}.org/docs`,
+      `https://docs.${libraryName}.org`,
+      `https://www.${libraryName}.org/documentation`,
+      `https://${libraryName}.dev/docs`,
+      `https://docs.${libraryName}.dev`,
+      `https://${libraryName}.readthedocs.io/en/latest/`,
+    ];
+
     for (const url of officialUrls) {
       try {
         const response = await fetch(url, {
           headers: {
-            'User-Agent': 'GitAutomate Documentation Fetcher 1.0',
+            'User-Agent': 'GitAutomate Documentation Fetcher',
           },
+          signal: AbortSignal.timeout(10000),
         });
 
-        if (!response.ok) continue;
-
-        const content = await response.text();
-        const cleanContent = this.cleanHtmlContent(content);
-
-        if (cleanContent.length < 100) continue; // Skip if too short
-
-        return {
-          name: library.name,
-          source: 'official',
-          url,
-          content: cleanContent,
-          contentType: 'markdown',
-          lastFetched: new Date().toISOString(),
-          sizeKB: Math.ceil(cleanContent.length / 1024),
-        };
+        if (response.ok) {
+          const html = await response.text();
+          const $ = cheerio.load(html);
+          
+          // Extract main content
+          const content = this.extractMainContent($);
+          
+          if (content && content.length > 100) { // Ensure we got meaningful content
+            sources.push({
+              type: 'official-site',
+              url,
+              title: $('title').text() || `${libraryName} Documentation`,
+              content,
+              sizeKB: Math.round(content.length / 1024),
+            });
+            break; // Found official docs, no need to try other URLs
+          }
+        }
       } catch (error) {
-        console.warn(`Error fetching from ${url}:`, error);
-        continue;
+        // Continue to next URL
       }
     }
 
-    return null;
+    return sources;
   }
 
   /**
-   * Fetch documentation from MDN for web technologies
+   * Extract main content from HTML using common patterns
    */
-  private async fetchFromMDN(library: IdentifiedLibrary): Promise<LibraryDocumentation | null> {
-    const mdnUrl = `https://developer.mozilla.org/en-US/docs/Web/API/${library.name}`;
+  private extractMainContent($: any): string {
+    // Try common content selectors
+    const contentSelectors = [
+      'main',
+      '.main-content',
+      '.content',
+      '.documentation',
+      '.docs',
+      'article',
+      '.article',
+      '#content',
+      '.markdown-body',
+    ];
+
+    for (const selector of contentSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        // Remove navigation, sidebars, headers, footers
+        element.find('nav, .nav, .navigation, .sidebar, header, footer, .header, .footer').remove();
+        
+        const text = element.text().trim();
+        if (text.length > 100) {
+          return text;
+        }
+      }
+    }
+
+    // Fallback: get body content and clean it
+    $('script, style, nav, header, footer, .nav, .navigation, .sidebar').remove();
+    return $('body').text().trim().slice(0, 5000); // Limit to reasonable size
+  }
+
+  /**
+   * Fetch documentation from MDN Web Docs
+   */
+  private async fetchFromMDN(libraryName: string): Promise<DocumentationSource[]> {
+    const sources: DocumentationSource[] = [];
+    
+    // MDN is primarily for web APIs and JavaScript
+    const mdnUrl = `https://developer.mozilla.org/en-US/docs/Web/API/${libraryName}`;
     
     try {
       const response = await fetch(mdnUrl);
-      if (!response.ok) return null;
-
-      const content = await response.text();
-      const cleanContent = this.cleanHtmlContent(content);
-
-      return {
-        name: library.name,
-        source: 'mdn',
-        url: mdnUrl,
-        content: cleanContent,
-        contentType: 'markdown',
-        lastFetched: new Date().toISOString(),
-        sizeKB: Math.ceil(cleanContent.length / 1024),
-      };
-    } catch {
-      return null;
+      if (response.ok) {
+        const html = await response.text();
+        const $ = cheerio.load(html);
+        
+        const content = $('.main-page-content').text().trim();
+        if (content && content.length > 100) {
+          sources.push({
+            type: 'mdn',
+            url: mdnUrl,
+            title: $('title').text() || `${libraryName} - MDN`,
+            content,
+            sizeKB: Math.round(content.length / 1024),
+          });
+        }
+      }
+    } catch (error) {
+      // MDN doesn't have this API
     }
+
+    return sources;
   }
 
   /**
    * Fetch documentation from NPM registry
    */
-  private async fetchFromNPM(library: IdentifiedLibrary): Promise<LibraryDocumentation | null> {
+  private async fetchFromNPM(libraryName: string): Promise<DocumentationSource[]> {
+    const sources: DocumentationSource[] = [];
+    
     try {
-      const response = await fetch(`https://registry.npmjs.org/${library.name}`);
-      if (!response.ok) return null;
-
-      const packageData = await response.json();
-      const latestVersion = packageData['dist-tags']?.latest;
-      const versionData = packageData.versions?.[latestVersion];
-
-      if (!versionData) return null;
-
-      const readme = versionData.readme || packageData.readme || '';
-      const description = versionData.description || '';
-      const homepage = versionData.homepage || '';
-
-      const content = `# ${library.name}\n\n${description}\n\n${readme}\n\n${homepage ? `[Homepage](${homepage})` : ''}`;
-
-      return {
-        name: library.name,
-        source: 'npm',
-        url: `https://www.npmjs.com/package/${library.name}`,
-        content,
-        contentType: 'markdown',
-        lastFetched: new Date().toISOString(),
-        sizeKB: Math.ceil(content.length / 1024),
-      };
-    } catch {
-      return null;
+      const response = await fetch(`https://registry.npmjs.org/${libraryName}`);
+      if (response.ok) {
+        const data = await response.json();
+        
+        let content = `# ${data.name}\n\n`;
+        if (data.description) content += `${data.description}\n\n`;
+        if (data.readme) content += data.readme;
+        
+        sources.push({
+          type: 'npm',
+          url: `https://www.npmjs.com/package/${libraryName}`,
+          title: `${libraryName} - NPM`,
+          content,
+          sizeKB: Math.round(content.length / 1024),
+        });
+      }
+    } catch (error) {
+      // NPM package not found
     }
+
+    return sources;
   }
 
   /**
-   * Select the best documentation from multiple sources
+   * Check if a library is web technology that might be on MDN
    */
-  private selectBestDocumentation(docs: LibraryDocumentation[]): LibraryDocumentation {
-    // Priority order: github > official > mdn > npm
-    const priority: Record<string, number> = { github: 4, official: 3, mdn: 2, npm: 1, pypi: 1, maven: 1 };
-    
-    return docs.sort((a, b) => {
-      const aPriority = priority[a.source] || 0;
-      const bPriority = priority[b.source] || 0;
-      
-      if (aPriority !== bPriority) {
-        return bPriority - aPriority;
+  private isWebTechnology(libraryName: string): boolean {
+    const webTechnologies = [
+      'fetch', 'websocket', 'webgl', 'canvas', 'geolocation', 'notification',
+      'serviceworker', 'indexeddb', 'localstorage', 'sessionStorage',
+    ];
+    return webTechnologies.includes(libraryName.toLowerCase());
+  }
+
+  /**
+   * Trim documentation sources to fit within size limit
+   */
+  private trimDocumentationSources(sources: DocumentationSource[], maxSizeKB: number): DocumentationSource[] {
+    const trimmed: DocumentationSource[] = [];
+    let currentSizeKB = 0;
+
+    // Sort by importance (README first, then official, then others)
+    const sortedSources = sources.sort((a, b) => {
+      const priority: Record<string, number> = { 
+        'github-readme': 0, 
+        'official-site': 1, 
+        'github-docs': 2, 
+        'npm': 3, 
+        'mdn': 4, 
+        'github-wiki': 5,
+        'stackoverflow': 6 
+      };
+      return (priority[a.type] || 99) - (priority[b.type] || 99);
+    });
+
+    for (const source of sortedSources) {
+      if (currentSizeKB + source.sizeKB <= maxSizeKB) {
+        trimmed.push(source);
+        currentSizeKB += source.sizeKB;
+      } else {
+        // Trim this source to fit
+        const remainingKB = maxSizeKB - currentSizeKB;
+        if (remainingKB > 1) {
+          const trimmedContent = source.content.slice(0, remainingKB * 1024);
+          trimmed.push({
+            ...source,
+            content: trimmedContent + '\n\n[Content truncated due to size limits]',
+            sizeKB: remainingKB,
+          });
+        }
+        break;
       }
-      
-      // If same priority, prefer larger content (up to a point)
-      return Math.min(b.sizeKB, 200) - Math.min(a.sizeKB, 200);
-    })[0];
+    }
+
+    return trimmed;
   }
 
   /**
@@ -317,7 +506,7 @@ export class DocumentationFetcher {
   private async ensureCacheDir(): Promise<void> {
     try {
       await fs.mkdir(this.cacheDir, { recursive: true });
-    } catch {
+    } catch (error) {
       // Directory might already exist
     }
   }
@@ -325,118 +514,25 @@ export class DocumentationFetcher {
   private async getCachedDocumentation(libraryName: string): Promise<LibraryDocumentation | null> {
     try {
       const cacheFile = path.join(this.cacheDir, `${libraryName}.json`);
-      const content = await fs.readFile(cacheFile, 'utf-8');
-      const cached = JSON.parse(content) as LibraryDocumentation;
+      const cached = await fs.readFile(cacheFile, 'utf-8');
+      const doc: LibraryDocumentation = JSON.parse(cached);
       
       // Check if cache is still valid
-      const cacheAge = Date.now() - new Date(cached.lastFetched).getTime();
-      const maxAge = this.settings.cacheDocumentationDays * 24 * 60 * 60 * 1000;
-      
-      if (cacheAge < maxAge) {
-        return cached;
+      if (new Date(doc.cacheExpiry) > new Date()) {
+        return doc;
       }
-    } catch {
-      // Cache miss or error - return null
+    } catch (error) {
+      // Cache miss or invalid
     }
-    
     return null;
   }
 
-  private async cacheDocumentation(libraryName: string, doc: LibraryDocumentation): Promise<void> {
+  private async cacheDocumentation(doc: LibraryDocumentation): Promise<void> {
     try {
-      const cacheFile = path.join(this.cacheDir, `${libraryName}.json`);
+      const cacheFile = path.join(this.cacheDir, `${doc.libraryName}.json`);
       await fs.writeFile(cacheFile, JSON.stringify(doc, null, 2));
     } catch (error) {
-      console.warn(`Failed to cache documentation for ${libraryName}:`, error);
+      console.warn(`Failed to cache documentation for ${doc.libraryName}:`, error);
     }
-  }
-
-  /**
-   * Utility methods
-   */
-  private getOfficialDocumentationUrls(libraryName: string): string[] {
-    const urls: string[] = [];
-    
-    // Common official documentation patterns
-    const patterns = [
-      `https://${libraryName}.org/docs`,
-      `https://${libraryName}.dev/docs`,
-      `https://docs.${libraryName}.org`,
-      `https://www.${libraryName}.org/documentation`,
-      `https://${libraryName}.readthedocs.io/en/latest/`,
-    ];
-
-    // Special cases for popular libraries
-    const specialCases: Record<string, string[]> = {
-      react: ['https://react.dev/learn'],
-      vue: ['https://vuejs.org/guide/'],
-      angular: ['https://angular.io/docs'],
-      nextjs: ['https://nextjs.org/docs'],
-      express: ['https://expressjs.com/en/guide/'],
-      django: ['https://docs.djangoproject.com/en/stable/'],
-      flask: ['https://flask.palletsprojects.com/en/latest/'],
-      'spring-boot': ['https://spring.io/projects/spring-boot'],
-    };
-
-    if (specialCases[libraryName]) {
-      urls.push(...specialCases[libraryName]);
-    } else {
-      urls.push(...patterns);
-    }
-
-    return urls;
-  }
-
-  private isWebTechnology(libraryName: string): boolean {
-    const webTechs = ['fetch', 'websocket', 'indexeddb', 'serviceworker', 'webrtc', 'geolocation'];
-    return webTechs.includes(libraryName.toLowerCase());
-  }
-
-  private getLanguageForCategory(category: IdentifiedLibrary['category']): string {
-    switch (category) {
-      case 'frontend': return 'javascript';
-      case 'backend': return 'javascript';
-      case 'database': return 'sql';
-      case 'testing': return 'javascript';
-      default: return 'javascript';
-    }
-  }
-
-  private cleanHtmlContent(html: string): string {
-    // Basic HTML to Markdown conversion
-    let content = html;
-    
-    // Remove script and style tags
-    content = content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-    content = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-    
-    // Convert headers
-    content = content.replace(/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi, (_, level, text) => {
-      const hashes = '#'.repeat(parseInt(level));
-      return `${hashes} ${text.replace(/<[^>]+>/g, '')}\n\n`;
-    });
-    
-    // Convert paragraphs
-    content = content.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
-    
-    // Convert code blocks
-    content = content.replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/gi, '```\n$1\n```\n\n');
-    content = content.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
-    
-    // Convert links
-    content = content.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
-    
-    // Remove remaining HTML tags
-    content = content.replace(/<[^>]+>/g, '');
-    
-    // Clean up whitespace
-    content = content.replace(/\n\s*\n\s*\n/g, '\n\n');
-    content = content.trim();
-    
-    return content;
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

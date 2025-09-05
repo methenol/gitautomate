@@ -1,45 +1,57 @@
 import { z } from 'zod';
 
-export const LibraryDocumentationSchema = z.object({
-  name: z.string(),
-  source: z.enum(['github', 'official', 'mdn', 'npm', 'pypi', 'maven']),
-  url: z.string(),
-  content: z.string(),
-  contentType: z.enum(['markdown', 'html', 'text']),
-  lastFetched: z.string(), // ISO date string
-  sizeKB: z.number(),
-});
-
-export type LibraryDocumentation = z.infer<typeof LibraryDocumentationSchema>;
-
-export const IdentifiedLibrarySchema = z.object({
-  name: z.string(),
-  confidenceScore: z.number().min(0).max(1), // 0-1 confidence score
-  category: z.enum(['frontend', 'backend', 'database', 'testing', 'utility', 'devops', 'mobile', 'ml', 'unknown']),
-  detectedIn: z.array(z.string()), // Task IDs where this library was detected
-  source: z.enum(['ai', 'pattern', 'combined']).optional(), // How the library was identified
-  context: z.string().optional(), // Additional context from AI analysis
-});
-
-export type IdentifiedLibrary = z.infer<typeof IdentifiedLibrarySchema>;
-
 export const DocumentationSettingsSchema = z.object({
-  sources: z.array(z.enum(['github', 'official', 'mdn', 'npm'])).default(['github', 'official']),
+  enabled: z.boolean().default(true),
+  sources: z.array(z.enum(['github', 'official', 'mdn', 'stackoverflow', 'npm'])).default(['github', 'official']),
   includeStackOverflow: z.boolean().default(false),
   maxDocumentationSizeKB: z.number().min(100).max(2048).default(512),
   cacheDocumentationDays: z.number().min(1).max(30).default(7),
-  enabled: z.boolean().default(true),
 });
 
 export type DocumentationSettings = z.infer<typeof DocumentationSettingsSchema>;
 
-export const DocumentationFetchResultSchema = z.object({
-  libraries: z.array(LibraryDocumentationSchema),
-  totalSizeKB: z.number(),
-  fetchedCount: z.number(),
-  skippedCount: z.number(),
-  errorCount: z.number(),
-  errors: z.array(z.string()),
-});
+export interface IdentifiedLibrary {
+  name: string;
+  confidenceScore: number;
+  category: 'frontend' | 'backend' | 'database' | 'testing' | 'utility' | 'devops' | 'mobile' | 'ml';
+  detectedIn: string[]; // Task IDs where this library was mentioned
+  source: 'ai' | 'pattern' | 'combined';
+  context?: string; // Where/how it was detected
+}
 
-export type DocumentationFetchResult = z.infer<typeof DocumentationFetchResultSchema>;
+export interface LibraryDocumentation {
+  libraryName: string;
+  category: string;
+  sources: DocumentationSource[];
+  sizeKB: number;
+  fetchedAt: Date;
+  cacheExpiry: Date;
+}
+
+export interface DocumentationSource {
+  type: 'github-readme' | 'github-wiki' | 'github-docs' | 'official-site' | 'mdn' | 'stackoverflow' | 'npm';
+  url: string;
+  title: string;
+  content: string;
+  sizeKB: number;
+  lastModified?: Date;
+}
+
+export interface DocumentationFetchResult {
+  libraries: LibraryDocumentation[];
+  totalSizeKB: number;
+  fetchedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  errors: string[];
+}
+
+export interface LibrarySearchResult {
+  name: string;
+  fullName?: string;
+  description?: string;
+  url: string;
+  stars?: number;
+  language?: string;
+  isVerified: boolean;
+}

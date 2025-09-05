@@ -191,19 +191,20 @@ export default function Home() {
           setApiKey(settings.apiKey || '');
           setApiBase(settings.apiBase || '');
           setUseTDD(settings.useTDD || false);
-          
-          // Load documentation settings
-          const docSettings = settings.documentation || { enabled: true, sources: ['github', 'official'], maxDocumentationSizeKB: 512 };
-          setDocumentationEnabled(docSettings.enabled);
-          setDocumentationSources(docSettings.sources);
-          setMaxDocumentationSizeKB(docSettings.maxDocumentationSizeKB);
+          setDocumentationEnabled(settings.documentation?.enabled ?? true);
+          setDocumentationSources(settings.documentation?.sources || ['github', 'official']);
+          setMaxDocumentationSizeKB(settings.documentation?.maxDocumentationSizeKB || 512);
 
           form.setValue('githubToken', settings.githubToken || '');
           form.setValue('llmModel', settings.llmModel || '');
           form.setValue('apiKey', settings.apiKey || '');
           form.setValue('apiBase', settings.apiBase || '');
           form.setValue('useTDD', settings.useTDD || false);
-          form.setValue('documentation', docSettings);
+          form.setValue('documentation', {
+            enabled: settings.documentation?.enabled ?? true,
+            sources: settings.documentation?.sources || ['github', 'official'],
+            maxDocumentationSizeKB: settings.documentation?.maxDocumentationSizeKB || 512,
+          });
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -266,13 +267,9 @@ export default function Home() {
       setApiKey(values.apiKey || '');
       setApiBase(values.apiBase || '');
       setUseTDD(values.useTDD);
-      
-      // Update documentation settings state
-      if (values.documentation) {
-        setDocumentationEnabled(values.documentation.enabled);
-        setDocumentationSources(values.documentation.sources);
-        setMaxDocumentationSizeKB(values.documentation.maxDocumentationSizeKB);
-      }
+      setDocumentationEnabled(values.documentation?.enabled ?? true);
+      setDocumentationSources(values.documentation?.sources || ['github', 'official']);
+      setMaxDocumentationSizeKB(values.documentation?.maxDocumentationSizeKB || 512);
       
       setIsSettingsOpen(false);
       toast({ title: 'Success', description: 'Settings saved securely.' });
@@ -463,9 +460,8 @@ const handleExportData = async () => {
       const zip = new JSZip();
       const docsFolder = zip.folder('docs');
       const tasksFolder = zip.folder('tasks');
-      const referenceFolder = zip.folder('reference');
 
-      if (!docsFolder || !tasksFolder || !referenceFolder) {
+      if (!docsFolder || !tasksFolder) {
         throw new Error('Could not create folders in zip file.');
       }
 
@@ -475,92 +471,14 @@ const handleExportData = async () => {
       docsFolder.file('SPECIFICATION.md', specifications);
       docsFolder.file('FILE_STRUCTURE.md', fileStructure);
 
-      // Fetch library documentation (if enabled in settings)
-      let documentationNotes = '';
-      try {
-        // Load current settings to check documentation preferences
-        const settingsResponse = await fetch('/api/settings');
-        const settings = settingsResponse.ok ? await settingsResponse.json() : {};
-        const docSettings = settings.documentation || { enabled: true };
-
-        if (docSettings.enabled) {
-          // Convert tasks to the format expected by the API
-          const tasksForAnalysis = tasks.map((task, index) => ({
-            id: `task-${(index + 1).toString().padStart(3, '0')}`,
-            title: task.title,
-            details: task.details,
-          }));
-
-          // Call the documentation API
-          const docResponse = await fetch('/api/documentation', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              tasks: tasksForAnalysis,
-              settings: docSettings,
-              githubToken: githubToken || undefined,
-            }),
-          });
-
-          if (docResponse.ok) {
-            const fetchResult = await docResponse.json();
-
-            // Add documentation files to reference folder
-            for (const doc of fetchResult.libraries) {
-              const filename = `${doc.name}-${doc.source}.md`;
-              referenceFolder.file(filename, doc.content);
-            }
-
-            // Create a summary of available documentation
-            if (fetchResult.libraries.length > 0) {
-              const summary = [
-                '# Library Documentation Reference',
-                '',
-                'This folder contains documentation for libraries detected in your project tasks.',
-                '',
-                '## Available Documentation:',
-                '',
-                ...fetchResult.libraries.map((doc: { name: string; source: string }) => 
-                  `- **${doc.name}** (${doc.source}): \`${doc.name}-${doc.source}.md\``
-                ),
-                '',
-                '## Usage Instructions:',
-                '',
-                'When implementing tasks that use these libraries, refer to the relevant documentation files in this folder for:',
-                '- Installation and setup instructions',
-                '- API reference and usage examples', 
-                '- Best practices and configuration options',
-                '',
-                `*Documentation fetched on ${new Date().toLocaleDateString()}*`,
-              ].join('\n');
-
-              referenceFolder.file('README.md', summary);
-
-              documentationNotes = `\n\n## 📚 Library Documentation\n\nRelevant library documentation has been included in the \`reference/\` folder. Please review the documentation for libraries used in each task before implementation.\n\n**Available Documentation:**\n${fetchResult.libraries.map((doc: { name: string; source: string }) => `- ${doc.name} (${doc.source})`).join('\n')}`;
-            }
-          } else {
-            console.warn('Documentation API failed:', await docResponse.text());
-          }
-        }
-      } catch (docError) {
-        console.warn('Documentation fetching failed:', docError);
-        // Continue with export even if documentation fetching fails
-      }
-
-      // Create main tasks file with documentation reference
+      // Create main tasks file
       const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
-      const tasksWithDocRef = `# Task List\n\n${mainTasksContent}${documentationNotes}`;
-      tasksFolder.file('tasks.md', tasksWithDocRef);
+      tasksFolder.file('tasks.md', `# Task List\n\n${mainTasksContent}`);
 
-      // Create individual task files with documentation reference
+      // Create individual task files
       tasks.forEach((task, index) => {
         const taskNumber = (index + 1).toString().padStart(3, '0');
-        const taskContentWithDocRef = documentationNotes 
-          ? `# ${task.title}\n\n**📚 Important:** Check the \`reference/\` folder for relevant library documentation before implementing this task.\n\n${task.details}`
-          : `# ${task.title}\n\n${task.details}`;
-        tasksFolder.file(`task-${taskNumber}.md`, taskContentWithDocRef);
+        tasksFolder.file(`task-${taskNumber}.md`, `# ${task.title}\n\n${task.details}`);
       });
 
       // Generate and add AGENTS.md file at the root of zip
@@ -650,8 +568,8 @@ const handleExportData = async () => {
                 <Settings className="h-5 w-5" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-              <DialogHeader className="flex-shrink-0">
+            <DialogContent>
+              <DialogHeader>
                 <DialogTitle>Settings</DialogTitle>
                 <DialogDescription>
                   Configure your API keys and select your preferred AI model. Your Google AI API Key from the .env file will be used if left blank here.
@@ -660,10 +578,8 @@ const handleExportData = async () => {
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(handleSaveSettings)}
-                  className="flex flex-col flex-1 min-h-0"
+                  className="space-y-4"
                 >
-                  <div className="flex-1 overflow-y-auto space-y-4 pr-2"
-                       style={{ maxHeight: 'calc(85vh - 200px)' }}>
                   <FormField
                     control={form.control}
                     name="githubToken"
@@ -748,10 +664,14 @@ const handleExportData = async () => {
                     )}
                   />
                   
-                  {/* Documentation Settings Section */}
+                  <Separator />
+                  
                   <div className="space-y-4">
-                    <div className="border-t pt-4">
-                      <h3 className="text-lg font-medium mb-4">Documentation Settings</h3>
+                    <div>
+                      <h3 className="text-lg font-medium">Documentation Settings</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Configure automatic documentation fetching for project libraries
+                      </p>
                     </div>
                     
                     <FormField
@@ -764,7 +684,7 @@ const handleExportData = async () => {
                               Enable Documentation Fetching
                             </FormLabel>
                             <FormDescription>
-                              Automatically fetch library documentation for export files.
+                              Automatically fetch documentation for libraries mentioned in tasks
                             </FormDescription>
                           </div>
                           <FormControl>
@@ -784,34 +704,38 @@ const handleExportData = async () => {
                         <FormItem className="space-y-3">
                           <FormLabel>Documentation Sources</FormLabel>
                           <FormDescription>
-                            Select which sources to fetch documentation from.
+                            Select which sources to use for fetching documentation
                           </FormDescription>
                           <div className="grid grid-cols-2 gap-4">
-                            {([
-                              { value: 'github' as const, label: 'GitHub README' },
-                              { value: 'official' as const, label: 'Official Sites' },
-                              { value: 'mdn' as const, label: 'MDN Web Docs' },
-                              { value: 'npm' as const, label: 'NPM Registry' },
-                            ] as const).map((source) => (
-                              <FormItem key={source.value} className="flex flex-row items-start space-x-3 space-y-0">
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(source.value)}
-                                    onCheckedChange={(checked) => {
-                                      if (checked) {
-                                        field.onChange([...field.value, source.value]);
-                                      } else {
-                                        field.onChange(field.value?.filter((val: string) => val !== source.value));
-                                      }
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="text-sm font-normal">
+                            {[
+                              { id: 'github', label: 'GitHub (README, Wiki, Docs)' },
+                              { id: 'official', label: 'Official Websites' },
+                              { id: 'mdn', label: 'MDN Web Docs' },
+                              { id: 'npm', label: 'NPM Registry' },
+                            ].map((source) => (
+                              <div key={source.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={source.id}
+                                  checked={field.value?.includes(source.id as 'github' | 'official' | 'mdn' | 'npm')}
+                                  onCheckedChange={(checked) => {
+                                    const currentSources = field.value || [];
+                                    if (checked) {
+                                      field.onChange([...currentSources, source.id as 'github' | 'official' | 'mdn' | 'npm']);
+                                    } else {
+                                      field.onChange(currentSources.filter((s) => s !== source.id));
+                                    }
+                                  }}
+                                />
+                                <label
+                                  htmlFor={source.id}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
                                   {source.label}
-                                </FormLabel>
-                              </FormItem>
+                                </label>
+                              </div>
                             ))}
                           </div>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -823,25 +747,29 @@ const handleExportData = async () => {
                         <FormItem className="space-y-3">
                           <FormLabel>Max Documentation Size (KB)</FormLabel>
                           <FormDescription>
-                            Maximum size per documentation file: {field.value}KB
+                            Maximum size limit for documentation per library
                           </FormDescription>
                           <FormControl>
-                            <Slider
-                              min={100}
-                              max={2048}
-                              step={50}
-                              value={[field.value]}
-                              onValueChange={([value]) => field.onChange(value)}
-                              className="w-full"
-                            />
+                            <div className="space-y-2">
+                              <Slider
+                                min={100}
+                                max={2048}
+                                step={100}
+                                value={[field.value || 512]}
+                                onValueChange={(value) => field.onChange(value[0])}
+                                className="w-full"
+                              />
+                              <div className="text-center text-sm text-muted-foreground">
+                                {field.value || 512} KB
+                              </div>
+                            </div>
                           </FormControl>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                  </div>
-
-                  <DialogFooter className="flex-shrink-0 mt-4 pt-4 border-t">
+                  <DialogFooter>
                     <Button type="submit">Save Settings</Button>
                   </DialogFooter>
                 </form>
