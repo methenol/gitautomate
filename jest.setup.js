@@ -6,6 +6,28 @@
 // import '@testing-library/jest-dom'
 
 // Mock external dependencies that cause ES module issues
-jest.mock('@octokit/rest');
-jest.mock('cheerio');
-jest.mock('@/ai/litellm');
+jest.mock('@octokit/rest', () => ({
+  Octokit: jest.fn().mockImplementation(() => ({
+    rest: {
+      repos: {
+        get: jest.fn().mockResolvedValue({ data: { description: 'Test repo' } }),
+        getContent: jest.fn().mockResolvedValue({ data: { content: 'VGVzdCBjb250ZW50' } }),
+      },
+    },
+  })),
+}));
+
+jest.mock('cheerio', () => ({
+  load: jest.fn().mockReturnValue({
+    text: jest.fn().mockReturnValue('Test content'),
+    find: jest.fn().mockReturnValue({
+      text: jest.fn().mockReturnValue('Test content'),
+    }),
+  }),
+}));
+
+jest.mock('@/ai/litellm', () => ({
+  ai: {
+    generate: jest.fn(),
+  },
+}));
