@@ -155,19 +155,31 @@ export class DocumentationFetcher {
    */
   private async searchNPMRegistry(libraryName: string): Promise<LibrarySearchResult | null> {
     try {
-      const response = await fetch(`https://registry.npmjs.org/${libraryName}`);
+      // Validate library name to prevent injection attacks
+      if (!this.isValidLibraryName(libraryName)) {
+        return null;
+      }
+      
+      // URL encode the library name to prevent URL injection
+      const encodedName = encodeURIComponent(libraryName);
+      const response = await fetch(`https://registry.npmjs.org/${encodedName}`, {
+        signal: AbortSignal.timeout(10000),
+        headers: {
+          'User-Agent': 'GitAutomate/1.0 (+https://github.com/methenol/gitautomate)',
+        },
+      });
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         return {
           name: libraryName,
           fullName: data.name,
           description: data.description || '',
-          url: `https://www.npmjs.com/package/${libraryName}`,
+          url: `https://www.npmjs.com/package/${encodedName}`,
           isVerified: data['dist-tags']?.latest ? true : false,
         };
       }
-    } catch (_error) {
-      // Ignore NPM registry errors
+    } catch (error) {
+      console.warn(`NPM registry search failed for ${libraryName}:`, error instanceof Error ? error.message : 'Unknown error');
     }
     return null;
   }
@@ -281,7 +293,12 @@ export class DocumentationFetcher {
 
       // Fetch wiki if it exists
       try {
-        const wikiResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/wiki`);
+        const wikiResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/wiki`, {
+          signal: AbortSignal.timeout(10000),
+          headers: {
+            'User-Agent': 'GitAutomate/1.0 (+https://github.com/methenol/gitautomate)',
+          },
+        });
         if (wikiResponse.ok) {
           // Wiki exists, but GitHub doesn't provide direct API access to wiki content
           // We'll add a placeholder for now
@@ -293,8 +310,8 @@ export class DocumentationFetcher {
             sizeKB: 1,
           });
         }
-      } catch (_error) {
-        // Wiki not found or not accessible
+      } catch (error) {
+        console.warn(`Wiki fetch failed for ${owner}/${repo}:`, error instanceof Error ? error.message : 'Unknown error');
       }
 
     } catch (_error) {
@@ -310,21 +327,34 @@ export class DocumentationFetcher {
   private async fetchFromOfficialSite(libraryName: string): Promise<DocumentationSource[]> {
     const sources: DocumentationSource[] = [];
     
+    // Validate library name to prevent injection attacks
+    if (!this.isValidLibraryName(libraryName)) {
+      return sources;
+    }
+    
+    // URL encode the library name to prevent URL injection
+    const encodedName = encodeURIComponent(libraryName);
+    
     // Common official documentation URL patterns
     const officialUrls = [
-      `https://${libraryName}.org/docs`,
-      `https://docs.${libraryName}.org`,
-      `https://www.${libraryName}.org/documentation`,
-      `https://${libraryName}.dev/docs`,
-      `https://docs.${libraryName}.dev`,
-      `https://${libraryName}.readthedocs.io/en/latest/`,
+      `https://${encodedName}.org/docs`,
+      `https://docs.${encodedName}.org`,
+      `https://www.${encodedName}.org/documentation`,
+      `https://${encodedName}.dev/docs`,
+      `https://docs.${encodedName}.dev`,
+      `https://${encodedName}.readthedocs.io/en/latest/`,
     ];
 
     for (const url of officialUrls) {
       try {
+        // Validate URL before making request
+        if (!this.isValidURL(url)) {
+          continue;
+        }
+        
         const response = await fetch(url, {
           headers: {
-            'User-Agent': 'GitAutomate Documentation Fetcher',
+            'User-Agent': 'GitAutomate/1.0 (+https://github.com/methenol/gitautomate)',
           },
           signal: AbortSignal.timeout(10000),
         });
@@ -347,7 +377,8 @@ export class DocumentationFetcher {
             break; // Found official docs, no need to try other URLs
           }
         }
-      } catch (_error) {
+      } catch (error) {
+        console.warn(`Failed to fetch from ${url}:`, error instanceof Error ? error.message : 'Unknown error');
         // Continue to next URL
       }
     }
@@ -396,11 +427,29 @@ export class DocumentationFetcher {
   private async fetchFromMDN(libraryName: string): Promise<DocumentationSource[]> {
     const sources: DocumentationSource[] = [];
     
+    // Validate library name to prevent injection attacks
+    if (!this.isValidLibraryName(libraryName)) {
+      return sources;
+    }
+    
+    // URL encode the library name to prevent URL injection
+    const encodedName = encodeURIComponent(libraryName);
+    
     // MDN is primarily for web APIs and JavaScript
-    const mdnUrl = `https://developer.mozilla.org/en-US/docs/Web/API/${libraryName}`;
+    const mdnUrl = `https://developer.mozilla.org/en-US/docs/Web/API/${encodedName}`;
     
     try {
-      const response = await fetch(mdnUrl);
+      // Validate URL before making request
+      if (!this.isValidURL(mdnUrl)) {
+        return sources;
+      }
+      
+      const response = await fetch(mdnUrl, {
+        signal: AbortSignal.timeout(10000),
+        headers: {
+          'User-Agent': 'GitAutomate/1.0 (+https://github.com/methenol/gitautomate)',
+        },
+      });
       if (response.ok) {
         const html = await response.text();
         const $ = cheerio.load(html);
@@ -416,8 +465,8 @@ export class DocumentationFetcher {
           });
         }
       }
-    } catch (_error) {
-      // MDN doesn't have this API
+    } catch (error) {
+      console.warn(`MDN fetch failed for ${libraryName}:`, error instanceof Error ? error.message : 'Unknown error');
     }
 
     return sources;
@@ -430,9 +479,21 @@ export class DocumentationFetcher {
     const sources: DocumentationSource[] = [];
     
     try {
-      const response = await fetch(`https://registry.npmjs.org/${libraryName}`);
+      // Validate library name to prevent injection attacks
+      if (!this.isValidLibraryName(libraryName)) {
+        return sources;
+      }
+      
+      // URL encode the library name to prevent URL injection
+      const encodedName = encodeURIComponent(libraryName);
+      const response = await fetch(`https://registry.npmjs.org/${encodedName}`, {
+        signal: AbortSignal.timeout(10000),
+        headers: {
+          'User-Agent': 'GitAutomate/1.0 (+https://github.com/methenol/gitautomate)',
+        },
+      });
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         
         let content = `# ${data.name}\n\n`;
         if (data.description) content += `${data.description}\n\n`;
@@ -440,14 +501,14 @@ export class DocumentationFetcher {
         
         sources.push({
           type: 'npm',
-          url: `https://www.npmjs.com/package/${libraryName}`,
+          url: `https://www.npmjs.com/package/${encodedName}`,
           title: `${libraryName} - NPM`,
           content,
           sizeKB: Math.round(content.length / 1024),
         });
       }
-    } catch (_error) {
-      // NPM package not found
+    } catch (error) {
+      console.warn(`NPM fetch failed for ${libraryName}:`, error instanceof Error ? error.message : 'Unknown error');
     }
 
     return sources;
@@ -606,10 +667,46 @@ Return only the cleaned documentation content in markdown format.`;
       });
 
       return output as string;
-    } catch (_error) {
-      console.warn(`Failed operation`, _error);
+    } catch (error) {
+      console.warn(`AI documentation cleaning failed for ${libraryName}:`, error instanceof Error ? error.message : 'Unknown error');
       // Return original content if AI fails
       return rawContent;
+    }
+  }
+
+  /**
+   * Validates library names to prevent injection attacks
+   */
+  private isValidLibraryName(name: string): boolean {
+    // Must match standard library naming conventions
+    return /^[a-zA-Z][a-zA-Z0-9._-]{0,63}$/.test(name) && !name.includes('..');
+  }
+
+  /**
+   * Validates URLs to prevent SSRF attacks
+   */
+  private isValidURL(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      // Only allow HTTPS for external requests
+      if (parsed.protocol !== 'https:') return false;
+      // Block private IP ranges and localhost
+      const hostname = parsed.hostname.toLowerCase();
+      if (
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname.startsWith('10.') ||
+        hostname.startsWith('192.168.') ||
+        hostname.match(/^172\.(1[6-9]|2\d|3[01])\./) ||
+        hostname.startsWith('169.254.') ||
+        hostname.startsWith('fc00:') ||
+        hostname.startsWith('fe80:')
+      ) {
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
     }
   }
 }

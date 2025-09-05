@@ -51,7 +51,7 @@ export async function generateArchitecture(
 
 Based on the following PRD, generate BOTH a software architecture AND detailed specifications. These are two separate deliverables that must both be fully developed.
 
-**CRITICAL: You MUST output valid markdown format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
+**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
 
 **ARCHITECTURE** should include:
 - High-level system design and component structure
@@ -76,28 +76,72 @@ CRITICAL: The specifications MUST be comprehensive and standalone - they should 
 PRD:
 ${input.prd}
 
-Respond with ONLY a valid JSON object that conforms to the output schema. Use markdown formatting for both the "architecture" and "specifications" fields. Both fields must be included, each field must contain all required content for that section.`,
-      output: {
-        schema: GenerateArchitectureOutputSchema,
-      },
+You must structure your response with two main sections separated by a markdown heading:
+
+# Architecture
+
+{Your complete architecture content here in markdown format}
+
+# Specifications
+
+{Your complete specifications content here in markdown format}
+
+**IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`,
       config: (apiKey || apiBase) ? {
         ...(apiKey && {apiKey}),
         ...(apiBase && {apiBase})
       } : undefined,
     });
 
-    // Cast output to proper type
-    const typedOutput = output as GenerateArchitectureOutput;
+    // Parse the markdown output to extract architecture and specifications
+    const markdownContent = output as string;
+    const sections = markdownContent.split(/^# /m).filter(section => section.trim());
+    
+    let architecture = '';
+    let specifications = '';
+    
+    for (const section of sections) {
+      const lines = section.trim().split('\n');
+      const title = lines[0].toLowerCase();
+      const content = lines.slice(1).join('\n').trim();
+      
+      if (title.includes('architecture')) {
+        architecture = content;
+      } else if (title.includes('specification') || title.includes('spec')) {
+        specifications = content;
+      }
+    }
+    
+    // If sections not found by header parsing, try fallback splitting
+    if (!architecture || !specifications) {
+      const fallbackSplit = markdownContent.split(/(?=# (?:Architecture|Specifications?))/i);
+      for (const part of fallbackSplit) {
+        if (part.toLowerCase().includes('architecture')) {
+          architecture = part.replace(/^# Architecture\s*/i, '').trim();
+        } else if (part.toLowerCase().includes('specification')) {
+          specifications = part.replace(/^# Specifications?\s*/i, '').trim();
+        }
+      }
+    }
+    
+    // Ensure we have both sections
+    if (!architecture) {
+      architecture = markdownContent.split(/# Specifications?/i)[0].replace(/^# Architecture\s*/i, '').trim();
+    }
+    if (!specifications) {
+      const specMatch = markdownContent.match(/# Specifications?([\s\S]*)$/i);
+      specifications = specMatch ? specMatch[1].trim() : '';
+    }
 
     // Lint and fix the generated architecture and specifications
-    const architectureLintResult = await MarkdownLinter.lintAndFix(typedOutput.architecture, 'architecture.md');
-    const specificationsLintResult = await MarkdownLinter.lintAndFix(typedOutput.specifications, 'specifications.md');
+    const architectureLintResult = await MarkdownLinter.lintAndFix(architecture, 'architecture.md');
+    const specificationsLintResult = await MarkdownLinter.lintAndFix(specifications, 'specifications.md');
 
     // If both documents are valid or can be fixed, return the result
     if (architectureLintResult.isValid && specificationsLintResult.isValid) {
       return {
-        architecture: architectureLintResult.fixedContent || typedOutput.architecture,
-        specifications: specificationsLintResult.fixedContent || typedOutput.specifications
+        architecture: architectureLintResult.fixedContent || architecture,
+        specifications: specificationsLintResult.fixedContent || specifications
       };
     }
 
@@ -106,8 +150,8 @@ Respond with ONLY a valid JSON object that conforms to the output schema. Use ma
     if (retries === 0) {
       // Return the best we have with fixes applied
       return {
-        architecture: architectureLintResult.fixedContent || typedOutput.architecture,
-        specifications: specificationsLintResult.fixedContent || typedOutput.specifications
+        architecture: architectureLintResult.fixedContent || architecture,
+        specifications: specificationsLintResult.fixedContent || specifications
       };
     }
   }

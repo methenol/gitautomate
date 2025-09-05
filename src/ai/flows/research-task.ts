@@ -29,7 +29,7 @@ export type ResearchTaskOutput = z.infer<typeof ResearchTaskOutputSchema>;
 
 const standardPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format.
 
-You MUST return your response as a valid JSON object with a single "markdownContent" field containing a complete, properly formatted markdown document that is ready to be submitted as a GitHub issue.
+**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
 
 The markdown content must follow this exact structure:
 
@@ -72,14 +72,16 @@ File Structure:
 Overall Project Specifications:
 {{{specifications}}}
 
-Now, provide the detailed implementation plan as a JSON object with properly formatted markdown content for the following task:
+Now, provide the detailed implementation plan in markdown format for the following task:
 
 **Task Title: {{{title}}}**
+
+**IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**
 `;
 
 const tddPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format following Test-Driven Development (TDD) methodology.
 
-You MUST return your response as a valid JSON object with a single "markdownContent" field containing a complete, properly formatted markdown document that is ready to be submitted as a GitHub issue.
+**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
 
 The markdown content must follow this exact structure:
 
@@ -123,9 +125,11 @@ File Structure:
 Overall Project Specifications:
 {{{specifications}}}
 
-Now, provide the detailed implementation plan as a JSON object with properly formatted markdown content for the following task:
+Now, provide the detailed implementation plan in markdown format for the following task:
 
 **Task Title: {{{title}}}**
+
+**IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**
 `;
 
 export async function researchTask(
@@ -151,10 +155,7 @@ export async function researchTask(
   while (retries > 0) {
     const {output} = await ai.generate({
       model: modelName,
-      prompt: prompt + '\n\n**CRITICAL: You MUST output valid markdown format in the markdownContent field. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**',
-      output: {
-        schema: ResearchTaskOutputSchema,
-      },
+      prompt: prompt,
       config: (apiKey || apiBase) ? {
         ...(apiKey && {apiKey}),
         ...(apiBase && {apiBase})
@@ -165,16 +166,16 @@ export async function researchTask(
       throw new Error('An unexpected response was received from the server.');
     }
 
-    // Cast output to proper type
-    const typedOutput = output as ResearchTaskOutput;
+    // Parse markdown output
+    const markdownContent = output as string;
 
     // Lint and fix the generated task markdown
-    const lintResult = await MarkdownLinter.lintAndFix(typedOutput.markdownContent, `task-${input.title.replace(/[^a-zA-Z0-9]/g, '-')}.md`);
+    const lintResult = await MarkdownLinter.lintAndFix(markdownContent, `task-${input.title.replace(/[^a-zA-Z0-9]/g, '-')}.md`);
 
     // If document is valid or can be fixed, return the result
     if (lintResult.isValid) {
       return {
-        markdownContent: lintResult.fixedContent || typedOutput.markdownContent
+        markdownContent: lintResult.fixedContent || markdownContent
       };
     }
 
@@ -183,7 +184,7 @@ export async function researchTask(
     if (retries === 0) {
       // Return the best we have with fixes applied
       return {
-        markdownContent: lintResult.fixedContent || typedOutput.markdownContent
+        markdownContent: lintResult.fixedContent || markdownContent
       };
     }
   }

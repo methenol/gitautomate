@@ -34,6 +34,8 @@ export type GenerateFileStructureOutput = z.infer<typeof GenerateFileStructureOu
 
 const fileStructurePrompt = `You are a senior software architect. Your task is to generate a comprehensive, proposed file and folder structure for a new software project, based on the following Product Requirements Document (PRD), architecture, and specifications.
 
+**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting.**
+
 **Instructions:**
 - Carefully analyze the PRD, architecture, and specifications provided below.
 - Propose a complete file/folder structure that reflects best practices for the project's stack and requirements.
@@ -41,10 +43,9 @@ const fileStructurePrompt = `You are a senior software architect. Your task is t
 - Use clear, descriptive names for folders and files.
 - If relevant, group related components, utilities, and assets into logical subdirectories.
 - Do not include implementation details or code—only the structure.
-- Output the structure as:
-  - A markdown code block using tree notation (e.g., \`project-root/\n  src/\n    index.ts\n  README.md\`)
+- Output the structure as a markdown code block using tree notation (e.g., \`project-root/\n  src/\n    index.ts\n  README.md\`)
 - Make sure the output is easily human-editable and ready for further refinement.
-- Do not add any explanations or commentary outside the code block or JSON tree.
+- Do not add any explanations or commentary outside the code block.
 - Make sure the proposed tree covers all aspects of the project, including testing, documentation, and configuration, as well as CI/CD if described in the documentation. Do not focus on just one aspect of the project, the folder structure is for the entire project.
 
 **PRD:**
@@ -56,8 +57,7 @@ const fileStructurePrompt = `You are a senior software architect. Your task is t
 **Specifications:**
 {{{specifications}}}
 
-Respond with ONLY the proposed file/folder structure as a markdown code block or JSON tree.
-`;
+**IMPORTANT: Output ONLY markdown content with a code block containing the file structure. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`;
 
 export async function generateFileStructure(
   input: GenerateFileStructureInput,
@@ -80,10 +80,7 @@ export async function generateFileStructure(
   while (retries > 0) {
     const { output } = await ai.generate({
       model: modelName,
-      prompt: prompt + '\n\n**CRITICAL: You MUST output valid markdown format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**',
-      output: {
-        schema: GenerateFileStructureOutputSchema,
-      },
+      prompt: prompt,
       config: (apiKey || apiBase) ? {
         ...(apiKey && {apiKey}),
         ...(apiBase && {apiBase})
@@ -94,16 +91,16 @@ export async function generateFileStructure(
       throw new Error('An unexpected response was received from the server.');
     }
 
-    // Cast output to proper type
-    const typedOutput = output as GenerateFileStructureOutput;
-
+    // Parse markdown output to extract file structure
+    const markdownContent = output as string;
+    
     // Lint and fix the generated file structure
-    const lintResult = await MarkdownLinter.lintAndFix(typedOutput.fileStructure, 'file-structure.md');
+    const lintResult = await MarkdownLinter.lintAndFix(markdownContent, 'file-structure.md');
 
     // If document is valid or can be fixed, return the result
     if (lintResult.isValid) {
       return {
-        fileStructure: lintResult.fixedContent || typedOutput.fileStructure
+        fileStructure: lintResult.fixedContent || markdownContent
       };
     }
 
@@ -112,7 +109,7 @@ export async function generateFileStructure(
     if (retries === 0) {
       // Return the best we have with fixes applied
       return {
-        fileStructure: lintResult.fixedContent || typedOutput.fileStructure
+        fileStructure: lintResult.fixedContent || markdownContent
       };
     }
   }
