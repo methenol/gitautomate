@@ -56,8 +56,8 @@ describe('Documentation Integration', () => {
     (fetch as jest.Mock).mockClear();
   });
 
-  test('identifies libraries from tasks', () => {
-    const libraries = LibraryIdentifier.identifyLibraries(mockTasks);
+  test('identifies libraries from tasks', async () => {
+    const libraries = await LibraryIdentifier.identifyLibraries(mockTasks, { useAI: false });
     
     expect(libraries.length).toBeGreaterThan(0);
     
@@ -77,7 +77,7 @@ describe('Documentation Integration', () => {
     (fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
     const fetcher = new DocumentationFetcher(mockSettings);
-    const libraries = LibraryIdentifier.identifyLibraries(mockTasks);
+    const libraries = await LibraryIdentifier.identifyLibraries(mockTasks, { useAI: false });
     const filteredLibs = LibraryIdentifier.filterLibraries(libraries, { maxCount: 2 });
 
     const result = await fetcher.fetchLibraryDocumentation(filteredLibs);
@@ -106,8 +106,8 @@ describe('Documentation Integration', () => {
     console.log('✅ Settings processing test passed');
   });
 
-  test('filters libraries by confidence and category', () => {
-    const libraries = LibraryIdentifier.identifyLibraries(mockTasks);
+  test('filters libraries by confidence and category', async () => {
+    const libraries = await LibraryIdentifier.identifyLibraries(mockTasks, { useAI: false });
     
     // Test confidence filtering
     const highConfidence = LibraryIdentifier.filterLibraries(libraries, {
@@ -126,8 +126,8 @@ describe('Documentation Integration', () => {
     console.log('✅ Library filtering integration test passed');
   });
 
-  test('handles empty task lists', () => {
-    const libraries = LibraryIdentifier.identifyLibraries([]);
+  test('handles empty task lists', async () => {
+    const libraries = await LibraryIdentifier.identifyLibraries([], { useAI: false });
     expect(libraries).toEqual([]);
 
     const filtered = LibraryIdentifier.filterLibraries(libraries, { maxCount: 10 });

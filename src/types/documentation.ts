@@ -15,8 +15,10 @@ export type LibraryDocumentation = z.infer<typeof LibraryDocumentationSchema>;
 export const IdentifiedLibrarySchema = z.object({
   name: z.string(),
   confidenceScore: z.number().min(0).max(1), // 0-1 confidence score
-  category: z.enum(['frontend', 'backend', 'database', 'testing', 'utility', 'unknown']),
+  category: z.enum(['frontend', 'backend', 'database', 'testing', 'utility', 'devops', 'mobile', 'ml', 'unknown']),
   detectedIn: z.array(z.string()), // Task IDs where this library was detected
+  source: z.enum(['ai', 'pattern', 'combined']).optional(), // How the library was identified
+  context: z.string().optional(), // Additional context from AI analysis
 });
 
 export type IdentifiedLibrary = z.infer<typeof IdentifiedLibrarySchema>;

@@ -25,8 +25,8 @@ describe('LibraryIdentifier', () => {
     },
   ];
 
-  test('identifies libraries from task content', () => {
-    const libraries = LibraryIdentifier.identifyLibraries(mockTasks);
+  test('identifies libraries from task content', async () => {
+    const libraries = await LibraryIdentifier.identifyLibraries(mockTasks, { useAI: false });
     
     expect(libraries.length).toBeGreaterThan(0);
     
@@ -58,14 +58,14 @@ describe('LibraryIdentifier', () => {
     console.log('✅ Library identification test passed');
   });
 
-  test('calculates confidence scores correctly', () => {
+  test('calculates confidence scores correctly', async () => {
     const singleTask = [{
       id: 'test',
       title: 'Install React and setup React Router',
       details: 'npm install react react-router using React components with React hooks',
     }];
     
-    const libraries = LibraryIdentifier.identifyLibraries(singleTask);
+    const libraries = await LibraryIdentifier.identifyLibraries(singleTask, { useAI: false });
     const reactLib = libraries.find(lib => lib.name === 'react');
     
     expect(reactLib).toBeDefined();
@@ -74,8 +74,8 @@ describe('LibraryIdentifier', () => {
     console.log('✅ Confidence scoring test passed');
   });
 
-  test('filters libraries by criteria', () => {
-    const libraries = LibraryIdentifier.identifyLibraries(mockTasks);
+  test('filters libraries by criteria', async () => {
+    const libraries = await LibraryIdentifier.identifyLibraries(mockTasks, { useAI: false });
     
     // Filter by minimum confidence
     const highConfidence = LibraryIdentifier.filterLibraries(libraries, { minConfidence: 0.7 });
@@ -92,9 +92,9 @@ describe('LibraryIdentifier', () => {
     console.log('✅ Library filtering test passed');
   });
 
-  test('handles edge cases gracefully', () => {
+  test('handles edge cases gracefully', async () => {
     // Empty tasks
-    expect(LibraryIdentifier.identifyLibraries([])).toEqual([]);
+    expect(await LibraryIdentifier.identifyLibraries([], { useAI: false })).toEqual([]);
     
     // Tasks with no recognizable libraries
     const noLibTasks = [{
@@ -103,14 +103,14 @@ describe('LibraryIdentifier', () => {
       details: 'Create user manual and API documentation',
     }];
     
-    const result = LibraryIdentifier.identifyLibraries(noLibTasks);
+    const result = await LibraryIdentifier.identifyLibraries(noLibTasks, { useAI: false });
     expect(result.length).toBe(0);
     
     console.log('✅ Edge cases test passed');
   });
 
-  test('tracks library detection across multiple tasks', () => {
-    const libraries = LibraryIdentifier.identifyLibraries(mockTasks);
+  test('tracks library detection across multiple tasks', async () => {
+    const libraries = await LibraryIdentifier.identifyLibraries(mockTasks, { useAI: false });
     
     // Find a library that appears in multiple tasks
     const reactLib = libraries.find(lib => lib.name === 'react');

@@ -12,6 +12,13 @@ const FetchDocumentationRequestSchema = z.object({
   })),
   settings: DocumentationSettingsSchema.optional(),
   githubToken: z.string().optional(),
+  // AI configuration for library extraction
+  aiConfig: z.object({
+    apiKey: z.string().optional(),
+    model: z.string().optional(),
+    apiBase: z.string().optional(),
+    useAI: z.boolean().default(true),
+  }).optional(),
 });
 
 type FetchDocumentationRequest = z.infer<typeof FetchDocumentationRequestSchema>;
@@ -19,7 +26,7 @@ type FetchDocumentationRequest = z.infer<typeof FetchDocumentationRequestSchema>
 export async function POST(request: NextRequest) {
   try {
     const body: FetchDocumentationRequest = await request.json();
-    const { tasks, settings, githubToken } = FetchDocumentationRequestSchema.parse(body);
+    const { tasks, settings, githubToken, aiConfig } = FetchDocumentationRequestSchema.parse(body);
 
     // Use default settings if none provided
     const docSettings = settings || {
@@ -41,8 +48,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Identify libraries mentioned in tasks
-    const identifiedLibraries = LibraryIdentifier.identifyLibraries(tasks);
+    // Identify libraries mentioned in tasks using AI-enhanced extraction
+    const identifiedLibraries = await LibraryIdentifier.identifyLibraries(tasks, {
+      useAI: aiConfig?.useAI ?? true,
+      apiKey: aiConfig?.apiKey,
+      model: aiConfig?.model,
+      apiBase: aiConfig?.apiBase,
+      fallbackToPatterns: true, // Always use patterns as fallback/supplement
+    });
     const filteredLibraries = LibraryIdentifier.filterLibraries(identifiedLibraries, {
       minConfidence: 0.5,
       maxCount: 15, // Limit to avoid overwhelming the export
