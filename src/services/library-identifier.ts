@@ -48,17 +48,17 @@ export class LibraryIdentifier {
     
     // Pattern 1: Import/require statements (highest confidence)
     const importPatterns = [
-      /import\s+.*?from\s+['"`]([^'"`@/]+)['"`]/gi,
-      /import\s+['"`]([^'"`@/]+)['"`]/gi,
-      /require\s*\(\s*['"`]([^'"`@/]+)['"`]\s*\)/gi,
-      /from\s+['"`]([^'"`@/]+)['"`]/gi,
+      /import\s+.*?from\s+['"`]([a-zA-Z][\w\-@/]*?)['"`]/gi,
+      /import\s+['"`]([a-zA-Z][\w\-@/]*?)['"`]/gi,
+      /require\s*\(\s*['"`]([a-zA-Z][\w\-@/]*?)['"`]\s*\)/gi,
+      /from\s+['"`]([a-zA-Z][\w\-@/]*?)['"`]/gi,
     ];
     
     for (const pattern of importPatterns) {
       let match;
       while ((match = pattern.exec(text)) !== null) {
         const libName = this.normalizeLibraryName(match[1]);
-        if (libName && this.isKnownLibraryPattern(libName)) {
+        if (libName && this.isValidLibraryName(libName)) {
           libraries.push({
             name: libName,
             confidence: 0.95,
@@ -70,96 +70,70 @@ export class LibraryIdentifier {
 
     // Pattern 2: Package manager commands (high confidence)
     const packagePatterns = [
-      /npm\s+install\s+([a-zA-Z][\w\-@/]+)/gi,
-      /yarn\s+add\s+([a-zA-Z][\w\-@/]+)/gi,
-      /pip\s+install\s+([a-zA-Z][\w\-@/]+)/gi,
+      /npm\s+install\s+((?:[a-zA-Z][\w\-@/]+\s*)+)/gi,
+      /yarn\s+add\s+((?:[a-zA-Z][\w\-@/]+\s*)+)/gi,
+      /pip\s+install\s+((?:[a-zA-Z][\w\-]+\s*)+)/gi,
       /composer\s+require\s+([\w\-]+\/[\w\-]+)/gi,
     ];
 
     for (const pattern of packagePatterns) {
       let match;
       while ((match = pattern.exec(text)) !== null) {
-        const libName = this.normalizeLibraryName(match[1]);
-        if (libName && this.isKnownLibraryPattern(libName)) {
-          libraries.push({
-            name: libName,
-            confidence: 0.9,
-            context: `Package manager: ${match[0]}`
-          });
+        // Split by whitespace to handle multiple packages in one command
+        const packages = match[1].trim().split(/\s+/);
+        for (const pkg of packages) {
+          const libName = this.normalizeLibraryName(pkg);
+          if (libName && this.isValidLibraryName(libName)) {
+            libraries.push({
+              name: libName,
+              confidence: 0.9,
+              context: `Package manager: npm install ${pkg}`
+            });
+          }
         }
       }
     }
 
-    // Pattern 3: Well-known framework/library mentions (medium confidence)
-    const wellKnownLibraries = [
-      // Frontend
-      'react', 'vue', 'angular', 'svelte', 'nextjs', 'next.js', 'nuxtjs', 'nuxt.js', 'gatsby',
-      'jquery', 'lodash', 'moment', 'axios', 'typescript', 'webpack', 'styled-components',
-      'material-ui', 'ant-design', 'react-router-dom', 'react-router',
-      // Backend
-      'express', 'expressjs', 'express.js', 'fastify', 'koa', 'nestjs', 'django', 'flask', 'fastapi',
-      'spring', 'laravel', 'rails', 'asp.net', 'nodejs', 'node.js', 'graphql', 'apollo',
-      'jsonwebtoken', 'passport', 'bcrypt', 'joi', 'express-rate-limit', 'cors',
-      // Database
-      'mysql', 'postgresql', 'postgres', 'mongodb', 'mongo', 'redis', 'elasticsearch', 'sqlite',
-      'sequelize', 'mongoose', 'prisma', 'typeorm', 'knex',
-      // Testing
-      'jest', 'mocha', 'cypress', 'playwright', 'selenium', 'puppeteer', 'supertest',
-      'chai', 'sinon', 'karma', 'jasmine', 'testing-library',
-      // DevOps
-      'docker', 'kubernetes', 'k8s', 'terraform', 'ansible', 'jenkins', 'nginx',
-      'prometheus', 'grafana', 'github-actions',
-      // Mobile
-      'react-native', 'flutter', 'ionic', 'xamarin', '@react-navigation/native', 'redux-toolkit',
-      // ML/Data
-      'tensorflow', 'tensorflow.js', 'pytorch', 'pandas', 'numpy', 'scikit-learn',
-      // Utility
-      'lodash', 'moment', 'date-fns', 'axios', 'fetch',
+    // Pattern 3: Common technology keywords (medium confidence) - only very well-known ones
+    const keywordPatterns = [
+      // Database patterns
+      /\b(?:setup|configure|use|using|with)\s+(mysql|postgresql|postgres|mongodb|redis|sqlite)\b/gi,
+      /\b(mysql|postgresql|postgres|mongodb|redis|sqlite)\s+(?:database|db|server)\b/gi,
+      
+      // Frontend framework patterns
+      /\b(?:build|create|use|using|with|setup)\s+(react|vue|angular|svelte)\s*(?:app|application|frontend|component)?\b/gi,
+      /\b(react|vue|angular|svelte)\s+(?:frontend|app|application|component|hooks)\b/gi,
+      
+      // Backend framework patterns  
+      /\b(?:build|create|use|using|with|setup)\s+(express|django|flask|fastapi|spring|laravel)\s*(?:app|application|api|server)?\b/gi,
+      /\b(express|django|flask|fastapi|spring|laravel)\s+(?:server|api|backend|app)\b/gi,
+      
+      // Game development patterns
+      /\b(?:setup|use|using|with)\s+(pygame|unity|godot)\s*(?:for|game)?\b/gi,
+      /\b(pygame|unity|godot)\s+(?:game|development|for)\b/gi,
+      
+      // Testing patterns
+      /\b(?:test|testing|using|with|add)\s+(jest|mocha|cypress|playwright)\b/gi,
+      /\b(jest|mocha|cypress|playwright)\s+(?:test|testing|for)\b/gi,
+      
+      // DevOps patterns
+      /\b(?:deploy|using|with|setup)\s+(docker|kubernetes|nginx)\b/gi,
+      /\b(docker|kubernetes|nginx)\s+(?:container|deployment|server)\b/gi,
+      
+      // Language patterns
+      /\b(?:using|with)\s+(typescript|javascript|python)\b/gi,
+      /\b(typescript|javascript|python)\s+(?:language|for)\b/gi,
     ];
 
-    for (const lib of wellKnownLibraries) {
-      // Handle hyphenated libraries specially
-      if (lib.includes('-') || lib.includes('.')) {
-        const exactRegex = new RegExp(`\\b${lib.replace(/[-\.]/g, '[-\\.]?')}\\b`, 'gi');
-        let match;
-        while ((match = exactRegex.exec(text)) !== null) {
-          libraries.push({
-            name: lib,
-            confidence: 0.85, // Higher confidence for exact matches
-            context: `Framework mention: ${match[0]}`
-          });
-        }
-      } else {
-        // Regular single-word libraries
-        const regex = new RegExp(`\\b${lib}\\b`, 'gi');
-        let match;
-        while ((match = regex.exec(text)) !== null) {
-          libraries.push({
-            name: lib,
-            confidence: 0.8,
-            context: `Framework mention: ${match[0]}`
-          });
-        }
-      }
-    }
-
-    // Pattern 4: Technology context mentions (lower confidence)
-    const contextPatterns = [
-      /(?:using|with|setup|configure|implement)\s+([a-zA-Z][\w\-\.]{3,15})\s+(?:framework|library|package)/gi,
-      /([a-zA-Z][\w\-\.]{3,15})\s+(?:authentication|database|server|client|api)/gi,
-      /(?:install|add|use)\s+([\w\-\.@/]+)/gi, // More general installation pattern
-      /([a-zA-Z][\w\-\.]{2,20})(?:\.js|\.ts)?\s+(?:for|with)/gi, // Library mentions with "for/with"
-    ];
-
-    for (const pattern of contextPatterns) {
+    for (const pattern of keywordPatterns) {
       let match;
       while ((match = pattern.exec(text)) !== null) {
         const libName = this.normalizeLibraryName(match[1]);
-        if (libName && this.isKnownLibraryPattern(libName)) {
+        if (libName && this.isValidLibraryName(libName)) {
           libraries.push({
             name: libName,
-            confidence: 0.7,
-            context: `Context mention: ${match[0]}`
+            confidence: 0.8,
+            context: `Keyword mention: ${match[0]}`
           });
         }
       }
@@ -190,10 +164,14 @@ export class LibraryIdentifier {
     
     // Handle common variations
     const variations: Record<string, string> = {
+      'nextjs': 'nextjs',
       'next.js': 'nextjs',
       'next': 'nextjs',
+      'nuxtjs': 'nuxtjs', 
       'nuxt.js': 'nuxtjs',
+      'nodejs': 'nodejs',
       'node.js': 'nodejs',
+      'expressjs': 'express',
       'express.js': 'express',
       'tensorflow.js': 'tensorflow'
     };
@@ -202,14 +180,18 @@ export class LibraryIdentifier {
   }
 
   /**
-   * Check if a name matches known library patterns
+   * Check if a string is a valid library name
    */
-  private static isKnownLibraryPattern(name: string): boolean {
+  private static isValidLibraryName(name: string): boolean {
     // Must be reasonable length and format
     if (!/^[a-zA-Z][\w\-]{1,30}$/.test(name)) return false;
     
+    // Must be at least 2 characters
+    if (name.length < 2) return false;
+    
     // Exclude common words that aren't libraries
     const excludeWords = [
+      // Common directory/file words
       'config', 'utils', 'helper', 'common', 'shared', 'base', 'core',
       'main', 'index', 'app', 'src', 'lib', 'dist', 'build', 'test',
       'spec', 'mock', 'fixture', 'data', 'assets', 'public', 'static',
@@ -222,18 +204,14 @@ export class LibraryIdentifier {
       'dependencies', 'frontend', 'backend', 'testing', 'project', 'application',
       'routing', 'components', 'server', 'connection', 'limiting', 'pipeline',
       'proxy', 'navigation', 'push', 'management', 'notifications', 'analytics',
-      'request', 'ui'
+      'request', 'ui', 'api', 'client', 'database', 'db', 'framework',
+      // Common English words
+      'the', 'and', 'for', 'with', 'from', 'this', 'that', 'using',
+      'file', 'path', 'font', 'sprite', 'base', 'name', 'hooks', 'state',
+      'props', 'context', 'custom', 'utils'
     ];
     
     return !excludeWords.includes(name.toLowerCase());
-  }
-
-  /**
-   * Check if a string is a valid library name
-   */
-  private static isValidLibraryName(name: string): boolean {
-    return /^[a-zA-Z][\w\-]{1,30}$/.test(name) && 
-           !['the', 'and', 'for', 'with', 'from', 'this', 'that', 'using', 'build', 'app'].includes(name.toLowerCase());
   }
 
   /**
@@ -243,48 +221,47 @@ export class LibraryIdentifier {
     const lowerName = name.toLowerCase();
     const lowerContext = context?.toLowerCase() || '';
     
-    // Frontend frameworks/libraries
-    if (['react', 'vue', 'angular', 'svelte', 'nextjs', 'next.js', 'nuxtjs', 'nuxt.js', 'jquery', 'typescript', 'styled-components'].includes(lowerName) ||
-        lowerName.includes('next') || // Handle variations like "next", "next.js"
-        lowerContext.includes('frontend') || lowerContext.includes('ui')) {
+    // Frontend frameworks/libraries based on name patterns and context
+    if (lowerName.match(/^(react|vue|angular|svelte|next|nuxt|gatsby|jquery|typescript)$/) ||
+        lowerName.includes('component') || lowerName.includes('ui') ||
+        lowerContext.includes('frontend') || lowerContext.includes('ui') || lowerContext.includes('component')) {
       return 'frontend';
     }
     
     // Backend frameworks and auth libraries
-    if (['express', 'expressjs', 'express.js', 'fastify', 'django', 'flask', 'spring', 'laravel', 'rails', 'nodejs', 'node.js', 'graphql', 
-         'jsonwebtoken', 'passport', 'bcrypt', 'joi'].includes(lowerName) ||
-        lowerName.includes('auth') || lowerName.includes('jwt') || // Auth-related libraries
+    if (lowerName.match(/^(express|fastify|django|flask|spring|laravel|rails|node|graphql|jwt|passport|bcrypt)$/) ||
+        lowerName.includes('auth') || lowerName.includes('server') || lowerName.includes('api') ||
         lowerContext.includes('backend') || lowerContext.includes('server') || lowerContext.includes('api') || lowerContext.includes('auth')) {
       return 'backend';
     }
     
     // Databases
-    if (['mysql', 'postgresql', 'postgres', 'mongodb', 'mongo', 'redis', 'sqlite', 'sequelize', 'mongoose', 'prisma'].includes(lowerName) ||
+    if (lowerName.match(/^(mysql|postgresql|postgres|mongodb|mongo|redis|sqlite|sequelize|mongoose|prisma)$/) ||
         lowerContext.includes('database') || lowerContext.includes('db')) {
       return 'database';
     }
     
     // Testing frameworks
-    if (['jest', 'mocha', 'cypress', 'playwright', 'selenium', 'chai', 'supertest'].includes(lowerName) ||
+    if (lowerName.match(/^(jest|mocha|cypress|playwright|selenium|chai|supertest)$/) ||
         lowerContext.includes('test') || lowerContext.includes('spec')) {
       return 'testing';
     }
     
     // DevOps tools
-    if (['docker', 'kubernetes', 'k8s', 'terraform', 'ansible', 'jenkins', 'nginx', 'prometheus', 'grafana'].includes(lowerName) ||
-        lowerContext.includes('deploy') || lowerContext.includes('infrastructure')) {
+    if (lowerName.match(/^(docker|kubernetes|k8s|terraform|ansible|jenkins|nginx|prometheus|grafana)$/) ||
+        lowerContext.includes('deploy') || lowerContext.includes('infrastructure') || lowerContext.includes('container')) {
       return 'devops';
     }
     
     // Mobile frameworks
-    if (['react-native', 'flutter', 'ionic', 'xamarin'].includes(lowerName) ||
+    if (lowerName.match(/^(react-native|flutter|ionic|xamarin)$/) ||
         lowerContext.includes('mobile') || lowerContext.includes('android') || lowerContext.includes('ios')) {
       return 'mobile';
     }
     
     // ML/Data science
-    if (['tensorflow', 'tensorflow.js', 'pytorch', 'pandas', 'numpy', 'scikit-learn'].includes(lowerName) ||
-        lowerContext.includes('machine learning') || lowerContext.includes('data science')) {
+    if (lowerName.match(/^(tensorflow|pytorch|pandas|numpy|scikit-learn)$/) ||
+        lowerContext.includes('machine learning') || lowerContext.includes('data science') || lowerContext.includes('ml')) {
       return 'ml';
     }
     

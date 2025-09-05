@@ -471,6 +471,82 @@ const handleExportData = async () => {
       docsFolder.file('SPECIFICATION.md', specifications);
       docsFolder.file('FILE_STRUCTURE.md', fileStructure);
 
+      // Fetch documentation if enabled
+      let documentationResult = null;
+      if (documentationEnabled) {
+        try {
+          const docResponse = await fetch('/api/documentation', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              tasks: tasks.map(task => ({
+                id: task.title.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+                title: task.title,
+                details: task.details,
+              })),
+              settings: {
+                sources: documentationSources,
+                includeStackOverflow: false,
+                maxDocumentationSizeKB: maxDocumentationSizeKB,
+                cacheDocumentationDays: 7,
+                enabled: true,
+              },
+              githubToken: githubToken,
+            }),
+          });
+
+          if (docResponse.ok) {
+            documentationResult = await docResponse.json();
+            
+            // Add documentation to zip if fetched successfully
+            if (documentationResult && documentationResult.libraries && documentationResult.libraries.length > 0) {
+              const libraryDocsFolder = zip.folder('library-documentation');
+              if (libraryDocsFolder) {
+                // Create index of all libraries
+                const libraryIndex = documentationResult.libraries.map((lib: any) => 
+                  `- [${lib.libraryName}](${lib.libraryName}/README.md) - ${lib.category} (${lib.sources.length} sources, ${lib.sizeKB}KB)`
+                ).join('\n');
+                
+                libraryDocsFolder.file('README.md', `# Library Documentation\n\nThe following libraries were identified and documented for this project:\n\n${libraryIndex}\n\nTotal: ${documentationResult.fetchedCount} libraries, ${documentationResult.totalSizeKB}KB`);
+                
+                // Add each library's documentation
+                for (const lib of documentationResult.libraries) {
+                  const libFolder = libraryDocsFolder.folder(lib.libraryName);
+                  if (libFolder) {
+                    // Create main README for the library
+                    let libContent = `# ${lib.libraryName}\n\n**Category:** ${lib.category}\n**Fetched:** ${new Date(lib.fetchedAt).toLocaleString()}\n\n`;
+                    
+                    // Add each source
+                    for (let i = 0; i < lib.sources.length; i++) {
+                      const source = lib.sources[i];
+                      libContent += `## Source ${i + 1}: ${source.title}\n\n**Type:** ${source.type}\n**URL:** ${source.url}\n\n${source.content}\n\n---\n\n`;
+                      
+                      // Also create individual source files
+                      const sourceFileName = `source-${i + 1}-${source.type}.md`;
+                      libFolder.file(sourceFileName, `# ${source.title}\n\n**Type:** ${source.type}\n**URL:** ${source.url}\n**Size:** ${source.sizeKB}KB\n\n${source.content}`);
+                    }
+                    
+                    libFolder.file('README.md', libContent);
+                  }
+                }
+              }
+              
+              toast({
+                title: 'Documentation Fetched',
+                description: `Included documentation for ${documentationResult.fetchedCount} libraries (${documentationResult.totalSizeKB}KB)`,
+              });
+            }
+          } else {
+            console.warn('Documentation fetching failed:', await docResponse.text());
+          }
+        } catch (docError) {
+          console.warn('Failed to fetch documentation:', docError);
+          // Continue with export even if documentation fails
+        }
+      }
+
       // Create main tasks file
       const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
       tasksFolder.file('tasks.md', `# Task List\n\n${mainTasksContent}`);
@@ -503,9 +579,13 @@ const handleExportData = async () => {
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       saveAs(zipBlob, 'gitautomate-export.zip');
 
+      const exportMessage = documentationResult 
+        ? `Your project data has been downloaded with documentation for ${documentationResult.fetchedCount} libraries.`
+        : 'Your project data has been downloaded as a zip file with AGENTS.md.';
+
       toast({
         title: 'Export Successful',
-        description: 'Your project data has been downloaded as a zip file with AGENTS.md.',
+        description: exportMessage,
       });
     } catch (error) {
       toast({
@@ -568,18 +648,19 @@ const handleExportData = async () => {
                 <Settings className="h-5 w-5" />
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
+              <DialogHeader className="flex-shrink-0">
                 <DialogTitle>Settings</DialogTitle>
                 <DialogDescription>
                   Configure your API keys and select your preferred AI model. Your Google AI API Key from the .env file will be used if left blank here.
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(handleSaveSettings)}
-                  className="space-y-4"
-                >
+                <div className="max-h-[calc(90vh-8rem)] overflow-y-auto px-1">
+                  <form
+                    onSubmit={form.handleSubmit(handleSaveSettings)}
+                    className="space-y-4"
+                  >
                   <FormField
                     control={form.control}
                     name="githubToken"
@@ -769,10 +850,11 @@ const handleExportData = async () => {
                       )}
                     />
                   </div>
-                  <DialogFooter>
-                    <Button type="submit">Save Settings</Button>
-                  </DialogFooter>
-                </form>
+                  </form>
+                </div>
+                <DialogFooter className="flex-shrink-0 mt-4">
+                  <Button type="submit" onClick={form.handleSubmit(handleSaveSettings)}>Save Settings</Button>
+                </DialogFooter>
               </Form>
             </DialogContent>
           </Dialog>
