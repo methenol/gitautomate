@@ -90,7 +90,7 @@ export class DocumentationFetcher {
         // Cache the result
         await this.cacheDocumentation(libraryDoc);
 
-      } catch (error) {
+      } catch (_error) {
         console.error(`Error fetching documentation for ${library.name}:`, error);
         errors.push(`Failed to fetch ${library.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         skippedCount++;
@@ -144,8 +144,8 @@ export class DocumentationFetcher {
       }
 
       return null;
-    } catch (error) {
-      console.warn(`Failed to verify library ${libraryName}:`, error);
+    } catch (_error) {
+      console.warn(`Failed operation`, _error);
       return null;
     }
   }
@@ -166,7 +166,7 @@ export class DocumentationFetcher {
           isVerified: data['dist-tags']?.latest ? true : false,
         };
       }
-    } catch (error) {
+    } catch (_error) {
       // Ignore NPM registry errors
     }
     return null;
@@ -188,25 +188,28 @@ export class DocumentationFetcher {
             }
             break;
           
-          case 'official':
+          case 'official': {
             const officialSources = await this.fetchFromOfficialSite(library.name);
             sources.push(...officialSources);
             break;
+          }
           
-          case 'mdn':
+          case 'mdn': {
             if (this.isWebTechnology(library.name)) {
               const mdnSources = await this.fetchFromMDN(library.name);
               sources.push(...mdnSources);
             }
             break;
+          }
           
-          case 'npm':
+          case 'npm': {
             const npmSources = await this.fetchFromNPM(library.name);
             sources.push(...npmSources);
             break;
+          }
         }
-      } catch (error) {
-        console.warn(`Failed to fetch from ${sourceType} for ${library.name}:`, error);
+      } catch (_error) {
+        console.warn(`Failed operation`, _error);
       }
     }
 
@@ -234,7 +237,7 @@ export class DocumentationFetcher {
           content,
           sizeKB: Math.round(content.length / 1024),
         });
-      } catch (error) {
+      } catch (_error) {
         // README not found, continue
       }
 
@@ -266,13 +269,13 @@ export class DocumentationFetcher {
                     sizeKB: Math.round(content.length / 1024),
                   });
                 }
-              } catch (error) {
+              } catch (_error) {
                 // Skip this doc file
               }
             }
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Docs folder not found, continue
       }
 
@@ -290,12 +293,12 @@ export class DocumentationFetcher {
             sizeKB: 1,
           });
         }
-      } catch (error) {
+      } catch (_error) {
         // Wiki not found or not accessible
       }
 
-    } catch (error) {
-      console.warn(`Failed to fetch GitHub documentation for ${fullName}:`, error);
+    } catch (_error) {
+      console.warn(`Failed operation`, _error);
     }
 
     return sources;
@@ -344,7 +347,7 @@ export class DocumentationFetcher {
             break; // Found official docs, no need to try other URLs
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Continue to next URL
       }
     }
@@ -413,7 +416,7 @@ export class DocumentationFetcher {
           });
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // MDN doesn't have this API
     }
 
@@ -443,7 +446,7 @@ export class DocumentationFetcher {
           sizeKB: Math.round(content.length / 1024),
         });
       }
-    } catch (error) {
+    } catch (_error) {
       // NPM package not found
     }
 
@@ -510,7 +513,7 @@ export class DocumentationFetcher {
   private async ensureCacheDir(): Promise<void> {
     try {
       await fs.mkdir(this.cacheDir, { recursive: true });
-    } catch (error) {
+    } catch (_error) {
       // Directory might already exist
     }
   }
@@ -525,7 +528,7 @@ export class DocumentationFetcher {
       if (new Date(doc.cacheExpiry) > new Date()) {
         return doc;
       }
-    } catch (error) {
+    } catch (_error) {
       // Cache miss or invalid
     }
     return null;
@@ -535,8 +538,8 @@ export class DocumentationFetcher {
     try {
       const cacheFile = path.join(this.cacheDir, `${doc.libraryName}.json`);
       await fs.writeFile(cacheFile, JSON.stringify(doc, null, 2));
-    } catch (error) {
-      console.warn(`Failed to cache documentation for ${doc.libraryName}:`, error);
+    } catch (_error) {
+      console.warn(`Failed operation`, _error);
     }
   }
 
@@ -562,8 +565,8 @@ export class DocumentationFetcher {
           // Keep original content for very short or very long documents
           cleanedSources.push(source);
         }
-      } catch (error) {
-        console.warn(`Failed to clean documentation for ${libraryName} from ${source.type}:`, error);
+      } catch (_error) {
+        console.warn(`Failed operation`, _error);
         // Fallback to original content if AI cleaning fails
         cleanedSources.push(source);
       }
@@ -603,8 +606,8 @@ Return only the cleaned documentation content in markdown format.`;
       });
 
       return output as string;
-    } catch (error) {
-      console.warn(`AI documentation cleaning failed for ${libraryName}:`, error);
+    } catch (_error) {
+      console.warn(`Failed operation`, _error);
       // Return original content if AI fails
       return rawContent;
     }

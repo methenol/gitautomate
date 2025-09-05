@@ -89,10 +89,10 @@ export class LibraryIdentifier {
 
     // Pattern 2: Package manager commands (high confidence)
     const packagePatterns = [
-      /npm\s+install\s+((?:[a-zA-Z][\w\-@/]+\s*)+)/gi,
-      /yarn\s+add\s+((?:[a-zA-Z][\w\-@/]+\s*)+)/gi,
-      /pip\s+install\s+((?:[a-zA-Z][\w\-]+\s*)+)/gi,
-      /composer\s+require\s+([\w\-]+\/[\w\-]+)/gi,
+      /npm\s+install\s+((?:[a-zA-Z][\w-@/]+\s*)+)/gi,
+      /yarn\s+add\s+((?:[a-zA-Z][\w-@/]+\s*)+)/gi,
+      /pip\s+install\s+((?:[a-zA-Z][\w-]+\s*)+)/gi,
+      /composer\s+require\s+([\w-]+\/[\w-]+)/gi,
     ];
 
     for (const pattern of packagePatterns) {
@@ -174,7 +174,7 @@ export class LibraryIdentifier {
    * Normalize library names to standard format
    */
   private static normalizeLibraryName(name: string): string {
-    let normalized = name.toLowerCase()
+    const normalized = name.toLowerCase()
       .replace(/^@.*?\//, '') // Remove npm scope (@babel/core -> core)
       .replace(/['"]/g, '') // Remove quotes
       .replace(/\.js$/, '') // Remove .js extension  
@@ -203,7 +203,7 @@ export class LibraryIdentifier {
    */
   private static isValidLibraryName(name: string): boolean {
     // Must be reasonable length and format
-    if (!/^[a-zA-Z][\w\-]{1,30}$/.test(name)) return false;
+    if (!/^[a-zA-Z][\w-]{1,30}$/.test(name)) return false;
     
     // Must be at least 2 characters
     if (name.length < 2) return false;

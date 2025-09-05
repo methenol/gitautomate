@@ -51,7 +51,7 @@ describe('Library Extraction - Core Functionality', () => {
     
     // All extracted libraries should be valid
     libraries.forEach(lib => {
-      expect(lib.name).toMatch(/^[a-zA-Z][\w\-]{1,30}$/);
+      expect(lib.name).toMatch(/^[a-zA-Z][\w-]{1,30}$/);
       expect(lib.confidenceScore).toBeGreaterThan(0.6);
       expect(lib.category).toBeDefined();
     });
