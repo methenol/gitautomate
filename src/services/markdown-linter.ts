@@ -175,7 +175,7 @@ export class MarkdownLinter {
           const errors = this.parseMarkdownLintErrors(lintResult.output);
           
           // Clean up temp file
-          await fs.unlink(tempFile).catch(() => {});
+          await fs.unlink(realTempFile).catch(() => {});
           
           // Apply manual fixes for common issues
           const manuallyFixed = this.applyManualFixes(fixedContent);
