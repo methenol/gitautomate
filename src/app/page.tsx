@@ -433,8 +433,9 @@ const handleExportData = async () => {
       const zip = new JSZip();
       const docsFolder = zip.folder('docs');
       const tasksFolder = zip.folder('tasks');
+      const referenceFolder = zip.folder('reference');
 
-      if (!docsFolder || !tasksFolder) {
+      if (!docsFolder || !tasksFolder || !referenceFolder) {
         throw new Error('Could not create folders in zip file.');
       }
 
@@ -444,14 +445,92 @@ const handleExportData = async () => {
       docsFolder.file('SPECIFICATION.md', specifications);
       docsFolder.file('FILE_STRUCTURE.md', fileStructure);
 
-      // Create main tasks file
-      const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
-      tasksFolder.file('tasks.md', `# Task List\n\n${mainTasksContent}`);
+      // Fetch library documentation (if enabled in settings)
+      let documentationNotes = '';
+      try {
+        // Load current settings to check documentation preferences
+        const settingsResponse = await fetch('/api/settings');
+        const settings = settingsResponse.ok ? await settingsResponse.json() : {};
+        const docSettings = settings.documentation || { enabled: true };
 
-      // Create individual task files
+        if (docSettings.enabled) {
+          // Convert tasks to the format expected by the API
+          const tasksForAnalysis = tasks.map((task, index) => ({
+            id: `task-${(index + 1).toString().padStart(3, '0')}`,
+            title: task.title,
+            details: task.details,
+          }));
+
+          // Call the documentation API
+          const docResponse = await fetch('/api/documentation', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              tasks: tasksForAnalysis,
+              settings: docSettings,
+              githubToken: githubToken || undefined,
+            }),
+          });
+
+          if (docResponse.ok) {
+            const fetchResult = await docResponse.json();
+
+            // Add documentation files to reference folder
+            for (const doc of fetchResult.libraries) {
+              const filename = `${doc.name}-${doc.source}.md`;
+              referenceFolder.file(filename, doc.content);
+            }
+
+            // Create a summary of available documentation
+            if (fetchResult.libraries.length > 0) {
+              const summary = [
+                '# Library Documentation Reference',
+                '',
+                'This folder contains documentation for libraries detected in your project tasks.',
+                '',
+                '## Available Documentation:',
+                '',
+                ...fetchResult.libraries.map((doc: { name: string; source: string }) => 
+                  `- **${doc.name}** (${doc.source}): \`${doc.name}-${doc.source}.md\``
+                ),
+                '',
+                '## Usage Instructions:',
+                '',
+                'When implementing tasks that use these libraries, refer to the relevant documentation files in this folder for:',
+                '- Installation and setup instructions',
+                '- API reference and usage examples', 
+                '- Best practices and configuration options',
+                '',
+                `*Documentation fetched on ${new Date().toLocaleDateString()}*`,
+              ].join('\n');
+
+              referenceFolder.file('README.md', summary);
+
+              documentationNotes = `\n\n## 📚 Library Documentation\n\nRelevant library documentation has been included in the \`reference/\` folder. Please review the documentation for libraries used in each task before implementation.\n\n**Available Documentation:**\n${fetchResult.libraries.map((doc: { name: string; source: string }) => `- ${doc.name} (${doc.source})`).join('\n')}`;
+            }
+          } else {
+            console.warn('Documentation API failed:', await docResponse.text());
+          }
+        }
+      } catch (docError) {
+        console.warn('Documentation fetching failed:', docError);
+        // Continue with export even if documentation fetching fails
+      }
+
+      // Create main tasks file with documentation reference
+      const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
+      const tasksWithDocRef = `# Task List\n\n${mainTasksContent}${documentationNotes}`;
+      tasksFolder.file('tasks.md', tasksWithDocRef);
+
+      // Create individual task files with documentation reference
       tasks.forEach((task, index) => {
         const taskNumber = (index + 1).toString().padStart(3, '0');
-        tasksFolder.file(`task-${taskNumber}.md`, `# ${task.title}\n\n${task.details}`);
+        const taskContentWithDocRef = documentationNotes 
+          ? `# ${task.title}\n\n**📚 Important:** Check the \`reference/\` folder for relevant library documentation before implementing this task.\n\n${task.details}`
+          : `# ${task.title}\n\n${task.details}`;
+        tasksFolder.file(`task-${taskNumber}.md`, taskContentWithDocRef);
       });
 
       // Generate and add AGENTS.md file at the root of zip
