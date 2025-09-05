@@ -52,6 +52,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
@@ -89,6 +91,11 @@ const settingsSchema = z.object({
   apiKey: z.string().optional(),
   apiBase: z.string().optional(),
   useTDD: z.boolean().default(false),
+  documentation: z.object({
+    enabled: z.boolean().default(true),
+    sources: z.array(z.enum(['github', 'official', 'mdn', 'npm'])).default(['github', 'official']),
+    maxDocumentationSizeKB: z.number().min(100).max(2048).default(512),
+  }).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -122,6 +129,9 @@ export default function Home() {
   const [apiKey, setApiKey] = useState<string>('');
   const [apiBase, setApiBase] = useState<string>('');
   const [useTDD, setUseTDD] = useState<boolean>(false);
+  const [documentationEnabled, setDocumentationEnabled] = useState<boolean>(true);
+  const [documentationSources, setDocumentationSources] = useState<string[]>(['github', 'official']);
+  const [maxDocumentationSizeKB, setMaxDocumentationSizeKB] = useState<number>(512);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [repositories, setRepositories] = useState<Repository[]>([LOCAL_MODE_REPO]);
@@ -157,6 +167,11 @@ export default function Home() {
       apiKey: '',
       apiBase: '',
       useTDD: false,
+      documentation: {
+        enabled: true,
+        sources: ['github', 'official'],
+        maxDocumentationSizeKB: 512,
+      },
     },
   });
 
@@ -176,12 +191,19 @@ export default function Home() {
           setApiKey(settings.apiKey || '');
           setApiBase(settings.apiBase || '');
           setUseTDD(settings.useTDD || false);
+          
+          // Load documentation settings
+          const docSettings = settings.documentation || { enabled: true, sources: ['github', 'official'], maxDocumentationSizeKB: 512 };
+          setDocumentationEnabled(docSettings.enabled);
+          setDocumentationSources(docSettings.sources);
+          setMaxDocumentationSizeKB(docSettings.maxDocumentationSizeKB);
 
           form.setValue('githubToken', settings.githubToken || '');
           form.setValue('llmModel', settings.llmModel || '');
           form.setValue('apiKey', settings.apiKey || '');
           form.setValue('apiBase', settings.apiBase || '');
           form.setValue('useTDD', settings.useTDD || false);
+          form.setValue('documentation', docSettings);
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -243,6 +265,13 @@ export default function Home() {
       setApiKey(values.apiKey || '');
       setApiBase(values.apiBase || '');
       setUseTDD(values.useTDD);
+      
+      // Update documentation settings state
+      if (values.documentation) {
+        setDocumentationEnabled(values.documentation.enabled);
+        setDocumentationSources(values.documentation.sources);
+        setMaxDocumentationSizeKB(values.documentation.maxDocumentationSizeKB);
+      }
       
       setIsSettingsOpen(false);
       toast({ title: 'Success', description: 'Settings saved securely.' });
@@ -715,6 +744,99 @@ const handleExportData = async () => {
                       </FormItem>
                     )}
                   />
+                  
+                  {/* Documentation Settings Section */}
+                  <div className="space-y-4">
+                    <div className="border-t pt-4">
+                      <h3 className="text-lg font-medium mb-4">Documentation Settings</h3>
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="documentation.enabled"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">
+                              Enable Documentation Fetching
+                            </FormLabel>
+                            <FormDescription>
+                              Automatically fetch library documentation for export files.
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="documentation.sources"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>Documentation Sources</FormLabel>
+                          <FormDescription>
+                            Select which sources to fetch documentation from.
+                          </FormDescription>
+                          <div className="grid grid-cols-2 gap-4">
+                            {([
+                              { value: 'github' as const, label: 'GitHub README' },
+                              { value: 'official' as const, label: 'Official Sites' },
+                              { value: 'mdn' as const, label: 'MDN Web Docs' },
+                              { value: 'npm' as const, label: 'NPM Registry' },
+                            ] as const).map((source) => (
+                              <FormItem key={source.value} className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(source.value)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        field.onChange([...field.value, source.value]);
+                                      } else {
+                                        field.onChange(field.value?.filter((val: string) => val !== source.value));
+                                      }
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel className="text-sm font-normal">
+                                  {source.label}
+                                </FormLabel>
+                              </FormItem>
+                            ))}
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="documentation.maxDocumentationSizeKB"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>Max Documentation Size (KB)</FormLabel>
+                          <FormDescription>
+                            Maximum size per documentation file: {field.value}KB
+                          </FormDescription>
+                          <FormControl>
+                            <Slider
+                              min={100}
+                              max={2048}
+                              step={50}
+                              value={[field.value]}
+                              onValueChange={([value]) => field.onChange(value)}
+                              className="w-full"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <DialogFooter>
                     <Button type="submit">Save Settings</Button>
                   </DialogFooter>
