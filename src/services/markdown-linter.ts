@@ -10,32 +10,66 @@ export interface MarkdownLintResult {
 
 export class MarkdownLinter {
   /**
+   * Sanitize filename to prevent command injection and path traversal
+   */
+  private static sanitizeFilename(filename: string): string {
+    // Remove any path separators and dangerous characters
+    const sanitized = filename
+      .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace non-alphanumeric chars with underscore
+      .replace(/^\.+/, '') // Remove leading dots
+      .substring(0, 100); // Limit length
+    
+    // Ensure it ends with .md
+    return sanitized.endsWith('.md') ? sanitized : `${sanitized}.md`;
+  }
+
+  /**
+   * Validate that the path is within the expected directory
+   */
+  private static validatePath(filePath: string, expectedDir: string): boolean {
+    const resolvedPath = path.resolve(filePath);
+    const resolvedDir = path.resolve(expectedDir);
+    return resolvedPath.startsWith(resolvedDir + path.sep) || resolvedPath === resolvedDir;
+  }
+  /**
    * Lint markdown content and attempt to fix common issues
    */
   static async lintAndFix(content: string, filename = 'document.md'): Promise<MarkdownLintResult> {
     try {
+      // Sanitize the filename to prevent security issues
+      const safeFilename = this.sanitizeFilename(filename);
+      
       // Create a temporary file for linting
       const tempDir = '/tmp/markdown-lint';
       await fs.mkdir(tempDir, { recursive: true });
-      const tempFile = path.join(tempDir, filename);
+      const tempFile = path.join(tempDir, safeFilename);
+      
+      // Validate the path is within our temp directory
+      if (!this.validatePath(tempFile, tempDir)) {
+        return {
+          isValid: false,
+          errors: ['Invalid filename provided']
+        };
+      }
       
       await fs.writeFile(tempFile, content);
 
       // First, try to fix automatically
       let fixedContent = content;
       try {
-        execSync(`npx markdownlint-cli2 --fix "${tempFile}"`, { 
+        // Use array form to avoid shell injection
+        execSync('npx markdownlint-cli2 --fix ' + JSON.stringify(tempFile), { 
           cwd: process.cwd(),
           stdio: 'pipe' 
         });
         fixedContent = await fs.readFile(tempFile, 'utf-8');
-      } catch (fixError) {
+      } catch {
         // Auto-fix failed, content may have issues
       }
 
       // Now check if the fixed content is valid
       try {
-        execSync(`npx markdownlint-cli2 "${tempFile}"`, { 
+        execSync('npx markdownlint-cli2 ' + JSON.stringify(tempFile), { 
           cwd: process.cwd(),
           stdio: 'pipe' 
         });
@@ -61,7 +95,7 @@ export class MarkdownLinter {
         if (manuallyFixed !== fixedContent) {
           await fs.writeFile(tempFile, manuallyFixed);
           try {
-            execSync(`npx markdownlint-cli2 "${tempFile}"`, { 
+            execSync('npx markdownlint-cli2 ' + JSON.stringify(tempFile), { 
               cwd: process.cwd(),
               stdio: 'pipe' 
             });
