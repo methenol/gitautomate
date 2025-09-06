@@ -43,6 +43,9 @@ next-env.d.ts
 # settings file contains encrypted sensitive data
 .settings.json
 
+# documentation cache
+.doc-cache/
+
 # firebase
 firebase-debug.log
 firestore-debug.log

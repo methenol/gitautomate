@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { DocumentationSettingsSchema } from '@/types/documentation';
 
 // Settings schema matching the issue requirements
 const SettingsSchema = z.object({
@@ -11,6 +12,7 @@ const SettingsSchema = z.object({
   apiKey: z.string().optional(),
   apiBase: z.string().optional(),
   useTDD: z.boolean().optional(),
+  documentation: DocumentationSettingsSchema.optional(),
 });
 
 type Settings = z.infer<typeof SettingsSchema>;

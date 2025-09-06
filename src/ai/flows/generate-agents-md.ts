@@ -62,6 +62,8 @@ export async function generateAgentsMd(
     model: modelName,
     prompt: `Generate an AGENTS.md file with project-specific instructions for AI agents working on the following software project.
 
+**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting.**
+
 Use ONLY the provided data sources to extract relevant information:
 
 PRD:
@@ -90,15 +92,17 @@ The AGENTS.md file should be 20-50 lines and include:
 7. **Key Conventions**: Important patterns and conventions used
 8. **Development Rules**: General rules for the project
 
-Content should be concise but comprehensive, providing valuable guidance for AI coding assistants. Use clear markdown formatting with appropriate section headers.`,
-    output: {
-      schema: GenerateAgentsMdOutputSchema,
-    },
+Content should be concise but comprehensive, providing valuable guidance for AI coding assistants. Use clear markdown formatting with appropriate section headers.
+
+**IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`,
     config: (apiKey || apiBase) ? {
       ...(apiKey && {apiKey}),
       ...(apiBase && {apiBase})
     } : undefined,
   });
 
-  return output as GenerateAgentsMdOutput;
+  // Parse markdown output
+  const agentsMdContent = output as string;
+  
+  return { agentsMdContent };
 }

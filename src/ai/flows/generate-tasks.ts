@@ -29,6 +29,8 @@ export type GenerateTasksOutput = z.infer<typeof GenerateTasksOutputSchema>;
 
 const standardPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable, granular development task *titles*.
 
+**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting.**
+
 CRITICAL: Each item in your response MUST be an actionable development task. DO NOT include section headings, organizational markers, or grouping labels like "--BACKEND FOUNDATION--" or "## Frontend Tasks". Every single task title must represent a concrete, implementable unit of work that an AI programmer can execute.
 
 You MUST generate a COMPREHENSIVE set of tasks that covers ALL aspects of the PRD, architecture, and specifications. Generate at least 10-15 tasks for a typical project, more for complex projects. Do not generate just 1-2 tasks - break down the work into meaningful, actionable chunks.
@@ -46,9 +48,13 @@ File Structure:
 Specifications:
 {{{specifications}}}
 
-Respond with ONLY a valid JSON object that conforms to the output schema. The "tasks" field should be an array of objects, each with "title" (the task title) and "details" (leave as empty string). Generate multiple tasks covering all requirements.`;
+Output format: List each task as a markdown bullet point. Do not include task details - just the task titles.
+
+**IMPORTANT: Output ONLY markdown content with a bulleted list of task titles. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`;
 
 const tddPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable, granular development task *titles*.
+
+**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting.**
 
 CRITICAL: Each item in your response MUST be an actionable development task. DO NOT include section headings, organizational markers, or grouping labels like "--BACKEND FOUNDATION--" or "## Frontend Tasks". Every single task title must represent a concrete, implementable unit of work that an AI programmer can execute.
 
@@ -69,7 +75,9 @@ File Structure:
 Specifications:
 {{{specifications}}}
 
-Respond with ONLY a valid JSON object that conforms to the output schema. The "tasks" field should be an array of objects, each with "title" (the task title) and "details" (leave as empty string). Generate multiple tasks covering all requirements.`;
+Output format: List each task as a markdown bullet point. Do not include task details - just the task titles.
+
+**IMPORTANT: Output ONLY markdown content with a bulleted list of task titles. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`;
 
 export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, apiBase?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
   if (!model) {
@@ -87,15 +95,47 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
   const {output} = await ai.generate({
     model: modelName,
     prompt: prompt,
-    output: {
-      schema: GenerateTasksOutputSchema
-    },
     config: (apiKey || apiBase) ? {
       ...(apiKey && {apiKey}),
       ...(apiBase && {apiBase})
     } : undefined,
   });
   
-  const typedOutput = output as GenerateTasksOutput;
-  return typedOutput;
+  // Parse markdown output to extract task titles
+  const markdownContent = output as string;
+  const tasks: Array<{ title: string; details: string }> = [];
+  
+  // Extract bullet points from markdown
+  const lines = markdownContent.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      const title = trimmed.substring(2).trim();
+      if (title) {
+        tasks.push({ title, details: '' });
+      }
+    }
+  }
+  
+  // If no bullet points found, try alternative parsing
+  if (tasks.length === 0) {
+    // Try to extract lines that look like task titles
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('**')) {
+        // Check if it looks like a task title (contains action words)
+        const actionWords = ['implement', 'create', 'build', 'setup', 'configure', 'add', 'develop', 'design', 'integrate', 'test'];
+        if (actionWords.some(word => trimmed.toLowerCase().includes(word))) {
+          tasks.push({ title: trimmed, details: '' });
+        }
+      }
+    }
+  }
+  
+  // Ensure we have at least some tasks
+  if (tasks.length === 0) {
+    throw new Error('Failed to extract task titles from generated content');
+  }
+  
+  return { tasks };
 }

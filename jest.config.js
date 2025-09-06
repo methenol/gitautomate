@@ -15,15 +15,22 @@ const customJestConfig = {
   testTimeout: 30000,
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': ['ts-jest', {
-      useESM: false,
+      useESM: true,
       tsconfig: 'tsconfig.json'
     }],
   },
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
   ],
+  transformIgnorePatterns: [
+    'node_modules/(?!(@octokit/.*|cheerio|.*\\.mjs$)/)'
+  ],
+  clearMocks: true,
+  automock: false,
+  preset: 'ts-jest/presets/default-esm',
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

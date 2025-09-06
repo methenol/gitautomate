@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/litellm';
 import {z} from 'zod';
+import { MarkdownLinter } from '@/services/markdown-linter';
 
 const _ResearchTaskInputSchema = z.object({
   title: z.string().describe('The title of the development task to research.'),
@@ -20,40 +21,47 @@ const _ResearchTaskInputSchema = z.object({
 export type ResearchTaskInput = { title: string; architecture: string; fileStructure: string; specifications: string };
 
 const ResearchTaskOutputSchema = z.object({
-  context: z
+  markdownContent: z
     .string()
-    .describe(
-      'Briefly explain how this task fits into the overall architecture.'
-    ),
-  implementationSteps: z
-    .string()
-    .describe(
-      `Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
+    .describe('Complete markdown-formatted task documentation ready for GitHub issues. Must include proper markdown headers, formatting, and structure.'),
+});
+export type ResearchTaskOutput = z.infer<typeof ResearchTaskOutputSchema>;
+
+const standardPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format.
+
+**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
+
+The markdown content must follow this exact structure:
+
+# {Task Title}
+
+## Context
+
+{Briefly explain how this task fits into the overall architecture}
+
+## Implementation Steps
+
+{Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
 - Files that need to be created or modified
 - Functions/components that need to be implemented
 - Integration points with other system components
 - The expected behavior and functionality
-- Any specific considerations or edge cases`
-    ),
-  acceptanceCriteria: z
-    .string()
-    .describe('Define what it means for this task to be considered "done".'),
-});
-export type ResearchTaskOutput = z.infer<typeof ResearchTaskOutputSchema>;
+- Any specific considerations or edge cases}
 
-const standardPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan.
+## Required Libraries
 
-You MUST return your response as a valid JSON object that conforms to the output schema.
+{List all libraries, packages, frameworks, and tools needed for this specific task as a comma-separated list. Be comprehensive and specific. Examples:
+- react, typescript, @types/node, tailwindcss, react-router-dom
+- express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors
+- jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event}
 
-For the given task, provide a detailed breakdown for each of the following fields:
-- context: Briefly explain how this task fits into the overall architecture.
-- implementationSteps: Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
-  - Files that need to be created or modified
-  - Functions/components that need to be implemented
-  - Integration points with other system components
-  - The expected behavior and functionality
-  - Any specific considerations or edge cases
-- acceptanceCriteria: Define what it means for this task to be considered "done".
+## Documentation
+
+Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development.
+
+## Acceptance Criteria
+
+{Define what it means for this task to be considered "done" as a bulleted list}
 
 Overall Project Architecture:
 {{{architecture}}}
@@ -64,24 +72,49 @@ File Structure:
 Overall Project Specifications:
 {{{specifications}}}
 
-Now, provide the detailed implementation plan as a JSON object for the following task:
+Now, provide the detailed implementation plan in markdown format for the following task:
 
 **Task Title: {{{title}}}**
+
+**IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**
 `;
 
-const tddPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan.
+const tddPrompt = `You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format following Test-Driven Development (TDD) methodology.
 
-You MUST return your response as a valid JSON object that conforms to the output schema.
+**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
 
-For the given task, provide a detailed breakdown for each of the following fields:
-- context: Briefly explain how this task fits into the overall architecture.
-- implementationSteps: Provide a detailed, step-by-step implementation guide. Describe what needs to be implemented without including actual code snippets. Focus on:
-  - Files that need to be created or modified
-  - Functions/components that need to be implemented
-  - Integration points with other system components
-  - The expected behavior and functionality
-  - Any specific considerations or edge cases. The implementation plan must strictly follow all phases of Test-Driven Development (Red-Green-Refactor).
-- acceptanceCriteria: Define what it means for this task to be considered "done".
+The markdown content must follow this exact structure:
+
+# {Task Title}
+
+## Context
+
+{Briefly explain how this task fits into the overall architecture}
+
+## Implementation Steps (TDD Approach)
+
+{Provide a detailed, step-by-step implementation guide following Red-Green-Refactor methodology. Describe what needs to be implemented without including actual code snippets. Focus on:
+- Files that need to be created or modified
+- Functions/components that need to be implemented
+- Integration points with other system components
+- The expected behavior and functionality
+- Any specific considerations or edge cases
+- Test-Driven Development phases (Red-Green-Refactor)}
+
+## Required Libraries
+
+{List all libraries, packages, frameworks, and tools needed for this specific task as a comma-separated list. Be comprehensive and specific. Examples:
+- react, typescript, @types/node, tailwindcss, react-router-dom
+- express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors
+- jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event}
+
+## Documentation
+
+Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development.
+
+## Acceptance Criteria
+
+{Define what it means for this task to be considered "done" as a bulleted list}
 
 Overall Project Architecture:
 {{{architecture}}}
@@ -92,9 +125,11 @@ File Structure:
 Overall Project Specifications:
 {{{specifications}}}
 
-Now, provide the detailed implementation plan as a JSON object for the following task:
+Now, provide the detailed implementation plan in markdown format for the following task:
 
 **Task Title: {{{title}}}**
+
+**IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**
 `;
 
 export async function researchTask(
@@ -116,23 +151,43 @@ export async function researchTask(
     .replace('{{{specifications}}}', input.specifications)
     .replace('{{{title}}}', input.title);
 
-  const {output} = await ai.generate({
-    model: modelName,
-    prompt: prompt,
-    output: {
-      schema: ResearchTaskOutputSchema,
-    },
-    config: (apiKey || apiBase) ? {
-      ...(apiKey && {apiKey}),
-      ...(apiBase && {apiBase})
-    } : undefined,
-  });
+  let retries = 3;
+  while (retries > 0) {
+    const {output} = await ai.generate({
+      model: modelName,
+      prompt: prompt,
+      config: (apiKey || apiBase) ? {
+        ...(apiKey && {apiKey}),
+        ...(apiBase && {apiBase})
+      } : undefined,
+    });
 
-  if (!output) {
-    throw new Error(
-      'An unexpected response was received from the server.'
-    );
+    if (!output) {
+      throw new Error('An unexpected response was received from the server.');
+    }
+
+    // Parse markdown output
+    const markdownContent = output as string;
+
+    // Lint and fix the generated task markdown
+    const lintResult = await MarkdownLinter.lintAndFix(markdownContent, `task-${input.title.replace(/[^a-zA-Z0-9]/g, '-')}.md`);
+
+    // If document is valid or can be fixed, return the result
+    if (lintResult.isValid) {
+      return {
+        markdownContent: lintResult.fixedContent || markdownContent
+      };
+    }
+
+    // If markdown is invalid and can't be fixed, retry
+    retries--;
+    if (retries === 0) {
+      // Return the best we have with fixes applied
+      return {
+        markdownContent: lintResult.fixedContent || markdownContent
+      };
+    }
   }
-  
-  return output as ResearchTaskOutput;
+
+  throw new Error('Failed to generate valid markdown after retries');
 }

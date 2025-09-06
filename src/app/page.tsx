@@ -8,6 +8,14 @@ import { AnimatePresence, motion } from 'framer-motion';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import {
+  formatTaskMarkdown,
+  formatArchitectureMarkdown,
+  formatSpecificationsMarkdown,
+  formatFileStructureMarkdown,
+  formatPRDMarkdown,
+} from '@/lib/markdown';
+import { BrowserMarkdownLinter } from '@/lib/browser-markdown-linter';
+import {
   runGenerateArchitecture,
   runGenerateTasks,
   runResearchTask,
@@ -52,6 +60,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
@@ -89,6 +99,11 @@ const settingsSchema = z.object({
   apiKey: z.string().optional(),
   apiBase: z.string().optional(),
   useTDD: z.boolean().default(false),
+  documentation: z.object({
+    enabled: z.boolean().default(true),
+    sources: z.array(z.enum(['github', 'official', 'mdn', 'npm'])).default(['github', 'official']),
+    maxDocumentationSizeKB: z.number().min(100).max(2048).default(512),
+  }).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -122,6 +137,9 @@ export default function Home() {
   const [apiKey, setApiKey] = useState<string>('');
   const [apiBase, setApiBase] = useState<string>('');
   const [useTDD, setUseTDD] = useState<boolean>(false);
+  const [documentationEnabled, setDocumentationEnabled] = useState<boolean>(true);
+  const [documentationSources, setDocumentationSources] = useState<string[]>(['github', 'official']);
+  const [maxDocumentationSizeKB, setMaxDocumentationSizeKB] = useState<number>(512);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [repositories, setRepositories] = useState<Repository[]>([LOCAL_MODE_REPO]);
@@ -157,6 +175,11 @@ export default function Home() {
       apiKey: '',
       apiBase: '',
       useTDD: false,
+      documentation: {
+        enabled: true,
+        sources: ['github', 'official'],
+        maxDocumentationSizeKB: 512,
+      },
     },
   });
 
@@ -176,12 +199,20 @@ export default function Home() {
           setApiKey(settings.apiKey || '');
           setApiBase(settings.apiBase || '');
           setUseTDD(settings.useTDD || false);
+          setDocumentationEnabled(settings.documentation?.enabled ?? true);
+          setDocumentationSources(settings.documentation?.sources || ['github', 'official']);
+          setMaxDocumentationSizeKB(settings.documentation?.maxDocumentationSizeKB || 512);
 
           form.setValue('githubToken', settings.githubToken || '');
           form.setValue('llmModel', settings.llmModel || '');
           form.setValue('apiKey', settings.apiKey || '');
           form.setValue('apiBase', settings.apiBase || '');
           form.setValue('useTDD', settings.useTDD || false);
+          form.setValue('documentation', {
+            enabled: settings.documentation?.enabled ?? true,
+            sources: settings.documentation?.sources || ['github', 'official'],
+            maxDocumentationSizeKB: settings.documentation?.maxDocumentationSizeKB || 512,
+          });
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -230,6 +261,7 @@ export default function Home() {
           apiKey: values.apiKey || '',
           apiBase: values.apiBase || '',
           useTDD: values.useTDD,
+          documentation: values.documentation,
         }),
       });
 
@@ -243,6 +275,9 @@ export default function Home() {
       setApiKey(values.apiKey || '');
       setApiBase(values.apiBase || '');
       setUseTDD(values.useTDD);
+      setDocumentationEnabled(values.documentation?.enabled ?? true);
+      setDocumentationSources(values.documentation?.sources || ['github', 'official']);
+      setMaxDocumentationSizeKB(values.documentation?.maxDocumentationSizeKB || 512);
       
       setIsSettingsOpen(false);
       toast({ title: 'Success', description: 'Settings saved securely.' });
@@ -293,12 +328,11 @@ export default function Home() {
         { title: task.title, architecture, fileStructure, specifications },
         { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD }
       );
-      const formattedDetails = `### Context\n${result.context}\n\n### Implementation Steps\n${result.implementationSteps}\n\n### Acceptance Criteria\n${result.acceptanceCriteria}`;
       setTasks(currentTasks =>
-        currentTasks.map(t => t.title === task.title ? { ...t, details: formattedDetails } : t)
+        currentTasks.map(t => t.title === task.title ? { ...t, details: result.markdownContent } : t)
       );
       if (selectedTask?.title === task.title) {
-        setEditedTaskDetails(formattedDetails);
+        setEditedTaskDetails(result.markdownContent);
       }
     } catch (researchError) {
       const errorMessage = `Failed to research task: ${(researchError as Error).message}`;
@@ -438,20 +472,114 @@ const handleExportData = async () => {
         throw new Error('Could not create folders in zip file.');
       }
 
-      // Add docs
-      docsFolder.file('PRD.md', prd);
-      docsFolder.file('ARCHITECTURE.md', architecture);
-      docsFolder.file('SPECIFICATION.md', specifications);
-      docsFolder.file('FILE_STRUCTURE.md', fileStructure);
+      // Add docs with proper markdown formatting and linting
+      const prdFixed = BrowserMarkdownLinter.getFixedContent(formatPRDMarkdown(prd), 'PRD.md');
+      const architectureFixed = BrowserMarkdownLinter.getFixedContent(formatArchitectureMarkdown(architecture), 'ARCHITECTURE.md');
+      const specificationsFixed = BrowserMarkdownLinter.getFixedContent(formatSpecificationsMarkdown(specifications), 'SPECIFICATION.md');
+      const fileStructureFixed = BrowserMarkdownLinter.getFixedContent(formatFileStructureMarkdown(fileStructure), 'FILE_STRUCTURE.md');
 
-      // Create main tasks file
+      docsFolder.file('PRD.md', prdFixed);
+      docsFolder.file('ARCHITECTURE.md', architectureFixed);
+      docsFolder.file('SPECIFICATION.md', specificationsFixed);
+      docsFolder.file('FILE_STRUCTURE.md', fileStructureFixed);
+
+      // Fetch documentation if enabled
+      let documentationResult = null;
+      if (documentationEnabled) {
+        try {
+          const docResponse = await fetch('/api/documentation', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              tasks: tasks.map(task => ({
+                id: task.title.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+                title: task.title,
+                details: task.details,
+              })),
+              settings: {
+                sources: documentationSources,
+                includeStackOverflow: false,
+                maxDocumentationSizeKB: maxDocumentationSizeKB,
+                cacheDocumentationDays: 7,
+                enabled: true,
+              },
+              githubToken: githubToken,
+              // Pass existing LLM configuration for documentation enhancement
+              apiKey: apiKey,
+              llmModel: llmModel,
+              apiBase: apiBase,
+            }),
+          });
+
+          if (docResponse.ok) {
+            documentationResult = await docResponse.json();
+            
+            // Add documentation to zip if fetched successfully
+            if (documentationResult && documentationResult.libraries && documentationResult.libraries.length > 0) {
+              const libraryDocsFolder = zip.folder('reference');
+              if (libraryDocsFolder) {
+                // Create index of all libraries with proper markdown
+                const libraryIndex = documentationResult.libraries.map((lib: any) => 
+                  `- [${lib.libraryName}](${lib.libraryName}/README.md) - ${lib.category} (${lib.sources.length} sources, ${lib.sizeKB}KB)`
+                ).join('\n');
+                
+                const libraryIndexContent = `# Library Documentation\n\nThe following libraries were identified and documented for this project:\n\n${libraryIndex}\n\nTotal: ${documentationResult.fetchedCount} libraries, ${documentationResult.totalSizeKB}KB`;
+                const libraryIndexFixed = BrowserMarkdownLinter.getFixedContent(libraryIndexContent, 'library-index.md');
+                libraryDocsFolder.file('README.md', libraryIndexFixed);
+                
+                // Add each library's documentation
+                for (const lib of documentationResult.libraries) {
+                  const libFolder = libraryDocsFolder.folder(lib.libraryName);
+                  if (libFolder) {
+                    // Create main README for the library
+                    let libContent = `# ${lib.libraryName}\n\n**Category:** ${lib.category}\n**Fetched:** ${new Date(lib.fetchedAt).toLocaleString()}\n\n`;
+                    
+                    // Add each source
+                    for (let i = 0; i < lib.sources.length; i++) {
+                      const source = lib.sources[i];
+                      libContent += `## Source ${i + 1}: ${source.title}\n\n**Type:** ${source.type}\n**URL:** ${source.url}\n\n${source.content}\n\n---\n\n`;
+                      
+                      // Also create individual source files with linting
+                      const sourceFileName = `source-${i + 1}-${source.type}.md`;
+                      const sourceContent = `# ${source.title}\n\n**Type:** ${source.type}\n**URL:** ${source.url}\n**Size:** ${source.sizeKB}KB\n\n${source.content}`;
+                      const sourceContentFixed = BrowserMarkdownLinter.getFixedContent(sourceContent, sourceFileName);
+                      libFolder.file(sourceFileName, sourceContentFixed);
+                    }
+                    
+                    // Apply linting to main library content
+                    const libContentFixed = BrowserMarkdownLinter.getFixedContent(libContent, `${lib.libraryName}-README.md`);
+                    libFolder.file('README.md', libContentFixed);
+                  }
+                }
+              }
+              
+              toast({
+                title: 'Documentation Fetched',
+                description: `Included documentation for ${documentationResult.fetchedCount} libraries (${documentationResult.totalSizeKB}KB)`,
+              });
+            }
+          } else {
+            console.warn('Documentation fetching failed:', await docResponse.text());
+          }
+        } catch (docError) {
+          console.warn('Failed to fetch documentation:', docError);
+          // Continue with export even if documentation fails
+        }
+      }
+
+      // Create main tasks file with linting
       const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
-      tasksFolder.file('tasks.md', `# Task List\n\n${mainTasksContent}`);
+      const mainTasksFixed = BrowserMarkdownLinter.getFixedContent(`# Task List\n\n${mainTasksContent}`, 'tasks.md');
+      tasksFolder.file('tasks.md', mainTasksFixed);
 
-      // Create individual task files
+      // Create individual task files with proper markdown formatting and linting
       tasks.forEach((task, index) => {
         const taskNumber = (index + 1).toString().padStart(3, '0');
-        tasksFolder.file(`task-${taskNumber}.md`, `# ${task.title}\n\n${task.details}`);
+        const formattedTaskContent = formatTaskMarkdown(task.details);
+        const lintedTaskContent = BrowserMarkdownLinter.getFixedContent(formattedTaskContent, `task-${taskNumber}.md`);
+        tasksFolder.file(`task-${taskNumber}.md`, lintedTaskContent);
       });
 
       // Generate and add AGENTS.md file at the root of zip
@@ -466,19 +594,24 @@ const handleExportData = async () => {
         { apiKey: apiKey, model: llmModel, apiBase: apiBase }
       );
       
-      // Add AGENTS.md at the root level (not inside any subfolder)
-      zip.file('AGENTS.md', agentsMdResult.agentsMdContent);
+      // Add AGENTS.md at the root level (not inside any subfolder) with linting
+      const agentsMdFixed = BrowserMarkdownLinter.getFixedContent(agentsMdResult.agentsMdContent, 'AGENTS.md');
+      zip.file('AGENTS.md', agentsMdFixed);
       
-      // Add additional copies of AGENTS.md to specified locations
-      zip.file('.openhands/microagents/repo.md', agentsMdResult.agentsMdContent);
-      zip.file('.github/copilot-instructions.md', agentsMdResult.agentsMdContent);
+      // Add additional copies of AGENTS.md to specified locations with linting
+      zip.file('.openhands/microagents/repo.md', agentsMdFixed);
+      zip.file('.github/copilot-instructions.md', agentsMdFixed);
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       saveAs(zipBlob, 'gitautomate-export.zip');
 
+      const exportMessage = documentationResult 
+        ? `Your project data has been downloaded with documentation for ${documentationResult.fetchedCount} libraries.`
+        : 'Your project data has been downloaded as a zip file with AGENTS.md.';
+
       toast({
         title: 'Export Successful',
-        description: 'Your project data has been downloaded as a zip file with AGENTS.md.',
+        description: exportMessage,
       });
     } catch (error) {
       toast({
@@ -541,18 +674,19 @@ const handleExportData = async () => {
                 <Settings className="h-5 w-5" />
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
+            <DialogContent className="max-w-2xl h-[90vh] flex flex-col">
+              <DialogHeader className="flex-shrink-0">
                 <DialogTitle>Settings</DialogTitle>
                 <DialogDescription>
                   Configure your API keys and select your preferred AI model. Your Google AI API Key from the .env file will be used if left blank here.
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(handleSaveSettings)}
-                  className="space-y-4"
-                >
+                <div className="flex-1 overflow-y-auto px-1 min-h-0">
+                  <form
+                    onSubmit={form.handleSubmit(handleSaveSettings)}
+                    className="space-y-4 pb-4"
+                  >
                   <FormField
                     control={form.control}
                     name="githubToken"
@@ -636,10 +770,117 @@ const handleExportData = async () => {
                       </FormItem>
                     )}
                   />
-                  <DialogFooter>
-                    <Button type="submit">Save Settings</Button>
-                  </DialogFooter>
-                </form>
+                  
+                  <Separator />
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-medium">Documentation Settings</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Configure automatic documentation fetching for project libraries
+                      </p>
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="documentation.enabled"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">
+                              Enable Documentation Fetching
+                            </FormLabel>
+                            <FormDescription>
+                              Automatically fetch documentation for libraries mentioned in tasks
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="documentation.sources"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>Documentation Sources</FormLabel>
+                          <FormDescription>
+                            Select which sources to use for fetching documentation
+                          </FormDescription>
+                          <div className="grid grid-cols-2 gap-4">
+                            {[
+                              { id: 'github', label: 'GitHub (README, Wiki, Docs)' },
+                              { id: 'official', label: 'Official Websites' },
+                              { id: 'mdn', label: 'MDN Web Docs' },
+                              { id: 'npm', label: 'NPM Registry' },
+                            ].map((source) => (
+                              <div key={source.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={source.id}
+                                  checked={field.value?.includes(source.id as 'github' | 'official' | 'mdn' | 'npm')}
+                                  onCheckedChange={(checked) => {
+                                    const currentSources = field.value || [];
+                                    if (checked) {
+                                      field.onChange([...currentSources, source.id as 'github' | 'official' | 'mdn' | 'npm']);
+                                    } else {
+                                      field.onChange(currentSources.filter((s) => s !== source.id));
+                                    }
+                                  }}
+                                />
+                                <label
+                                  htmlFor={source.id}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                  {source.label}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="documentation.maxDocumentationSizeKB"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>Max Documentation Size (KB)</FormLabel>
+                          <FormDescription>
+                            Maximum size limit for documentation per library
+                          </FormDescription>
+                          <FormControl>
+                            <div className="space-y-2">
+                              <Slider
+                                min={100}
+                                max={2048}
+                                step={100}
+                                value={[field.value || 512]}
+                                onValueChange={(value) => field.onChange(value[0])}
+                                className="w-full"
+                              />
+                              <div className="text-center text-sm text-muted-foreground">
+                                {field.value || 512} KB
+                              </div>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  </form>
+                </div>
+                <DialogFooter className="flex-shrink-0 mt-4">
+                  <Button type="submit" onClick={form.handleSubmit(handleSaveSettings)}>Save Settings</Button>
+                </DialogFooter>
               </Form>
             </DialogContent>
           </Dialog>
