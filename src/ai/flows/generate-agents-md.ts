@@ -51,7 +51,8 @@ export async function generateAgentsMd(
   input: GenerateAgentsMdInput,
   apiKey?: string,
   model?: string,
-  apiBase?: string
+  apiBase?: string,
+  temperature?: number
 ): Promise<GenerateAgentsMdOutput> {
   if (!model) {
     throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
@@ -97,7 +98,8 @@ Content should be concise but comprehensive, providing valuable guidance for AI 
 **IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`,
     config: (apiKey || apiBase) ? {
       ...(apiKey && {apiKey}),
-      ...(apiBase && {apiBase})
+      ...(apiBase && {apiBase}),
+      ...(temperature !== undefined && {temperature})
     } : undefined,
   });
 

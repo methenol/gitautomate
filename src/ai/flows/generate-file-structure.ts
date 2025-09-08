@@ -63,7 +63,8 @@ export async function generateFileStructure(
   input: GenerateFileStructureInput,
   apiKey?: string,
   model?: string,
-  apiBase?: string
+  apiBase?: string,
+  temperature?: number
 ): Promise<GenerateFileStructureOutput> {
   console.log('[DEBUG] generateFileStructure called with model:', model);
   if (!model) {
@@ -83,7 +84,8 @@ export async function generateFileStructure(
       prompt: prompt,
       config: (apiKey || apiBase) ? {
         ...(apiKey && {apiKey}),
-        ...(apiBase && {apiBase})
+        ...(apiBase && {apiBase}),
+        ...(temperature !== undefined && {temperature})
       } : undefined,
     });
 
