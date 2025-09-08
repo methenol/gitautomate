@@ -37,7 +37,8 @@ export async function generateArchitecture(
   input: GenerateArchitectureInput,
   apiKey?: string,
   model?: string,
-  apiBase?: string
+  apiBase?: string,
+  temperature = 0.7
 ): Promise<GenerateArchitectureOutput> {
   if (!model) {
     throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
@@ -89,7 +90,8 @@ You must structure your response with two main sections separated by a markdown 
 **IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`,
       config: (apiKey || apiBase) ? {
         ...(apiKey && {apiKey}),
-        ...(apiBase && {apiBase})
+        ...(apiBase && {apiBase}),
+        temperature: temperature
       } : undefined,
     });
 

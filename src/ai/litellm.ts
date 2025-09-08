@@ -19,6 +19,7 @@ interface GenerateOptions {
     apiKey?: string;
     apiBase?: string;
     timeout?: number; // Timeout in milliseconds
+    temperature?: number; // Temperature parameter for controlling AI creativity
   };
 }
 
@@ -174,7 +175,8 @@ async function makeOpenAICall(
   prompt: string,
   apiKey: string,
   baseUrl: string,
-  timeout: number = 1200000 // Default 20 minutes
+  timeout: number = 1200000, // Default 20 minutes
+  temperature: number = 0.7 // Default temperature value
 ): Promise<string> {
   // Validate and sanitize the base URL to prevent SSRF
   const validatedBaseUrl = validateAndSanitizeUrl(baseUrl);
@@ -195,7 +197,7 @@ async function makeOpenAICall(
       body: JSON.stringify({
         model,
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
+        temperature: temperature,
         max_tokens: 32768,
       }),
       signal: controller.signal,
@@ -244,7 +246,7 @@ export const ai = {
       console.log('Using model:', model, 'baseUrl:', baseUrl);
       
       // Use OpenAI-compatible API for all providers - let the user configure their endpoint correctly
-      const responseText = await makeOpenAICall(model, prompt, apiKey, baseUrl, config?.timeout);
+      const responseText = await makeOpenAICall(model, prompt, apiKey, baseUrl, config?.timeout, config?.temperature ?? 0.7);
       
       // Parse response according to schema
       const parsedOutput = parseResponse(responseText, output?.schema);

@@ -12,6 +12,7 @@ const SettingsSchema = z.object({
   apiKey: z.string().optional(),
   apiBase: z.string().optional(),
   useTDD: z.boolean().optional(),
+  temperature: z.number().min(0).max(2),
   documentation: DocumentationSettingsSchema.optional(),
 });
 

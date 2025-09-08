@@ -137,7 +137,8 @@ export async function researchTask(
   apiKey?: string,
   model?: string,
   apiBase?: string,
-  useTDD?: boolean
+  useTDD?: boolean,
+  temperature = 0.7
 ): Promise<ResearchTaskOutput> {
   if (!model) {
     throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
@@ -158,7 +159,8 @@ export async function researchTask(
       prompt: prompt,
       config: (apiKey || apiBase) ? {
         ...(apiKey && {apiKey}),
-        ...(apiBase && {apiBase})
+        ...(apiBase && {apiBase}),
+        temperature: temperature
       } : undefined,
     });
 

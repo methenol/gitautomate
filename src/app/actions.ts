@@ -14,6 +14,7 @@ type ActionOptions = {
   model?: string;
   apiBase?: string;
   useTDD?: boolean;
+  temperature?: number;
 };
 
 export async function runGenerateArchitecture(
@@ -28,7 +29,8 @@ export async function runGenerateArchitecture(
       input,
       options?.apiKey,
       options?.model,
-      options?.apiBase
+      options?.apiBase,
+      options?.temperature ?? 0.7
     );
     return result;
   } catch (error) {
@@ -59,7 +61,7 @@ export async function runGenerateTasks(
     );
   }
   try {
-    const result = await generateTasks(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD);
+    const result = await generateTasks(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD, options?.temperature ?? 0.7);
     return result;
   } catch (error) {
     console.error('Error generating tasks:', error);
@@ -89,7 +91,8 @@ export async function runGenerateFileStructure(
       input,
       options?.apiKey,
       options?.model,
-      options?.apiBase
+      options?.apiBase,
+      options?.temperature ?? 0.7
     );
     return result;
   } catch (error) {
@@ -123,7 +126,7 @@ export async function runResearchTask(
   const MAX_RETRIES = 3;
   for (let i = 0; i < MAX_RETRIES; i++) {
     try {
-      const result = await researchTask(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD);
+      const result = await researchTask(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD, options?.temperature ?? 0.7);
       return result;
     } catch (error) {
       console.error(
@@ -158,7 +161,8 @@ export async function runGenerateAgentsMd(
       input,
       options?.apiKey,
       options?.model,
-      options?.apiBase
+      options?.apiBase,
+      options?.temperature ?? 0.7
     );
     return result;
   } catch (error) {

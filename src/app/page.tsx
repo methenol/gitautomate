@@ -99,6 +99,7 @@ const settingsSchema = z.object({
   apiKey: z.string().optional(),
   apiBase: z.string().optional(),
   useTDD: z.boolean().default(false),
+  temperature: z.number().min(0).max(2).default(0.7),
   documentation: z.object({
     enabled: z.boolean().default(true),
     sources: z.array(z.enum(['github', 'official', 'mdn', 'npm'])).default(['github', 'official']),
@@ -137,6 +138,7 @@ export default function Home() {
   const [apiKey, setApiKey] = useState<string>('');
   const [apiBase, setApiBase] = useState<string>('');
   const [useTDD, setUseTDD] = useState<boolean>(false);
+  const [temperature, setTemperature] = useState<number>(0.7);
   const [documentationEnabled, setDocumentationEnabled] = useState<boolean>(true);
   const [documentationSources, setDocumentationSources] = useState<string[]>(['github', 'official']);
   const [maxDocumentationSizeKB, setMaxDocumentationSizeKB] = useState<number>(512);
@@ -175,6 +177,7 @@ export default function Home() {
       apiKey: '',
       apiBase: '',
       useTDD: false,
+      temperature: 0.7,
       documentation: {
         enabled: true,
         sources: ['github', 'official'],
@@ -199,6 +202,7 @@ export default function Home() {
           setApiKey(settings.apiKey || '');
           setApiBase(settings.apiBase || '');
           setUseTDD(settings.useTDD || false);
+          setTemperature(settings.temperature ?? 0.7);
           setDocumentationEnabled(settings.documentation?.enabled ?? true);
           setDocumentationSources(settings.documentation?.sources || ['github', 'official']);
           setMaxDocumentationSizeKB(settings.documentation?.maxDocumentationSizeKB || 512);
@@ -208,6 +212,7 @@ export default function Home() {
           form.setValue('apiKey', settings.apiKey || '');
           form.setValue('apiBase', settings.apiBase || '');
           form.setValue('useTDD', settings.useTDD || false);
+          form.setValue('temperature', settings.temperature ?? 0.7);
           form.setValue('documentation', {
             enabled: settings.documentation?.enabled ?? true,
             sources: settings.documentation?.sources || ['github', 'official'],
@@ -261,6 +266,7 @@ export default function Home() {
           apiKey: values.apiKey || '',
           apiBase: values.apiBase || '',
           useTDD: values.useTDD,
+          temperature: values.temperature,
           documentation: values.documentation,
         }),
       });
@@ -275,6 +281,7 @@ export default function Home() {
       setApiKey(values.apiKey || '');
       setApiBase(values.apiBase || '');
       setUseTDD(values.useTDD);
+      setTemperature(values.temperature ?? 0.7);
       setDocumentationEnabled(values.documentation?.enabled ?? true);
       setDocumentationSources(values.documentation?.sources || ['github', 'official']);
       setMaxDocumentationSizeKB(values.documentation?.maxDocumentationSizeKB || 512);
@@ -298,14 +305,14 @@ export default function Home() {
     setTasks([]);
     setFinalIssueURL('');
     try {
-      const result = await runGenerateArchitecture({ prd }, { apiKey: apiKey, model: llmModel, apiBase: apiBase });
+      const result = await runGenerateArchitecture({ prd }, { apiKey: apiKey, model: llmModel, apiBase: apiBase, temperature });
       setArchitecture(result.architecture);
       setSpecifications(result.specifications);
 
       // Automatically generate file structure after architecture/specs
       const fileStructResult = await runGenerateFileStructure(
         { prd, architecture: result.architecture, specifications: result.specifications },
-        { apiKey: apiKey, model: llmModel, apiBase: apiBase }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase, temperature }
       );
       setFileStructure(fileStructResult.fileStructure || '');
     } catch (error) {
@@ -326,7 +333,7 @@ export default function Home() {
     try {
       const result = await runResearchTask(
         { title: task.title, architecture, fileStructure, specifications },
-        { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD, temperature }
       );
       setTasks(currentTasks =>
         currentTasks.map(t => t.title === task.title ? { ...t, details: result.markdownContent } : t)
@@ -345,7 +352,7 @@ export default function Home() {
     } finally {
       setTaskLoading(prev => ({ ...prev, [task.title]: false }));
     }
-  }, [architecture, fileStructure, specifications, apiKey, llmModel, useTDD, selectedTask?.title]);
+  }, [architecture, fileStructure, specifications, apiKey, llmModel, useTDD, temperature, selectedTask?.title]);
 
 
   const handleGenerateTasks = async () => {
@@ -357,7 +364,7 @@ export default function Home() {
     try {
       const result = await runGenerateTasks(
         { architecture, specifications, fileStructure },
-        { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD, temperature }
       );
       const initialTasks = result.tasks;
 
@@ -591,7 +598,7 @@ const handleExportData = async () => {
           fileStructure,
           taskNames: tasks.map(task => task.title)
         },
-        { apiKey: apiKey, model: llmModel, apiBase: apiBase }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase, temperature }
       );
       
       // Add AGENTS.md at the root level (not inside any subfolder) with linting
@@ -770,7 +777,37 @@ const handleExportData = async () => {
                       </FormItem>
                     )}
                   />
-                  
+
+                  <FormField
+                    control={form.control}
+                    name="temperature"
+                    render={({ field }) => (
+                      <FormItem className="space-y-3">
+                        <FormLabel>Temperature</FormLabel>
+                        <FormControl>
+                          <div className="space-y-2">
+                            <Slider
+                              min={0}
+                              max={2}
+                              step={0.1}
+                              value={[field.value]}
+                              onValueChange={(value) => field.onChange(value[0])}
+                            />
+                            <div className="flex justify-between text-sm text-gray-500">
+                              <span>Precise</span>
+                              <span>{field.value}</span>
+                              <span>Creative</span>
+                            </div>
+                          </div>
+                        </FormControl>
+                        <FormDescription>
+                          Controls randomness in AI responses. Lower values (0.0-0.5) are more focused and deterministic, higher values (1.0-2.0) are more creative and varied.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <Separator />
                   
                   <div className="space-y-4">
