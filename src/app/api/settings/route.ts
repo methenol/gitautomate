@@ -80,9 +80,9 @@ async function readSettings(): Promise<Settings> {
     
     return settings;
   } catch {
-    // Return empty settings if file doesn't exist or is corrupted
-    console.log('Settings file not found or corrupted, returning empty settings');
-    return {};
+    // Return default settings if file doesn't exist or is corrupted
+    console.log('Settings file not found or corrupted, returning default settings');
+    return { temperature: 0.7 };
   }
 }
 
