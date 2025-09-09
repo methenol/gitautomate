@@ -175,7 +175,8 @@ async function makeOpenAICall(
   prompt: string,
   apiKey: string,
   baseUrl: string,
-  timeout: number = 1200000 // Default 20 minutes
+  timeout: number = 1200000, // Default 20 minutes
+  temperature?: number
 ): Promise<string> {
   // Validate and sanitize the base URL to prevent SSRF
   const validatedBaseUrl = validateAndSanitizeUrl(baseUrl);
@@ -196,7 +197,7 @@ async function makeOpenAICall(
       body: JSON.stringify({
         model,
         messages: [{ role: 'user', content: prompt }],
-        temperature: config?.temperature ?? 0.7,
+        temperature: temperature ?? 0.7,
         max_tokens: 32768,
       }),
       signal: controller.signal,
