@@ -12,6 +12,7 @@ const SettingsSchema = z.object({
   apiKey: z.string().optional(),
   apiBase: z.string().optional(),
   useTDD: z.boolean().optional(),
+  temperature: z.number().min(0).max(2).optional(), // Temperature for LLM calls (0.0 - 2.0)
   documentation: DocumentationSettingsSchema.optional(),
 });
 

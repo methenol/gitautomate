@@ -99,6 +99,7 @@ const settingsSchema = z.object({
   apiKey: z.string().optional(),
   apiBase: z.string().optional(),
   useTDD: z.boolean().default(false),
+  temperature: z.number().min(0).max(2).default(0.7),
   documentation: z.object({
     enabled: z.boolean().default(true),
     sources: z.array(z.enum(['github', 'official', 'mdn', 'npm'])).default(['github', 'official']),
@@ -137,6 +138,7 @@ export default function Home() {
   const [apiKey, setApiKey] = useState<string>('');
   const [apiBase, setApiBase] = useState<string>('');
   const [useTDD, setUseTDD] = useState<boolean>(false);
+  const [temperature, setTemperature] = useState<number>(0.7);
   const [documentationEnabled, setDocumentationEnabled] = useState<boolean>(true);
   const [documentationSources, setDocumentationSources] = useState<string[]>(['github', 'official']);
   const [maxDocumentationSizeKB, setMaxDocumentationSizeKB] = useState<number>(512);
@@ -175,6 +177,7 @@ export default function Home() {
       apiKey: '',
       apiBase: '',
       useTDD: false,
+      temperature: 0.7,
       documentation: {
         enabled: true,
         sources: ['github', 'official'],
@@ -261,6 +264,7 @@ export default function Home() {
           apiKey: values.apiKey || '',
           apiBase: values.apiBase || '',
           useTDD: values.useTDD,
+          temperature: values.temperature ?? 0.7,
           documentation: values.documentation,
         }),
       });
@@ -298,7 +302,7 @@ export default function Home() {
     setTasks([]);
     setFinalIssueURL('');
     try {
-      const result = await runGenerateArchitecture({ prd }, { apiKey: apiKey, model: llmModel, apiBase: apiBase });
+      const result = await runGenerateArchitecture({ prd }, { apiKey: apiKey, model: llmModel, apiBase: apiBase, temperature });
       setArchitecture(result.architecture);
       setSpecifications(result.specifications);
 
@@ -754,19 +758,42 @@ const handleExportData = async () => {
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            Use TDD
-                          </FormLabel>
-                          <FormDescription>
-                           Generate tasks and implementation steps using Test-Driven Development.
-                          </FormDescription>
+                          <FormLabel className="text-base">Use TDD</FormLabel>
+                          <FormDescription>Generate tasks and implementation steps using Test-Driven Development.</FormDescription>
                         </div>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
                         </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <Separator />
+                  <FormField
+                    control={form.control}
+                    name="temperature"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Temperature</FormLabel>
+                        <FormControl>
+                          <div className="space-y-2">
+                            <Slider
+                              min={0}
+                              max={2}
+                              step={0.1}
+                              value={[field.value]}
+                              onValueChange={(value) => field.onChange(value[0])}
+                            />
+                            <div className="flex justify-between text-sm text-gray-500">
+                              <span>Precise</span>
+                              <span>{field.value}</span>
+                              <span>Creative</span>
+                            </div>
+                          </div>
+                        </FormControl>
+                        <FormDescription>
+                          Controls randomness in AI responses. Lower values (0.0-0.5) are more focused and deterministic, higher values (1.0-2.0) are more creative.
+                        </FormDescription>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />

@@ -137,7 +137,8 @@ export async function researchTask(
   apiKey?: string,
   model?: string,
   apiBase?: string,
-  useTDD?: boolean
+  useTDD?: boolean,
+  temperature?: number
 ): Promise<ResearchTaskOutput> {
   if (!model) {
     throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
@@ -156,9 +157,10 @@ export async function researchTask(
     const {output} = await ai.generate({
       model: modelName,
       prompt: prompt,
-      config: (apiKey || apiBase) ? {
+      config: (apiKey || apiBase || temperature !== undefined) ? {
         ...(apiKey && {apiKey}),
-        ...(apiBase && {apiBase})
+        ...(apiBase && {apiBase}),
+        ...(temperature !== undefined && {temperature})
       } : undefined,
     });
 

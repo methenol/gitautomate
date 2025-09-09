@@ -79,7 +79,7 @@ Output format: List each task as a markdown bullet point. Do not include task de
 
 **IMPORTANT: Output ONLY markdown content with a bulleted list of task titles. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`;
 
-export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, apiBase?: string, useTDD?: boolean): Promise<GenerateTasksOutput> {
+export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, apiBase?: string, useTDD?: boolean, temperature?: number): Promise<GenerateTasksOutput> {
   if (!model) {
     throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
   }
@@ -95,9 +95,10 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
   const {output} = await ai.generate({
     model: modelName,
     prompt: prompt,
-    config: (apiKey || apiBase) ? {
+    config: (apiKey || apiBase || temperature !== undefined) ? {
       ...(apiKey && {apiKey}),
-      ...(apiBase && {apiBase})
+      ...(apiBase && {apiBase}),
+      ...(temperature !== undefined && {temperature})
     } : undefined,
   });
   

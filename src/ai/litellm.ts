@@ -19,6 +19,7 @@ interface GenerateOptions {
     apiKey?: string;
     apiBase?: string;
     timeout?: number; // Timeout in milliseconds
+    temperature?: number; // Temperature for LLM calls (0.0 - 2.0)
   };
 }
 
@@ -195,7 +196,7 @@ async function makeOpenAICall(
       body: JSON.stringify({
         model,
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
+        temperature: config?.temperature ?? 0.7,
         max_tokens: 32768,
       }),
       signal: controller.signal,
