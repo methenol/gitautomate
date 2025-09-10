@@ -14,6 +14,7 @@ type ActionOptions = {
   model?: string;
   apiBase?: string;
   useTDD?: boolean;
+  temperature?: number; // Temperature for LLM calls (0.0 - 2.0)
 };
 
 export async function runGenerateArchitecture(
@@ -28,7 +29,8 @@ export async function runGenerateArchitecture(
       input,
       options?.apiKey,
       options?.model,
-      options?.apiBase
+      options?.apiBase,
+      options?.temperature
     );
     return result;
   } catch (error) {
@@ -59,7 +61,7 @@ export async function runGenerateTasks(
     );
   }
   try {
-    const result = await generateTasks(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD);
+    const result = await generateTasks(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD, options?.temperature);
     return result;
   } catch (error) {
     console.error('Error generating tasks:', error);
@@ -89,7 +91,8 @@ export async function runGenerateFileStructure(
       input,
       options?.apiKey,
       options?.model,
-      options?.apiBase
+      options?.apiBase,
+      options?.temperature
     );
     return result;
   } catch (error) {
@@ -123,7 +126,7 @@ export async function runResearchTask(
   const MAX_RETRIES = 3;
   for (let i = 0; i < MAX_RETRIES; i++) {
     try {
-      const result = await researchTask(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD);
+      const result = await researchTask(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD, options?.temperature);
       return result;
     } catch (error) {
       console.error(
