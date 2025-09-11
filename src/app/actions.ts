@@ -8,6 +8,8 @@ import { generateTasks, GenerateTasksInput } from '@/ai/flows/generate-tasks';
 import { researchTask, ResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
 import { generateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
 import { generateAgentsMd, GenerateAgentsMdInput } from '@/ai/flows/generate-agents-md';
+import { IterativeRefinementEngine } from '@/ai/orchestrator/iterative-refinement';
+import type { UnifiedProjectContext } from '@/types/unified-context';
 
 type ActionOptions = {
   apiKey?: string;
@@ -60,9 +62,57 @@ export async function runGenerateTasks(
       'Architecture, specifications, and file structure are required to generate tasks.'
     );
   }
+  
   try {
-    const result = await generateTasks(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD, options?.temperature);
-    return result;
+    // Generate initial tasks
+    let result = await generateTasks(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD, options?.temperature);
+    
+    // Create unified context for iterative refinement
+    const context: UnifiedProjectContext = {
+      prd: '', // PRD not available in this flow
+      architecture: input.architecture,
+      specifications: input.specifications,
+      fileStructure: input.fileStructure,
+      tasks: result.tasks.map((task, index) => ({
+        ...task,
+        id: `task-${index + 1}`,
+        order: index + 1,
+        dependencies: [],
+        status: 'pending' as const,
+      })),
+      dependencyGraph: [],
+      validationHistory: [],
+      lastUpdated: new Date().toISOString(),
+      version: 1,
+    };
+    
+    // Apply iterative refinement
+    const refinementEngine = new IterativeRefinementEngine();
+    let refinedContext = context;
+    const maxRefinementIterations = 3;
+    const consistencyThreshold = 85;
+    
+    for (let i = 0; i < maxRefinementIterations; i++) {
+      const analysis = await refinementEngine.analyzeProjectConsistency(refinedContext, options?.apiKey, options?.model);
+      
+      // Check if we've achieved acceptable consistency
+      if (analysis.overallConsistency >= consistencyThreshold && analysis.criticalIssues.length === 0) {
+        break;
+      }
+      
+      // Apply refinements
+      refinedContext = await refinementEngine.applyRefinements(refinedContext, analysis, options?.apiKey, options?.model);
+    }
+    
+    // Return refined tasks in original format
+    return {
+      ...result,
+      tasks: refinedContext.tasks.map((task: any) => ({
+        title: task.title,
+        details: task.details,
+      }))
+    };
+    
   } catch (error) {
     console.error('Error generating tasks:', error);
     throw new Error(
