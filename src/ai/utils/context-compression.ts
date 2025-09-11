@@ -18,7 +18,12 @@ export function compressText(text: string, maxLength: number, preserveKeyContent
   if (preserveKeyContent) {
     // Look for code blocks, technical specifications, or important lists
     const codeBlocks = text.match(/```[\s\S]*?```/g) || [];
-    const technicalContent = text.match(/\b(architecture|component|service|api|endpoint|database)\b[\s\S]*?(?=\n\n|$)/gi) || [];
+    // Split text into paragraphs and filter those containing technical keywords
+    const technicalKeywords = ['architecture', 'component', 'service', 'api', 'endpoint', 'database'];
+    const paragraphs = text.split(/\n{2,}/);
+    const technicalContent = paragraphs.filter(p =>
+      technicalKeywords.some(keyword => new RegExp(`\\b${keyword}\\b`, 'i').test(p))
+    );
     
     // Combine important content
     const importantContent = [...codeBlocks, ...technicalContent].join('\n\n');
@@ -121,8 +126,8 @@ function extractSection(text: string, keywordRegex: RegExp): string {
       inSection = true;
       sectionLines.push(line);
     } else if (inSection && line.trim() === '') {
-      // End of section on empty line after finding keywords
-      if (sectionLines.length > 0) break;
+      // End of section on empty line after finding keywords, but only if we have content
+      if (sectionLines.length > 1) break; // Need at least the keyword line + one content line
     } else if (inSection) {
       sectionLines.push(line);
     }
@@ -175,6 +180,8 @@ function extractKeyRequirements(details: string): string {
 
 /**
  * Calculate estimated token count for text
+ * Note: This is a rough approximation using ~4 characters per token on average.
+ * Actual token count may vary significantly based on the tokenizer used by the AI model.
  */
 export function estimateTokens(text: string): number {
   // Simple estimation: ~4 characters per token on average

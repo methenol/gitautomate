@@ -178,7 +178,7 @@ Provide your analysis as a JSON object conforming to the schema.`;
       model: modelName,
       prompt: fullPrompt,
       output: { schema: RefinementAnalysisSchema },
-      config: apiKey && apiBase ? { apiKey, apiBase } : undefined,
+      config: apiKey ? { apiKey, ...(apiBase && { apiBase }) } : undefined,
     });
 
     if (!output) {
@@ -268,7 +268,7 @@ Provide a refined architecture that addresses these specific issues while mainta
     const { output } = await ai.generate({
       model: modelName,
       prompt: refinementPrompt,
-      config: apiKey && apiBase ? { apiKey, apiBase } : undefined,
+      config: apiKey ? { apiKey, ...(apiBase && { apiBase }) } : undefined,
     });
 
     return {
@@ -347,7 +347,7 @@ Provide refined specifications that address these issues.`;
     const { output } = await ai.generate({
       model: modelName,
       prompt: refinementPrompt,
-      config: apiKey && apiBase ? { apiKey, apiBase } : undefined,
+      config: apiKey ? { apiKey, ...(apiBase && { apiBase }) } : undefined,
     });
 
     return {
