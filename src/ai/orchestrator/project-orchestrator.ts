@@ -20,7 +20,7 @@ import { IterativeRefinementEngine } from './iterative-refinement';
 export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
   
   async generateUnifiedPlan(input: Partial<UnifiedProjectContext>): Promise<UnifiedProjectContext> {
-    const context: UnifiedProjectContext = {
+    let context: UnifiedProjectContext = {
       prd: input.prd || '',
       architecture: input.architecture || '',
       fileStructure: input.fileStructure || '',
@@ -76,40 +76,43 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
 
       // Build dependency graph
       context.dependencyGraph = this.buildDependencyGraph(context.tasks);
-    }
 
-    // Step 4: Iterative Refinement Process
-    const refinementEngine = new IterativeRefinementEngine();
-    
-    // Run iterative consistency refinement
-    let refinedContext = context;
-    const maxRefinementIterations = 3;
-    const consistencyThreshold = 85;
-    
-    for (let i = 0; i < maxRefinementIterations; i++) {
-      const iterationCount = i + 1;
+      // Step 4: Iterative Refinement Process
+      const refinementEngine = new IterativeRefinementEngine();
       
-      // Analyze consistency
-      const analysis = await refinementEngine.analyzeProjectConsistency(refinedContext, undefined, undefined);
+      // Run iterative consistency refinement
+      let refinedContext = context;
+      const maxRefinementIterations = 3;
+      const consistencyThreshold = 85;
       
-      // Check if we've achieved acceptable consistency
-      if (analysis.overallConsistency >= consistencyThreshold && analysis.criticalIssues.length === 0) {
-        break;
+      for (let i = 0; i < maxRefinementIterations; i++) {
+        const iterationCount = i + 1;
+        
+        // Analyze consistency
+        const analysis = await refinementEngine.analyzeProjectConsistency(refinedContext, undefined, undefined);
+        
+        // Check if we've achieved acceptable consistency
+        if (analysis.overallConsistency >= consistencyThreshold && analysis.criticalIssues.length === 0) {
+          break;
+        }
+        
+        // Apply refinements
+        refinedContext = await refinementEngine.applyRefinements(refinedContext, analysis, undefined, undefined);
+        
+        // Rebuild dependency graph after refinements
+        refinedContext.dependencyGraph = this.buildDependencyGraph(refinedContext.tasks);
       }
       
-      // Apply refinements
-      refinedContext = await refinementEngine.applyRefinements(refinedContext, analysis, undefined, undefined);
-      
-      // Rebuild dependency graph after refinements
-      refinedContext.dependencyGraph = this.buildDependencyGraph(refinedContext.tasks);
+      // Use the refined context
+      context = refinedContext;
     }
 
-    // Step 5: Validate the refined context
-    const validationResults = this.validateContext(refinedContext);
-    refinedContext.validationHistory = validationResults;
+    // Step 5: Validate the final context
+    const validationResults = this.validateContext(context);
+    context.validationHistory = validationResults;
 
-    refinedContext.lastUpdated = new Date().toISOString();
-    return refinedContext;
+    context.lastUpdated = new Date().toISOString();
+    return context;
   }
 
   validateContext(context: UnifiedProjectContext): ValidationResult[] {
