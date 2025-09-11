@@ -32,6 +32,7 @@ export interface ComprehensiveGenerationResult {
 
 export interface ComprehensiveOptions {
   apiKey?: string;
+  apiBase?: string;
   model?: string;
   useTDD?: boolean;
   maxRefinementIterations?: number;
@@ -66,6 +67,7 @@ export class ComprehensiveOrchestrator {
     
     const {
       apiKey,
+      apiBase,
       model,
       useTDD = false,
       maxRefinementIterations = 3,
@@ -101,7 +103,7 @@ export class ComprehensiveOrchestrator {
         { prd },
         apiKey,
         model,
-        undefined // apiBase - not provided
+        apiBase
       );
       
       context.architecture = archResult.architecture;
@@ -119,7 +121,7 @@ export class ComprehensiveOrchestrator {
         },
         apiKey,
         model,
-        undefined // apiBase - not provided
+        apiBase
       );
       
       context.fileStructure = fileStructResult.fileStructure || '';
@@ -136,7 +138,7 @@ export class ComprehensiveOrchestrator {
         },
         apiKey,
         model,
-        undefined, // apiBase - not provided
+        apiBase,
         useTDD
       );
 
@@ -152,7 +154,7 @@ export class ComprehensiveOrchestrator {
         iterationCount = i + 1;
         
         // Analyze consistency
-        const analysis = await this.refinementEngine.analyzeProjectConsistency(context, apiKey, model);
+        const analysis = await this.refinementEngine.analyzeProjectConsistency(context, apiKey, apiBase, model);
         consistencyScore = analysis.overallConsistency;
         
         debugInfo.refinementHistory.push(
@@ -168,7 +170,7 @@ export class ComprehensiveOrchestrator {
         }
 
         // Apply refinements
-        context = await this.refinementEngine.applyRefinements(context, analysis, apiKey, model);
+        context = await this.refinementEngine.applyRefinements(context, analysis, apiKey, apiBase, model);
         
         // Regenerate dependency graph after refinements
         context.dependencyGraph = this.buildComprehensiveDependencyGraph(context.tasks);
@@ -179,7 +181,7 @@ export class ComprehensiveOrchestrator {
       // Phase 5: Enhanced Task Research with Full Context Propagation
       debugInfo.validationSteps.push('Phase 5: Enhanced task research with context propagation');
       
-      context = await this.performEnhancedTaskResearch(context, apiKey, model, debugInfo);
+      context = await this.performEnhancedTaskResearch(context, apiKey, apiBase, model, debugInfo);
 
       // Phase 6: Final Validation
       debugInfo.validationSteps.push('Phase 6: Final comprehensive validation');
@@ -221,6 +223,7 @@ export class ComprehensiveOrchestrator {
   private async performEnhancedTaskResearch(
     context: UnifiedProjectContext,
     apiKey?: string,
+    apiBase?: string,
     model?: string,
     debugInfo?: { dependencyResolutions: string[]; validationSteps: string[]; refinementHistory: string[] }
   ): Promise<UnifiedProjectContext> {
@@ -239,6 +242,7 @@ export class ComprehensiveOrchestrator {
           context,
           completedTaskIds,
           apiKey,
+          apiBase,
           model
         );
 

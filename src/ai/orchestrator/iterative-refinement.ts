@@ -10,6 +10,7 @@ import { generateTasks } from '@/ai/flows/generate-tasks';
 import { generateArchitecture } from '@/ai/flows/generate-architecture';
 import { ai } from '@/ai/litellm';
 import { z } from 'zod';
+import { compressContext, estimateTokens } from '@/ai/utils/context-compression';
 
 const RefinementSuggestionSchema = z.object({
   component: z.enum(['architecture', 'fileStructure', 'specifications', 'tasks', 'dependencies']),
@@ -33,37 +34,43 @@ export type RefinementAnalysis = z.infer<typeof RefinementAnalysisSchema>;
 export class IterativeRefinementEngine {
   
   /**
-   * Build consistency analysis prompt in manageable sections
+   * Build consistency analysis prompt with context compression
    */
-  private buildConsistencyAnalysisPrompt(
+  private async buildConsistencyAnalysisPrompt(
     context: UnifiedProjectContext,
     validationResults: ValidationResult[]
-  ): string[] {
+  ): Promise<string> {
+    
+    // Apply context compression to avoid token overflow
+    const { compressedContext, compressionRatio } = compressContext(context, 8000);
+    
+    console.log(`Context compression ratio: ${(compressionRatio * 100).toFixed(1)}%`);
     
     const sections = [
       // Introduction section
       `PROJECT COMPONENTS:
-==================`,
+==================
+Context compression applied: ${(compressionRatio * 100).toFixed(1)}% of original size`,
 
       // PRD section
       `PRD (Product Requirements Document):
-${context.prd}`,
+${compressedContext.prd || 'No PRD available'}`,
 
       // Architecture section  
       `ARCHITECTURE:
-${context.architecture}`,
+${compressedContext.architecture || 'No architecture available'}`,
 
       // Specifications section
       `SPECIFICATIONS:
-${context.specifications}`,
+${compressedContext.specifications || 'No specifications available'}`,
 
       // File structure section
       `FILE STRUCTURE:
-${context.fileStructure}`,
+${compressedContext.fileStructure || 'No file structure available'}`,
 
       // Tasks section with formatted output
-      `TASKS (${context.tasks.length} total):
-${this.formatTasksForAnalysis(context.tasks)}`,
+      `TASKS (${compressedContext.tasks?.length || 0} total):
+${this.formatTasksForAnalysis(compressedContext.tasks || [])}`,
 
       // Validation issues section
       `VALIDATION ISSUES FOUND:
@@ -100,7 +107,7 @@ ${this.formatValidationResults(validationResults)}`,
    - major_revision: Fundamental issues require major changes`
     ];
 
-    return sections;
+    return sections.join('\n\n');
   }
 
   /**
@@ -145,6 +152,7 @@ Details: ${this.truncateText(t.details, 200)}...`
   async analyzeProjectConsistency(
     context: UnifiedProjectContext,
     apiKey?: string,
+    apiBase?: string,
     model?: string
   ): Promise<RefinementAnalysis> {
     
@@ -152,12 +160,12 @@ Details: ${this.truncateText(t.details, 200)}...`
     const validationResults = ContextValidator.validateFullContext(context);
     
     // Then perform AI-powered consistency analysis
-    const promptSections = this.buildConsistencyAnalysisPrompt(context, validationResults);
+    const prompt = await this.buildConsistencyAnalysisPrompt(context, validationResults);
     
-    // Combine all sections for the final prompt
-    const prompt = `You are an expert software architect conducting a comprehensive consistency analysis of a project plan. Analyze the following project components for logical consistency, completeness, and alignment.
+    // Add analysis instructions
+    const fullPrompt = `You are an expert software architect conducting a comprehensive consistency analysis of a project plan. Analyze the following project components for logical consistency, completeness, and alignment.
 
-${promptSections.join('\n\n')}
+${prompt}
 
 Provide your analysis as a JSON object conforming to the schema.`;
 
@@ -168,9 +176,9 @@ Provide your analysis as a JSON object conforming to the schema.`;
     
     const { output } = await ai.generate({
       model: modelName,
-      prompt: prompt,
+      prompt: fullPrompt,
       output: { schema: RefinementAnalysisSchema },
-      config: apiKey ? { apiKey } : undefined,
+      config: apiKey && apiBase ? { apiKey, apiBase } : undefined,
     });
 
     if (!output) {
@@ -184,6 +192,7 @@ Provide your analysis as a JSON object conforming to the schema.`;
     context: UnifiedProjectContext,
     analysis: RefinementAnalysis,
     apiKey?: string,
+    apiBase?: string,
     model?: string
   ): Promise<UnifiedProjectContext> {
     
@@ -192,19 +201,19 @@ Provide your analysis as a JSON object conforming to the schema.`;
     // Apply refinements based on recommended action
     switch (analysis.recommendedAction) {
       case 'refine_architecture':
-        refinedContext = await this.refineArchitecture(refinedContext, analysis.suggestions, apiKey, model);
+        refinedContext = await this.refineArchitecture(refinedContext, analysis.suggestions, apiKey, apiBase, model);
         break;
         
       case 'refine_tasks':
-        refinedContext = await this.refineTasks(refinedContext, analysis.suggestions, apiKey, model);
+        refinedContext = await this.refineTasks(refinedContext, analysis.suggestions, apiKey, apiBase, model);
         break;
         
       case 'refine_specifications':
-        refinedContext = await this.refineSpecifications(refinedContext, analysis.suggestions, apiKey, model);
+        refinedContext = await this.refineSpecifications(refinedContext, analysis.suggestions, apiKey, apiBase, model);
         break;
         
       case 'major_revision':
-        refinedContext = await this.performMajorRevision(refinedContext, analysis, apiKey, model);
+        refinedContext = await this.performMajorRevision(refinedContext, analysis, apiKey, apiBase, model);
         break;
         
       case 'accept':
@@ -231,6 +240,7 @@ Provide your analysis as a JSON object conforming to the schema.`;
     context: UnifiedProjectContext,
     suggestions: RefinementSuggestion[],
     apiKey?: string,
+    apiBase?: string,
     model?: string
   ): Promise<UnifiedProjectContext> {
     
@@ -258,7 +268,7 @@ Provide a refined architecture that addresses these specific issues while mainta
     const { output } = await ai.generate({
       model: modelName,
       prompt: refinementPrompt,
-      config: apiKey ? { apiKey } : undefined,
+      config: apiKey && apiBase ? { apiKey, apiBase } : undefined,
     });
 
     return {
@@ -271,6 +281,7 @@ Provide a refined architecture that addresses these specific issues while mainta
     context: UnifiedProjectContext,
     suggestions: RefinementSuggestion[],
     apiKey?: string,
+    apiBase?: string,
     model?: string
   ): Promise<UnifiedProjectContext> {
     
@@ -285,7 +296,8 @@ Provide a refined architecture that addresses these specific issues while mainta
         fileStructure: context.fileStructure,
       },
       apiKey,
-      model
+      model,
+      apiBase
     );
     
     // Transform to unified format with better dependency inference
@@ -307,6 +319,7 @@ Provide a refined architecture that addresses these specific issues while mainta
     context: UnifiedProjectContext,
     suggestions: RefinementSuggestion[],
     apiKey?: string,
+    apiBase?: string,
     model?: string
   ): Promise<UnifiedProjectContext> {
     
@@ -334,7 +347,7 @@ Provide refined specifications that address these issues.`;
     const { output } = await ai.generate({
       model: modelName,
       prompt: refinementPrompt,
-      config: apiKey ? { apiKey } : undefined,
+      config: apiKey && apiBase ? { apiKey, apiBase } : undefined,
     });
 
     return {
@@ -347,6 +360,7 @@ Provide refined specifications that address these issues.`;
     context: UnifiedProjectContext,
     analysis: RefinementAnalysis,
     apiKey?: string,
+    apiBase?: string,
     model?: string
   ): Promise<UnifiedProjectContext> {
     
@@ -354,7 +368,8 @@ Provide refined specifications that address these issues.`;
     const archResult = await generateArchitecture(
       { prd: context.prd },
       apiKey,
-      model
+      model,
+      apiBase
     );
     
     // This would trigger a complete regeneration workflow
