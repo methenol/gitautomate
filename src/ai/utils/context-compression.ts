@@ -125,9 +125,9 @@ function extractSection(text: string, keywordRegex: RegExp): string {
     if (keywordRegex.test(line)) {
       inSection = true;
       sectionLines.push(line);
-    } else if (inSection && line.trim() === '') {
+    } else if (inSection && line.trim() === '' && sectionLines.length > 1) {
       // End of section on empty line after finding keywords, but only if we have content
-      if (sectionLines.length > 1) break; // Need at least the keyword line + one content line
+      break;
     } else if (inSection) {
       sectionLines.push(line);
     }
@@ -201,15 +201,20 @@ export function compressContext(
     return { compressedContext: context, compressionRatio: 1.0 };
   }
 
+  const compressedTasks = context.tasks.map(task => ({
+    ...task,
+    details: compressText(task.details, Math.floor(maxTokens * 0.05 / context.tasks.length))
+  }));
+
   const compressedContext: Partial<UnifiedProjectContext> = {
-    ...context,
     prd: compressPRD(context.prd, Math.floor(maxTokens * 0.25)),
     architecture: compressArchitecture(context.architecture, Math.floor(maxTokens * 0.3)),
     specifications: compressText(context.specifications, Math.floor(maxTokens * 0.2)),
-    tasks: context.tasks.map(task => ({
-      ...task,
-      details: compressText(task.details, Math.floor(maxTokens * 0.05 / context.tasks.length))
-    }))
+    tasks: compressedTasks,
+    dependencyGraph: context.dependencyGraph,
+    validationHistory: context.validationHistory,
+    lastUpdated: context.lastUpdated,
+    version: context.version
   };
 
   const compressedTokens = estimateTokens(JSON.stringify(compressedContext));
