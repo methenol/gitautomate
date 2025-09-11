@@ -41,10 +41,16 @@ export class IterativeRefinementEngine {
     validationResults: ValidationResult[]
   ): Promise<string> {
     
+    console.log(`Building consistency analysis prompt with ${context.tasks.length} tasks`);
+    console.log(`PRD length: ${context.prd.length}`);
+    console.log(`Architecture length: ${context.architecture.length}`);
+    console.log(`Validation results: ${validationResults.length}`);
+    
     // Apply context compression to avoid token overflow
     const { compressedContext, compressionRatio } = compressContext(context, 8000);
     
     console.log(`Context compression ratio: ${(compressionRatio * 100).toFixed(1)}%`);
+    console.log(`Compressed context has ${compressedContext.tasks?.length || 0} tasks`);
     
     const sections = [
       // Introduction section
@@ -156,8 +162,11 @@ Details: ${this.truncateText(t.details, 200)}...`
     model?: string
   ): Promise<RefinementAnalysis> {
     
+    console.log('Starting project consistency analysis');
+    
     // First run structural validation
     const validationResults = ContextValidator.validateFullContext(context);
+    console.log(`Found ${validationResults.length} validation issues`);
     
     // Then perform AI-powered consistency analysis
     const prompt = await this.buildConsistencyAnalysisPrompt(context, validationResults);

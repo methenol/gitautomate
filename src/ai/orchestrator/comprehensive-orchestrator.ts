@@ -113,6 +113,11 @@ export class ComprehensiveOrchestrator {
       // Phase 2: File Structure Generation with Architecture Context
       debugInfo.validationSteps.push('Phase 2: File structure generation with architecture context');
       
+      console.log(`Phase 2 - Starting file structure generation`);
+      console.log(`PRD length: ${context.prd.length}`);
+      console.log(`Architecture length: ${context.architecture.length}`);
+      console.log(`Specifications length: ${context.specifications.length}`);
+      
       const fileStructResult = await generateFileStructure(
         {
           prd: context.prd,
@@ -124,11 +129,17 @@ export class ComprehensiveOrchestrator {
         apiBase
       );
       
+      console.log(`Phase 2 - File structure result length: ${fileStructResult.fileStructure?.length || 0}`);
       context.fileStructure = fileStructResult.fileStructure || '';
       debugInfo.validationSteps.push('Generated file structure aligned with architecture');
 
       // Phase 3: Enhanced Task Generation with Full Context
       debugInfo.validationSteps.push('Phase 3: Enhanced task generation with dependency modeling');
+      
+      console.log(`Phase 3 - Starting task generation`);
+      console.log(`Architecture length: ${context.architecture.length}`);
+      console.log(`Specifications length: ${context.specifications.length}`);
+      console.log(`File structure length: ${context.fileStructure.length}`);
       
       const tasksResult = await generateTasks(
         {
@@ -142,16 +153,26 @@ export class ComprehensiveOrchestrator {
         useTDD
       );
 
+      console.log(`Phase 3 - Tasks result: ${tasksResult.tasks?.length || 0} tasks generated`);
+      
       // Transform tasks with enhanced dependency analysis
       context.tasks = await this.generateEnhancedTasks(tasksResult.tasks, context, debugInfo);
       context.dependencyGraph = this.buildComprehensiveDependencyGraph(context.tasks);
       debugInfo.dependencyResolutions.push(`Generated ${context.tasks.length} tasks with ${context.dependencyGraph.length} dependencies`);
+      console.log(`Phase 3 - Final context has ${context.tasks.length} tasks`);
 
       // Phase 4: Iterative Refinement Loop
       debugInfo.validationSteps.push('Phase 4: Iterative consistency refinement');
       
+      console.log(`Starting iterative refinement with ${context.tasks.length} tasks`);
+      console.log(`Architecture length: ${context.architecture.length}`);
+      console.log(`File structure length: ${context.fileStructure.length}`);
+      console.log(`Specifications length: ${context.specifications.length}`);
+      
       for (let i = 0; i < maxRefinementIterations; i++) {
         iterationCount = i + 1;
+        
+        console.log(`Starting refinement iteration ${iterationCount}`);
         
         // Analyze consistency
         const analysis = await this.refinementEngine.analyzeProjectConsistency(context, apiKey, apiBase, model);
@@ -163,9 +184,12 @@ export class ComprehensiveOrchestrator {
           `action: ${analysis.recommendedAction}`
         );
 
+        console.log(`Analysis result - Score: ${consistencyScore}, Issues: ${analysis.criticalIssues.length}, Action: ${analysis.recommendedAction}`);
+
         // Check if we've achieved acceptable consistency
         if (consistencyScore >= consistencyThreshold && analysis.criticalIssues.length === 0) {
           debugInfo.refinementHistory.push(`Consistency threshold reached in ${iterationCount} iterations`);
+          console.log(`Consistency threshold reached, stopping refinement`);
           break;
         }
 
@@ -176,6 +200,7 @@ export class ComprehensiveOrchestrator {
         context.dependencyGraph = this.buildComprehensiveDependencyGraph(context.tasks);
         
         debugInfo.refinementHistory.push(`Applied ${analysis.suggestions.length} refinements`);
+        console.log(`Applied ${analysis.suggestions.length} refinements, continuing to next iteration`);
       }
 
       // Phase 5: Enhanced Task Research with Full Context Propagation
