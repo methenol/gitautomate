@@ -65,7 +65,7 @@ export async function runGenerateTasks(
   
   try {
     // Generate initial tasks
-    let result = await generateTasks(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD, options?.temperature);
+    const result = await generateTasks(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD, options?.temperature);
     
     // Create unified context for iterative refinement
     const context: UnifiedProjectContext = {

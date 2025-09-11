@@ -1,5 +1,3 @@
-'use server';
-
 /**
  * @fileOverview Iterative refinement system that continuously improves project consistency
  */
@@ -10,7 +8,7 @@ import { generateTasks } from '@/ai/flows/generate-tasks';
 import { generateArchitecture } from '@/ai/flows/generate-architecture';
 import { ai } from '@/ai/litellm';
 import { z } from 'zod';
-import { compressContext, estimateTokens } from '@/ai/utils/context-compression';
+import { compressContext } from '@/ai/utils/context-compression';
 
 const RefinementSuggestionSchema = z.object({
   component: z.enum(['architecture', 'fileStructure', 'specifications', 'tasks', 'dependencies']),

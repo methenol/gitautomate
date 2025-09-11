@@ -1,5 +1,3 @@
-'use server';
-
 /**
  * @fileOverview Comprehensive validation pipeline for unified project context
  */
