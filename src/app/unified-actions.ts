@@ -12,6 +12,7 @@ import { UnifiedProjectContext } from '@/types/unified-context';
 export interface UnifiedGenerationOptions {
   apiKey?: string;
   model?: string;
+  apiBase?: string;
   useTDD?: boolean;
 }
 
@@ -28,7 +29,7 @@ export interface UnifiedGenerationResult {
  */
 export async function generateUnifiedProject(
   prd: string,
-  _options: UnifiedGenerationOptions = {}
+  options: UnifiedGenerationOptions = {}
 ): Promise<UnifiedGenerationResult> {
   const orchestrator = new UnifiedProjectOrchestrator();
   
@@ -41,7 +42,7 @@ export async function generateUnifiedProject(
       validationHistory: [],
       lastUpdated: new Date().toISOString(),
       version: 1,
-    });
+    }, options.apiKey, options.model, options.apiBase, options.useTDD);
 
     // Step 2: Validate the generated context
     const validationResults = ContextValidator.validateFullContext(context);
@@ -89,13 +90,13 @@ export async function generateUnifiedProject(
  */
 export async function researchUnifiedTasks(
   context: UnifiedProjectContext,
-  _options: UnifiedGenerationOptions = {}
+  options: UnifiedGenerationOptions = {}
 ): Promise<UnifiedGenerationResult> {
   const orchestrator = new UnifiedProjectOrchestrator();
   
   try {
     // Research tasks with dependency awareness
-    const updatedContext = await orchestrator.researchTasksWithDependencies(context);
+    const updatedContext = await orchestrator.researchTasksWithDependencies(context, options.apiKey, options.model, options.apiBase, options.useTDD);
     
     // Validate the updated context
     const validationResults = ContextValidator.validateFullContext(updatedContext);
@@ -132,7 +133,7 @@ export async function researchUnifiedTasks(
 export async function updateUnifiedContext(
   context: UnifiedProjectContext,
   updates: Partial<Pick<UnifiedProjectContext, 'architecture' | 'specifications' | 'fileStructure'>>,
-  _options: UnifiedGenerationOptions = {}
+  options: UnifiedGenerationOptions = {}
 ): Promise<UnifiedGenerationResult> {
   const orchestrator = new UnifiedProjectOrchestrator();
   
@@ -150,7 +151,7 @@ export async function updateUnifiedContext(
       finalContext = await orchestrator.generateUnifiedPlan({
         ...updatedContext,
         tasks: [], // Clear existing tasks to regenerate
-      });
+      }, options.apiKey, options.model, options.apiBase, options.useTDD);
     }
     
     // Validate the final context

@@ -60,9 +60,12 @@ export async function runGenerateTasks(
       'Architecture, specifications, and file structure are required to generate tasks.'
     );
   }
+  
   try {
+    // Generate initial tasks
     const result = await generateTasks(input, options?.apiKey, options?.model, options?.apiBase, options?.useTDD, options?.temperature);
     return result;
+    
   } catch (error) {
     console.error('Error generating tasks:', error);
     throw new Error(
