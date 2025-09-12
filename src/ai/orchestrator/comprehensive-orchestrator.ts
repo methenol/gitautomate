@@ -152,13 +152,18 @@ export class ComprehensiveOrchestrator {
       context.dependencyGraph = this.buildComprehensiveDependencyGraph(context.tasks);
       debugInfo.dependencyResolutions.push(`Generated ${context.tasks.length} tasks with ${context.dependencyGraph.length} dependencies`);
 
-      // Phase 4: Iterative Refinement Loop
-      debugInfo.validationSteps.push('Phase 4: Iterative consistency refinement');
+      // Phase 4: Enhanced Task Research with Full Context Propagation
+      debugInfo.validationSteps.push('Phase 4: Enhanced task research with context propagation');
+      
+      context = await this.performEnhancedTaskResearch(context, apiKey, model, apiBase, debugInfo);
+
+      // Phase 5: Iterative Refinement Loop (AFTER task research completion)
+      debugInfo.validationSteps.push('Phase 5: Iterative consistency refinement after task research');
       
       for (let i = 0; i < maxRefinementIterations; i++) {
         iterationCount = i + 1;
         
-        // Analyze consistency
+        // Analyze consistency with complete task research information
         const analysis = await this.refinementEngine.analyzeProjectConsistency(context, apiKey, model, apiBase);
         consistencyScore = analysis.overallConsistency;
         
@@ -182,11 +187,6 @@ export class ComprehensiveOrchestrator {
         
         debugInfo.refinementHistory.push(`Applied ${analysis.suggestions.length} refinements`);
       }
-
-      // Phase 5: Enhanced Task Research with Full Context Propagation
-      debugInfo.validationSteps.push('Phase 5: Enhanced task research with context propagation');
-      
-      context = await this.performEnhancedTaskResearch(context, apiKey, model, apiBase, debugInfo);
 
       // Phase 6: Final Validation
       debugInfo.validationSteps.push('Phase 6: Final comprehensive validation');
@@ -224,6 +224,7 @@ export class ComprehensiveOrchestrator {
 
   /**
    * Research tasks with full context awareness and dependency propagation
+   * This phase completes ALL task research before iterative refinement begins
    */
   private async performEnhancedTaskResearch(
     context: UnifiedProjectContext,
@@ -237,7 +238,7 @@ export class ComprehensiveOrchestrator {
     const completedTaskIds: string[] = [];
     const updatedTasks = [...context.tasks];
 
-    debugInfo?.validationSteps.push(`Researching ${orderedTasks.length} tasks in dependency order`);
+    debugInfo?.validationSteps.push(`Completed research for all ${orderedTasks.length} tasks in dependency order`);
 
     for (const task of orderedTasks) {
       try {
@@ -293,6 +294,8 @@ export class ComprehensiveOrchestrator {
         debugInfo?.dependencyResolutions.push(`Failed to research ${task.title}: ${(error as Error).message}`);
       }
     }
+
+    debugInfo?.validationSteps.push(`Task research phase completed: ${completedTaskIds.length} tasks successfully researched`);
 
     return {
       ...context,
