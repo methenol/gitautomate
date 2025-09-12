@@ -10,9 +10,6 @@ import { generateTasks } from '@/ai/flows/generate-tasks';
 import { generateArchitecture } from '@/ai/flows/generate-architecture';
 import { ai } from '@/ai/litellm';
 import { z } from 'zod';
-import { ContextCompressionUtils } from '@/ai/utils/context-compression';
-import { IntelligentTruncation } from '@/ai/utils/intelligent-truncation';
-import { ChunkingInfrastructure } from '@/ai/utils/chunking-infrastructure';
 
 const RefinementSuggestionSchema = z.object({
   component: z.enum(['architecture', 'fileStructure', 'specifications', 'tasks', 'dependencies']),
@@ -36,68 +33,52 @@ export type RefinementAnalysis = z.infer<typeof RefinementAnalysisSchema>;
 export class IterativeRefinementEngine {
   
   /**
-   * Build consistency analysis prompt with intelligent context management
+   * Build consistency analysis prompt
    */
   private buildConsistencyAnalysisPrompt(
     context: UnifiedProjectContext,
     validationResults: ValidationResult[]
   ): string[] {
-    // Compress the context for consistency analysis
-    const { compressedContext, compressionMetrics } = ContextCompressionUtils.compressProjectContext(context);
-    
     const sections = [
-      // Introduction section
-      `PROJECT COMPONENTS (Compressed for Analysis):
-===============================================
-Compression Metrics: ${Math.round(compressionMetrics.overallRatio * 100)}% of original size`,
+      `PROJECT COMPONENTS:
+===============================================`,
 
-      // Compressed PRD section
       `PRD (Product Requirements Document):
-${compressedContext.prd || 'No PRD available'}`,
+${context.prd || 'No PRD available'}`,
 
-      // Compressed Architecture section  
       `ARCHITECTURE:
-${compressedContext.architecture || 'No architecture available'}`,
+${context.architecture || 'No architecture available'}`,
 
-      // Compressed Specifications section with intelligent truncation
       `SPECIFICATIONS:
-${this.truncateSpecificationsIntelligently(compressedContext.specifications || '')}`,
+${context.specifications || 'No specifications available'}`,
 
-      // File structure section (kept intact)
       `FILE STRUCTURE:
 ${context.fileStructure}`,
 
-      // Compressed Tasks section with enhanced formatting
       `TASKS (${context.tasks.length} total):
-${this.formatTasksForAnalysisWithCompression(compressedContext.tasks || [])}`,
+${this.formatTasksForAnalysis(context.tasks)}`,
 
-      // Validation issues section
       `VALIDATION ISSUES FOUND:
 ========================
 ${this.formatValidationResults(validationResults)}`,
 
-      // Analysis requirements section
       `ANALYSIS REQUIREMENTS:
 =====================`,
 
-      // Consistency scoring sub-section
       this.buildConsistencyScoringSection(),
 
-      // Critical issues section  
       `2. CRITICAL ISSUES: Identify issues that would prevent successful implementation:
    - Missing essential components
    - Logical contradictions
    - Impossible dependencies
    - Architecture-implementation mismatches`,
 
-      // Refinement suggestions section
       `3. REFINEMENT SUGGESTIONS: For each identified issue, provide:
    - Specific component to modify
    - Clear description of the problem
    - Actionable suggestion for improvement
    - Priority level and reasoning`,
 
-      // Recommended action section
       `4. RECOMMENDED ACTION: Choose the most appropriate next step:
    - accept: Project is sufficiently consistent
    - refine_architecture: Architecture needs revision
@@ -110,31 +91,22 @@ ${this.formatValidationResults(validationResults)}`,
   }
 
   /**
-   * Format tasks for analysis with intelligent compression
+   * Format tasks for analysis
    */
-  private formatTasksForAnalysisWithCompression(tasks: any[]): string {
+  private formatTasksForAnalysis(tasks: any[]): string {
     if (!tasks || tasks.length === 0) return 'No tasks available';
 
     return tasks.map(t => {
-      // Use intelligent truncation for task descriptions
-      const titleResult = IntelligentTruncation.truncateWithStructure(t.title || '', { maxLength: 80 });
-      const detailsResult = IntelligentTruncation.truncateTaskDescription(t.description || '', 300);
+      const title = (t.title || '').length > 50 ? (t.title || '').substring(0, 50) + '...' : (t.title || '');
+      const details = (t.details || '').length > 200 ? (t.details || '').substring(0, 200) + '...' : (t.details || '');
       
-      return `${t.id} (order: ${t.order}): ${titleResult.truncatedText}
+      return `${t.id} (order: ${t.order}): ${title}
 Dependencies: [${(t.dependencies || []).join(', ') || 'none'}]
-Details: ${detailsResult.truncatedText}`;
+Details: ${details}`;
     }).join('\n\n');
   }
 
-  /**
-   * Intelligently truncate specifications preserving technical details
-   */
-  private truncateSpecificationsIntelligently(specifications: string): string {
-    if (!specifications || specifications.length === 0) return 'No specifications available';
-    
-    const result = IntelligentTruncation.truncateSpecifications(specifications, 2000);
-    return result.truncatedText;
-  }
+
 
   /**
    * Format validation results for analysis display
@@ -318,7 +290,7 @@ Provide a refined architecture that addresses these specific issues while mainta
       },
       apiKey,
       model,
-      apiBase
+      undefined // apiBase - not provided
     );
     
     // Transform to unified format with better dependency inference
@@ -393,7 +365,7 @@ Provide refined specifications that address these issues.`;
       { prd: context.prd },
       apiKey,
       model,
-      apiBase
+      undefined // apiBase - not provided
     );
     
     // This would trigger a complete regeneration workflow

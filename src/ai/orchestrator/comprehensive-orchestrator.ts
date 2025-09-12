@@ -114,7 +114,7 @@ export class ComprehensiveOrchestrator {
         { prd },
         apiKey,
         model,
-        apiBase
+        undefined // apiBase - not provided
       );
       
       context.architecture = archResult.architecture;
@@ -132,7 +132,7 @@ export class ComprehensiveOrchestrator {
         },
         apiKey,
         model,
-        apiBase
+        undefined // apiBase - not provided
       );
       
       context.fileStructure = fileStructResult.fileStructure || '';
@@ -149,7 +149,7 @@ export class ComprehensiveOrchestrator {
         },
         apiKey,
         model,
-        apiBase,
+        undefined, // apiBase - not provided
         useTDD
       );
 
@@ -165,7 +165,7 @@ export class ComprehensiveOrchestrator {
         iterationCount = i + 1;
         
         // Analyze consistency
-        const analysis = await this.refinementEngine.analyzeProjectConsistency(context, apiKey, model, apiBase);
+        const analysis = await this.refinementEngine.analyzeProjectConsistency(context, apiKey, model, undefined);
         consistencyScore = analysis.overallConsistency;
         
         debugInfo.refinementHistory.push(
@@ -181,7 +181,7 @@ export class ComprehensiveOrchestrator {
         }
 
         // Apply refinements
-        context = await this.refinementEngine.applyRefinements(context, analysis, apiKey, model, apiBase);
+        context = await this.refinementEngine.applyRefinements(context, analysis, apiKey, model, undefined);
         
         // Regenerate dependency graph after refinements
         context.dependencyGraph = this.buildComprehensiveDependencyGraph(context.tasks);
@@ -192,7 +192,7 @@ export class ComprehensiveOrchestrator {
       // Phase 5: Enhanced Task Research with Full Context Propagation
       debugInfo.validationSteps.push('Phase 5: Enhanced task research with context propagation');
       
-      context = await this.performEnhancedTaskResearch(context, apiKey, model, apiBase, debugInfo);
+      context = await this.performEnhancedTaskResearch(context, apiKey, model, undefined, debugInfo);
 
       // Phase 6: Final Validation
       debugInfo.validationSteps.push('Phase 6: Final comprehensive validation');
@@ -254,7 +254,7 @@ export class ComprehensiveOrchestrator {
           completedTaskIds,
           apiKey,
           model,
-          apiBase
+          undefined // apiBase - not provided
         );
 
         // Validate research consistency
