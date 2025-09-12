@@ -118,16 +118,22 @@ export class ComprehensiveOrchestrator {
       console.log(`Architecture length: ${context.architecture.length}`);
       console.log(`Specifications length: ${context.specifications.length}`);
       
-      const fileStructResult = await generateFileStructure(
-        {
-          prd: context.prd,
-          architecture: context.architecture,
-          specifications: context.specifications
-        },
-        apiKey,
-        model,
-        apiBase
-      );
+      // Only generate file structure if we have architecture and specifications
+      let fileStructResult = { fileStructure: '' };
+      if (context.architecture && context.specifications) {
+        fileStructResult = await generateFileStructure(
+          {
+            prd: context.prd,
+            architecture: context.architecture,
+            specifications: context.specifications
+          },
+          apiKey,
+          model,
+          apiBase
+        );
+      } else {
+        console.log('Skipping file structure generation - missing architecture or specifications');
+      }
       
       console.log(`Phase 2 - File structure result length: ${fileStructResult.fileStructure?.length || 0}`);
       context.fileStructure = fileStructResult.fileStructure || '';

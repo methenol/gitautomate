@@ -15,7 +15,6 @@ import { generateTasks } from '@/ai/flows/generate-tasks';
 import { generateArchitecture } from '@/ai/flows/generate-architecture';
 import { generateFileStructure } from '@/ai/flows/generate-file-structure';
 import { researchTask } from '@/ai/flows/research-task';
-import { IterativeRefinementEngine } from './iterative-refinement';
 
 export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
   
@@ -76,38 +75,9 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
 
       // Build dependency graph
       context.dependencyGraph = this.buildDependencyGraph(context.tasks);
-
-      // Step 4: Iterative Refinement Process
-      const refinementEngine = new IterativeRefinementEngine();
-      
-      // Run iterative consistency refinement
-      let refinedContext = context;
-      const maxRefinementIterations = 3;
-      const consistencyThreshold = 85;
-      
-      for (let i = 0; i < maxRefinementIterations; i++) {
-        const iterationCount = i + 1;
-        
-        // Analyze consistency
-        const analysis = await refinementEngine.analyzeProjectConsistency(refinedContext, undefined, undefined);
-        
-        // Check if we've achieved acceptable consistency
-        if (analysis.overallConsistency >= consistencyThreshold && analysis.criticalIssues.length === 0) {
-          break;
-        }
-        
-        // Apply refinements
-        refinedContext = await refinementEngine.applyRefinements(refinedContext, analysis, undefined, undefined);
-        
-        // Rebuild dependency graph after refinements
-        refinedContext.dependencyGraph = this.buildDependencyGraph(refinedContext.tasks);
-      }
-      
-      // Use the refined context
-      context = refinedContext;
     }
 
-    // Step 5: Validate the final context
+    // Step 4: Validate the final context
     const validationResults = this.validateContext(context);
     context.validationHistory = validationResults;
 

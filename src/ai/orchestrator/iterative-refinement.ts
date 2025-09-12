@@ -304,7 +304,9 @@ Provide a refined architecture that addresses these specific issues while mainta
       },
       apiKey,
       model,
-      apiBase
+      apiBase,
+      false, // useTDD
+      undefined // temperature
     );
     
     // Transform to unified format with better dependency inference

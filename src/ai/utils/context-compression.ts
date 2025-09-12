@@ -125,9 +125,9 @@ function extractSection(text: string, keywordRegex: RegExp): string {
     if (keywordRegex.test(line)) {
       inSection = true;
       sectionLines.push(line);
-    } else if (inSection && line.trim() === '' && sectionLines.length > 1) {
-      // End of section on empty line after finding keywords, but only if we have content
-      break;
+    } else if (inSection && line.trim() === '') {
+      // End of section on empty line after finding keywords
+      if (sectionLines.length > 1) break; // Only break if we have more than just the keyword line
     } else if (inSection) {
       sectionLines.push(line);
     }
