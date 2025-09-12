@@ -290,7 +290,7 @@ Provide a refined architecture that addresses these specific issues while mainta
       },
       apiKey,
       model,
-      undefined // apiBase - not provided
+      apiBase
     );
     
     // Transform to unified format with better dependency inference
@@ -365,7 +365,7 @@ Provide refined specifications that address these issues.`;
       { prd: context.prd },
       apiKey,
       model,
-      undefined // apiBase - not provided
+      apiBase
     );
     
     // This would trigger a complete regeneration workflow

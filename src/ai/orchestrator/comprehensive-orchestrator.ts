@@ -84,6 +84,11 @@ export class ComprehensiveOrchestrator {
     if (apiBase && typeof apiBase !== 'string') {
       throw new Error('API base URL must be a string when provided.');
     }
+    
+    // Validate that apiBase is provided for LiteLLM compatibility
+    if (!apiBase) {
+      throw new Error('API base URL is required. Please provide it in settings.');
+    }
 
     const debugInfo = {
       refinementHistory: [] as string[],
@@ -114,7 +119,7 @@ export class ComprehensiveOrchestrator {
         { prd },
         apiKey,
         model,
-        undefined // apiBase - not provided
+        apiBase
       );
       
       context.architecture = archResult.architecture;
@@ -132,7 +137,7 @@ export class ComprehensiveOrchestrator {
         },
         apiKey,
         model,
-        undefined // apiBase - not provided
+        apiBase
       );
       
       context.fileStructure = fileStructResult.fileStructure || '';
@@ -149,7 +154,7 @@ export class ComprehensiveOrchestrator {
         },
         apiKey,
         model,
-        undefined, // apiBase - not provided
+        apiBase,
         useTDD
       );
 
@@ -165,7 +170,7 @@ export class ComprehensiveOrchestrator {
         iterationCount = i + 1;
         
         // Analyze consistency
-        const analysis = await this.refinementEngine.analyzeProjectConsistency(context, apiKey, model, undefined);
+        const analysis = await this.refinementEngine.analyzeProjectConsistency(context, apiKey, model, apiBase);
         consistencyScore = analysis.overallConsistency;
         
         debugInfo.refinementHistory.push(
@@ -181,7 +186,7 @@ export class ComprehensiveOrchestrator {
         }
 
         // Apply refinements
-        context = await this.refinementEngine.applyRefinements(context, analysis, apiKey, model, undefined);
+        context = await this.refinementEngine.applyRefinements(context, analysis, apiKey, model, apiBase);
         
         // Regenerate dependency graph after refinements
         context.dependencyGraph = this.buildComprehensiveDependencyGraph(context.tasks);
@@ -192,7 +197,7 @@ export class ComprehensiveOrchestrator {
       // Phase 5: Enhanced Task Research with Full Context Propagation
       debugInfo.validationSteps.push('Phase 5: Enhanced task research with context propagation');
       
-      context = await this.performEnhancedTaskResearch(context, apiKey, model, undefined, debugInfo);
+      context = await this.performEnhancedTaskResearch(context, apiKey, model, apiBase, debugInfo);
 
       // Phase 6: Final Validation
       debugInfo.validationSteps.push('Phase 6: Final comprehensive validation');
@@ -254,7 +259,7 @@ export class ComprehensiveOrchestrator {
           completedTaskIds,
           apiKey,
           model,
-          undefined // apiBase - not provided
+          apiBase
         );
 
         // Validate research consistency
