@@ -19,7 +19,7 @@ import { researchTask } from '@/ai/flows/research-task';
 export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
   
   async generateUnifiedPlan(input: Partial<UnifiedProjectContext>): Promise<UnifiedProjectContext> {
-    let context: UnifiedProjectContext = {
+    const context: UnifiedProjectContext = {
       prd: input.prd || '',
       architecture: input.architecture || '',
       fileStructure: input.fileStructure || '',
