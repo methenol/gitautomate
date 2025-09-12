@@ -10,6 +10,9 @@ import { generateTasks } from '@/ai/flows/generate-tasks';
 import { generateArchitecture } from '@/ai/flows/generate-architecture';
 import { ai } from '@/ai/litellm';
 import { z } from 'zod';
+import { ContextCompressionUtils } from '@/ai/utils/context-compression';
+import { IntelligentTruncation } from '@/ai/utils/intelligent-truncation';
+import { ChunkingInfrastructure } from '@/ai/utils/chunking-infrastructure';
 
 const RefinementSuggestionSchema = z.object({
   component: z.enum(['architecture', 'fileStructure', 'specifications', 'tasks', 'dependencies']),
@@ -33,37 +36,40 @@ export type RefinementAnalysis = z.infer<typeof RefinementAnalysisSchema>;
 export class IterativeRefinementEngine {
   
   /**
-   * Build consistency analysis prompt in manageable sections
+   * Build consistency analysis prompt with intelligent context management
    */
   private buildConsistencyAnalysisPrompt(
     context: UnifiedProjectContext,
     validationResults: ValidationResult[]
   ): string[] {
+    // Compress the context for consistency analysis
+    const { compressedContext, compressionMetrics } = ContextCompressionUtils.compressProjectContext(context);
     
     const sections = [
       // Introduction section
-      `PROJECT COMPONENTS:
-==================`,
+      `PROJECT COMPONENTS (Compressed for Analysis):
+===============================================
+Compression Metrics: ${Math.round(compressionMetrics.overallRatio * 100)}% of original size`,
 
-      // PRD section
+      // Compressed PRD section
       `PRD (Product Requirements Document):
-${context.prd}`,
+${compressedContext.prd || 'No PRD available'}`,
 
-      // Architecture section  
+      // Compressed Architecture section  
       `ARCHITECTURE:
-${context.architecture}`,
+${compressedContext.architecture || 'No architecture available'}`,
 
-      // Specifications section
+      // Compressed Specifications section with intelligent truncation
       `SPECIFICATIONS:
-${context.specifications}`,
+${this.truncateSpecificationsIntelligently(compressedContext.specifications || '')}`,
 
-      // File structure section
+      // File structure section (kept intact)
       `FILE STRUCTURE:
 ${context.fileStructure}`,
 
-      // Tasks section with formatted output
+      // Compressed Tasks section with enhanced formatting
       `TASKS (${context.tasks.length} total):
-${this.formatTasksForAnalysis(context.tasks)}`,
+${this.formatTasksForAnalysisWithCompression(compressedContext.tasks || [])}`,
 
       // Validation issues section
       `VALIDATION ISSUES FOUND:
@@ -104,14 +110,30 @@ ${this.formatValidationResults(validationResults)}`,
   }
 
   /**
-   * Format tasks for analysis display
+   * Format tasks for analysis with intelligent compression
    */
-  private formatTasksForAnalysis(tasks: UnifiedProjectContext['tasks']): string {
-    return tasks.map(t => 
-      `${t.id} (order: ${t.order}): ${this.truncateText(t.title, 50)}
-Dependencies: [${t.dependencies.join(', ') || 'none'}]
-Details: ${this.truncateText(t.details, 200)}...`
-    ).join('\n\n');
+  private formatTasksForAnalysisWithCompression(tasks: any[]): string {
+    if (!tasks || tasks.length === 0) return 'No tasks available';
+
+    return tasks.map(t => {
+      // Use intelligent truncation for task descriptions
+      const titleResult = IntelligentTruncation.truncateWithStructure(t.title || '', { maxLength: 80 });
+      const detailsResult = IntelligentTruncation.truncateTaskDescription(t.description || '', 300);
+      
+      return `${t.id} (order: ${t.order}): ${titleResult.truncatedText}
+Dependencies: [${(t.dependencies || []).join(', ') || 'none'}]
+Details: ${detailsResult.truncatedText}`;
+    }).join('\n\n');
+  }
+
+  /**
+   * Intelligently truncate specifications preserving technical details
+   */
+  private truncateSpecificationsIntelligently(specifications: string): string {
+    if (!specifications || specifications.length === 0) return 'No specifications available';
+    
+    const result = IntelligentTruncation.truncateSpecifications(specifications, 2000);
+    return result.truncatedText;
   }
 
   /**
