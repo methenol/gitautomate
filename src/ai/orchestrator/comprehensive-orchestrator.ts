@@ -167,10 +167,16 @@ export class ComprehensiveOrchestrator {
       debugInfo.dependencyResolutions.push(`Generated ${context.tasks.length} tasks with ${context.dependencyGraph.length} dependencies`);
       console.log(`Phase 3 - Final context has ${context.tasks.length} tasks`);
 
-      // Phase 4: Iterative Refinement Loop
-      debugInfo.validationSteps.push('Phase 4: Iterative consistency refinement');
+      // Phase 4: Enhanced Task Research with Full Context Propagation
+      debugInfo.validationSteps.push('Phase 4: Enhanced task research with context propagation');
       
-      console.log(`Starting iterative refinement with ${context.tasks.length} tasks`);
+      console.log(`Starting enhanced task research with ${context.tasks.length} tasks`);
+      context = await this.performEnhancedTaskResearch(context, apiKey, apiBase, model, debugInfo);
+
+      // Phase 5: Iterative Refinement Loop (AFTER all tasks are researched)
+      debugInfo.validationSteps.push('Phase 5: Iterative consistency refinement after task research');
+      
+      console.log(`Starting iterative refinement with ${context.tasks.length} researched tasks`);
       console.log(`Architecture length: ${context.architecture.length}`);
       console.log(`File structure length: ${context.fileStructure.length}`);
       console.log(`Specifications length: ${context.specifications.length}`);
@@ -208,11 +214,6 @@ export class ComprehensiveOrchestrator {
         debugInfo.refinementHistory.push(`Applied ${analysis.suggestions.length} refinements`);
         console.log(`Applied ${analysis.suggestions.length} refinements, continuing to next iteration`);
       }
-
-      // Phase 5: Enhanced Task Research with Full Context Propagation
-      debugInfo.validationSteps.push('Phase 5: Enhanced task research with context propagation');
-      
-      context = await this.performEnhancedTaskResearch(context, apiKey, apiBase, model, debugInfo);
 
       // Phase 6: Final Validation
       debugInfo.validationSteps.push('Phase 6: Final comprehensive validation');
