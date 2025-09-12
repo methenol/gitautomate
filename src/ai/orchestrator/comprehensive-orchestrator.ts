@@ -33,7 +33,6 @@ export interface ComprehensiveGenerationResult {
 export interface ComprehensiveOptions {
   apiKey?: string;
   model?: string;
-  apiBase?: string;
   useTDD?: boolean;
   maxRefinementIterations?: number;
   consistencyThreshold?: number;
@@ -68,7 +67,6 @@ export class ComprehensiveOrchestrator {
     const {
       apiKey,
       model,
-      apiBase,
       useTDD = false,
       maxRefinementIterations = 3,
       consistencyThreshold = 85
@@ -103,7 +101,7 @@ export class ComprehensiveOrchestrator {
         { prd },
         apiKey,
         model,
-        apiBase
+        undefined // apiBase - not provided
       );
       
       context.architecture = archResult.architecture;
@@ -121,7 +119,7 @@ export class ComprehensiveOrchestrator {
         },
         apiKey,
         model,
-        apiBase
+        undefined // apiBase - not provided
       );
       
       context.fileStructure = fileStructResult.fileStructure || '';
@@ -138,7 +136,7 @@ export class ComprehensiveOrchestrator {
         },
         apiKey,
         model,
-        apiBase, 
+        undefined, // apiBase - not provided
         useTDD
       );
 
@@ -153,8 +151,8 @@ export class ComprehensiveOrchestrator {
       for (let i = 0; i < maxRefinementIterations; i++) {
         iterationCount = i + 1;
         
-        // Analyze consistency using intelligent context management  
-        const analysis = await this.refinementEngine.analyzeProjectConsistencyChunked(context, apiKey, model, apiBase);
+        // Analyze consistency
+        const analysis = await this.refinementEngine.analyzeProjectConsistency(context, apiKey, model);
         consistencyScore = analysis.overallConsistency;
         
         debugInfo.refinementHistory.push(
@@ -170,7 +168,7 @@ export class ComprehensiveOrchestrator {
         }
 
         // Apply refinements
-        context = await this.refinementEngine.applyRefinements(context, analysis, apiKey, model, apiBase);
+        context = await this.refinementEngine.applyRefinements(context, analysis, apiKey, model);
         
         // Regenerate dependency graph after refinements
         context.dependencyGraph = this.buildComprehensiveDependencyGraph(context.tasks);
@@ -181,7 +179,7 @@ export class ComprehensiveOrchestrator {
       // Phase 5: Enhanced Task Research with Full Context Propagation
       debugInfo.validationSteps.push('Phase 5: Enhanced task research with context propagation');
       
-      context = await this.performEnhancedTaskResearch(context, apiKey, model, apiBase, debugInfo);
+      context = await this.performEnhancedTaskResearch(context, apiKey, model, debugInfo);
 
       // Phase 6: Final Validation
       debugInfo.validationSteps.push('Phase 6: Final comprehensive validation');
@@ -224,7 +222,6 @@ export class ComprehensiveOrchestrator {
     context: UnifiedProjectContext,
     apiKey?: string,
     model?: string,
-    apiBase?: string,
     debugInfo?: { dependencyResolutions: string[]; validationSteps: string[]; refinementHistory: string[] }
   ): Promise<UnifiedProjectContext> {
     
@@ -242,8 +239,7 @@ export class ComprehensiveOrchestrator {
           context,
           completedTaskIds,
           apiKey,
-          model,
-          apiBase
+          model
         );
 
         // Validate research consistency
