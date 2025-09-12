@@ -10,9 +10,6 @@ describe('Context Compression', () => {
         id: 'task-1',
         title: 'Setup project structure and configuration',
         details: 'Create the basic project structure with TypeScript configuration, linting setup, and initial dependencies.',
-        acceptanceCriteria: 'Project builds successfully',
-        timeEstimate: '2 hours',
-        priority: 'high',
         order: 1,
         dependencies: [],
         status: 'pending'
@@ -21,9 +18,6 @@ describe('Context Compression', () => {
         id: 'task-2', 
         title: 'Implement authentication system',
         details: 'Create user authentication with JWT tokens, login/logout functionality, and protected routes.',
-        acceptanceCriteria: 'Users can login and access protected areas',
-        timeEstimate: '4 hours',
-        priority: 'high',
         order: 2,
         dependencies: ['task-1'],
         status: 'pending'
