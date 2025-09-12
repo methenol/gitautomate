@@ -33,7 +33,7 @@ export type RefinementAnalysis = z.infer<typeof RefinementAnalysisSchema>;
 export class IterativeRefinementEngine {
   
   /**
-   * Build consistency analysis prompt in manageable sections
+   * Build consistency analysis prompt with intelligent context compression
    */
   private buildConsistencyAnalysisPrompt(
     context: UnifiedProjectContext,
@@ -45,25 +45,25 @@ export class IterativeRefinementEngine {
       `PROJECT COMPONENTS:
 ==================`,
 
-      // PRD section
+      // PRD section with intelligent compression
       `PRD (Product Requirements Document):
-${context.prd}`,
+${this.compressContextSection(context.prd, 1000, 'PRD')}`,
 
-      // Architecture section  
+      // Architecture section with compression
       `ARCHITECTURE:
-${context.architecture}`,
+${this.compressContextSection(context.architecture, 800, 'Architecture')}`,
 
-      // Specifications section
+      // Specifications section with compression
       `SPECIFICATIONS:
-${context.specifications}`,
+${this.compressContextSection(context.specifications, 800, 'Specifications')}`,
 
-      // File structure section
+      // File structure section with compression
       `FILE STRUCTURE:
-${context.fileStructure}`,
+${this.compressContextSection(context.fileStructure, 400, 'File Structure')}`,
 
-      // Tasks section with formatted output
+      // Tasks section with optimized formatting
       `TASKS (${context.tasks.length} total):
-${this.formatTasksForAnalysis(context.tasks)}`,
+${this.formatTasksForAnalysisOptimized(context.tasks)}`,
 
       // Validation issues section
       `VALIDATION ISSUES FOUND:
@@ -101,6 +101,204 @@ ${this.formatValidationResults(validationResults)}`,
     ];
 
     return sections;
+  }
+
+  /**
+   * Compress context sections intelligently while preserving critical information
+   */
+  private compressContextSection(content: string, maxTokens: number, sectionType: string): string {
+    if (!content || content.length <= maxTokens * 4) { // Rough token estimation: 1 token ≈ 4 chars
+      return content;
+    }
+
+    // Extract key information based on section type
+    switch (sectionType) {
+      case 'PRD':
+        return this.compressPRD(content, maxTokens);
+      case 'Architecture':
+        return this.compressArchitecture(content, maxTokens);
+      case 'Specifications':
+        return this.compressSpecifications(content, maxTokens);
+      case 'File Structure':
+        return this.compressFileStructure(content, maxTokens);
+      default:
+        return this.genericCompress(content, maxTokens);
+    }
+  }
+
+  /**
+   * Compress PRD while preserving core requirements
+   */
+  private compressPRD(content: string, maxTokens: number): string {
+    const lines = content.split('\n');
+    const keyLines: string[] = [];
+    const maxChars = maxTokens * 4;
+
+    // Prioritize lines with requirements, features, and goals
+    const priorityKeywords = ['requirement', 'feature', 'goal', 'objective', 'user', 'function', 'must', 'should', 'will'];
+    const importantLines = lines.filter(line => 
+      priorityKeywords.some(keyword => line.toLowerCase().includes(keyword))
+    );
+
+    let totalChars = 0;
+    // Add important lines first
+    for (const line of importantLines) {
+      if (totalChars + line.length > maxChars) break;
+      keyLines.push(line);
+      totalChars += line.length;
+    }
+
+    // Fill remaining space with other content
+    for (const line of lines) {
+      if (keyLines.includes(line)) continue;
+      if (totalChars + line.length > maxChars) break;
+      keyLines.push(line);
+      totalChars += line.length;
+    }
+
+    const compressed = keyLines.join('\n');
+    return compressed.length < content.length 
+      ? compressed + '\n\n[Content compressed to preserve essential requirements]'
+      : content;
+  }
+
+  /**
+   * Compress architecture while preserving system design and technology choices
+   */
+  private compressArchitecture(content: string, maxTokens: number): string {
+    const lines = content.split('\n');
+    const keyLines: string[] = [];
+    const maxChars = maxTokens * 4;
+
+    // Prioritize architectural decisions, technology stack, and patterns
+    const priorityKeywords = ['technology', 'stack', 'pattern', 'component', 'service', 'database', 'api', 'security', 'scalability'];
+    const importantLines = lines.filter(line => 
+      priorityKeywords.some(keyword => line.toLowerCase().includes(keyword)) ||
+      line.includes('##') || line.includes('#') // Keep headers
+    );
+
+    let totalChars = 0;
+    for (const line of importantLines) {
+      if (totalChars + line.length > maxChars) break;
+      keyLines.push(line);
+      totalChars += line.length;
+    }
+
+    const compressed = keyLines.join('\n');
+    return compressed.length < content.length
+      ? compressed + '\n\n[Architecture details compressed to focus on key decisions]'
+      : content;
+  }
+
+  /**
+   * Compress specifications while preserving functional requirements
+   */
+  private compressSpecifications(content: string, maxTokens: number): string {
+    const lines = content.split('\n');
+    const keyLines: string[] = [];
+    const maxChars = maxTokens * 4;
+
+    // Prioritize functional requirements, APIs, and business logic
+    const priorityKeywords = ['endpoint', 'api', 'function', 'business', 'logic', 'workflow', 'validation', 'rule'];
+    const importantLines = lines.filter(line => 
+      priorityKeywords.some(keyword => line.toLowerCase().includes(keyword)) ||
+      line.includes('##') || line.includes('#') || // Keep headers
+      line.trim().startsWith('-') || line.trim().startsWith('*') // Keep bullet points
+    );
+
+    let totalChars = 0;
+    for (const line of importantLines) {
+      if (totalChars + line.length > maxChars) break;
+      keyLines.push(line);
+      totalChars += line.length;
+    }
+
+    const compressed = keyLines.join('\n');
+    return compressed.length < content.length
+      ? compressed + '\n\n[Specifications compressed to focus on functional requirements]'
+      : content;
+  }
+
+  /**
+   * Compress file structure while preserving directory organization
+   */
+  private compressFileStructure(content: string, maxTokens: number): string {
+    const lines = content.split('\n').filter(line => line.trim());
+    const maxLines = Math.max(10, Math.floor(maxTokens / 10)); // Rough estimate: 10 tokens per line
+
+    if (lines.length <= maxLines) return content;
+
+    // Keep directory structure and key files
+    const keyLines = lines.filter(line => 
+      line.includes('/') || // Directory paths
+      line.includes('.ts') || line.includes('.js') || line.includes('.tsx') || // Important files
+      line.includes('package.json') || line.includes('README') ||
+      line.includes('config') || line.includes('test')
+    );
+
+    const result = keyLines.slice(0, maxLines).join('\n');
+    return result + '\n\n[File structure compressed to show key directories and files]';
+  }
+
+  /**
+   * Generic compression that preserves structure and key content
+   */
+  private genericCompress(content: string, maxTokens: number): string {
+    const maxChars = maxTokens * 4;
+    if (content.length <= maxChars) return content;
+
+    const lines = content.split('\n');
+    const keyLines: string[] = [];
+    let totalChars = 0;
+
+    // Prioritize headers and structured content
+    for (const line of lines) {
+      if (line.includes('#') || line.trim().startsWith('-') || line.trim().startsWith('*')) {
+        if (totalChars + line.length <= maxChars) {
+          keyLines.push(line);
+          totalChars += line.length;
+        }
+      }
+    }
+
+    // Fill remaining space with other content
+    for (const line of lines) {
+      if (keyLines.includes(line)) continue;
+      if (totalChars + line.length > maxChars) break;
+      keyLines.push(line);
+      totalChars += line.length;
+    }
+
+    const compressed = keyLines.join('\n');
+    return compressed + '\n\n[Content compressed while preserving key information]';
+  }
+
+  /**
+   * Optimized task formatting for analysis with better context management
+   */
+  private formatTasksForAnalysisOptimized(tasks: UnifiedProjectContext['tasks']): string {
+    if (tasks.length === 0) return 'No tasks defined.';
+
+    // For large task lists, show summary + critical tasks
+    if (tasks.length > 20) {
+      const criticalTasks = tasks.slice(0, 10); // First 10 tasks
+      const summary = `Showing first 10 of ${tasks.length} tasks. Remaining tasks follow similar patterns.`;
+      
+      const taskDetails = criticalTasks.map(t => 
+        `${t.id} (order: ${t.order}): ${this.truncateText(t.title, 50)}
+Dependencies: [${t.dependencies.join(', ') || 'none'}]
+Details: ${this.truncateText(t.details, 150)}...`
+      ).join('\n\n');
+
+      return `${summary}\n\n${taskDetails}`;
+    }
+
+    // For smaller task lists, use regular formatting with slight optimization
+    return tasks.map(t => 
+      `${t.id} (order: ${t.order}): ${this.truncateText(t.title, 60)}
+Dependencies: [${t.dependencies.join(', ') || 'none'}]
+Details: ${this.truncateText(t.details, 200)}...`
+    ).join('\n\n');
   }
 
   /**
@@ -145,7 +343,8 @@ Details: ${this.truncateText(t.details, 200)}...`
   async analyzeProjectConsistency(
     context: UnifiedProjectContext,
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<RefinementAnalysis> {
     
     // First run structural validation
@@ -170,7 +369,10 @@ Provide your analysis as a JSON object conforming to the schema.`;
       model: modelName,
       prompt: prompt,
       output: { schema: RefinementAnalysisSchema },
-      config: apiKey ? { apiKey } : undefined,
+      config: (apiKey || apiBase) ? { 
+        ...(apiKey && { apiKey }),
+        ...(apiBase && { apiBase })
+      } : undefined,
     });
 
     if (!output) {
@@ -184,7 +386,8 @@ Provide your analysis as a JSON object conforming to the schema.`;
     context: UnifiedProjectContext,
     analysis: RefinementAnalysis,
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     let refinedContext = { ...context };
@@ -192,19 +395,19 @@ Provide your analysis as a JSON object conforming to the schema.`;
     // Apply refinements based on recommended action
     switch (analysis.recommendedAction) {
       case 'refine_architecture':
-        refinedContext = await this.refineArchitecture(refinedContext, analysis.suggestions, apiKey, model);
+        refinedContext = await this.refineArchitecture(refinedContext, analysis.suggestions, apiKey, model, apiBase);
         break;
         
       case 'refine_tasks':
-        refinedContext = await this.refineTasks(refinedContext, analysis.suggestions, apiKey, model);
+        refinedContext = await this.refineTasks(refinedContext, analysis.suggestions, apiKey, model, apiBase);
         break;
         
       case 'refine_specifications':
-        refinedContext = await this.refineSpecifications(refinedContext, analysis.suggestions, apiKey, model);
+        refinedContext = await this.refineSpecifications(refinedContext, analysis.suggestions, apiKey, model, apiBase);
         break;
         
       case 'major_revision':
-        refinedContext = await this.performMajorRevision(refinedContext, analysis, apiKey, model);
+        refinedContext = await this.performMajorRevision(refinedContext, analysis, apiKey, model, apiBase);
         break;
         
       case 'accept':
@@ -231,7 +434,8 @@ Provide your analysis as a JSON object conforming to the schema.`;
     context: UnifiedProjectContext,
     suggestions: RefinementSuggestion[],
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     const archSuggestions = suggestions.filter(s => s.component === 'architecture');
@@ -258,7 +462,10 @@ Provide a refined architecture that addresses these specific issues while mainta
     const { output } = await ai.generate({
       model: modelName,
       prompt: refinementPrompt,
-      config: apiKey ? { apiKey } : undefined,
+      config: (apiKey || apiBase) ? {
+        ...(apiKey && { apiKey }),
+        ...(apiBase && { apiBase })
+      } : undefined,
     });
 
     return {
@@ -271,7 +478,8 @@ Provide a refined architecture that addresses these specific issues while mainta
     context: UnifiedProjectContext,
     suggestions: RefinementSuggestion[],
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     const taskSuggestions = suggestions.filter(s => s.component === 'tasks' || s.component === 'dependencies');
@@ -285,7 +493,8 @@ Provide a refined architecture that addresses these specific issues while mainta
         fileStructure: context.fileStructure,
       },
       apiKey,
-      model
+      model,
+      apiBase
     );
     
     // Transform to unified format with better dependency inference
@@ -307,7 +516,8 @@ Provide a refined architecture that addresses these specific issues while mainta
     context: UnifiedProjectContext,
     suggestions: RefinementSuggestion[],
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     const specSuggestions = suggestions.filter(s => s.component === 'specifications');
@@ -334,7 +544,10 @@ Provide refined specifications that address these issues.`;
     const { output } = await ai.generate({
       model: modelName,
       prompt: refinementPrompt,
-      config: apiKey ? { apiKey } : undefined,
+      config: (apiKey || apiBase) ? {
+        ...(apiKey && { apiKey }),
+        ...(apiBase && { apiBase })
+      } : undefined,
     });
 
     return {
@@ -347,14 +560,16 @@ Provide refined specifications that address these issues.`;
     context: UnifiedProjectContext,
     analysis: RefinementAnalysis,
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     // Major revision: regenerate architecture and cascade changes
     const archResult = await generateArchitecture(
       { prd: context.prd },
       apiKey,
-      model
+      model,
+      apiBase
     );
     
     // This would trigger a complete regeneration workflow
