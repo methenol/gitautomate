@@ -2,6 +2,7 @@
 
 /**
  * @fileOverview Iterative refinement system that continuously improves project consistency
+ * Now includes hierarchical analysis, progressive refinement, performance monitoring, and configurable strategies
  */
 
 import { UnifiedProjectContext, ValidationResult } from '@/types/unified-context';
@@ -10,6 +11,13 @@ import { generateTasks } from '@/ai/flows/generate-tasks';
 import { generateArchitecture } from '@/ai/flows/generate-architecture';
 import { ai } from '@/ai/litellm';
 import { z } from 'zod';
+import { ContextCompressionUtils } from '@/ai/utils/context-compression';
+import { IntelligentTruncation } from '@/ai/utils/intelligent-truncation';
+import { ChunkingInfrastructure } from '@/ai/utils/chunking-infrastructure';
+import { HierarchicalConsistencyAnalyzer, HierarchicalAnalysis } from '@/ai/utils/hierarchical-analysis';
+import { ProgressiveRefinementEngine } from '@/ai/utils/progressive-refinement';
+import { PerformanceMonitoringSystem } from '@/ai/utils/performance-monitoring';
+import { ContextStrategyManager, ContextStrategy } from '@/ai/utils/context-strategies';
 
 const RefinementSuggestionSchema = z.object({
   component: z.enum(['architecture', 'fileStructure', 'specifications', 'tasks', 'dependencies']),
@@ -32,38 +40,54 @@ export type RefinementAnalysis = z.infer<typeof RefinementAnalysisSchema>;
 
 export class IterativeRefinementEngine {
   
+  private hierarchicalAnalyzer: HierarchicalConsistencyAnalyzer;
+  private progressiveRefinement: ProgressiveRefinementEngine;
+  private performanceMonitor: PerformanceMonitoringSystem;
+  private strategyManager: ContextStrategyManager;
+  private currentStrategy?: ContextStrategy;
+
+  constructor() {
+    this.hierarchicalAnalyzer = new HierarchicalConsistencyAnalyzer();
+    this.progressiveRefinement = new ProgressiveRefinementEngine();
+    this.performanceMonitor = new PerformanceMonitoringSystem();
+    this.strategyManager = new ContextStrategyManager();
+  }
+  
   /**
-   * Build consistency analysis prompt in manageable sections
+   * Build consistency analysis prompt with intelligent context management
    */
   private buildConsistencyAnalysisPrompt(
     context: UnifiedProjectContext,
     validationResults: ValidationResult[]
   ): string[] {
+    // Compress the context for consistency analysis
+    const { compressedContext, compressionMetrics } = ContextCompressionUtils.compressProjectContext(context);
     
     const sections = [
       // Introduction section
-      `PROJECT COMPONENTS:
-==================`,
+      `PROJECT COMPONENTS (Compressed for Analysis):
+===============================================
+Compression Metrics: ${Math.round(compressionMetrics.overallRatio * 100)}% of original size`,
 
-      // PRD section
+      // Compressed PRD section
       `PRD (Product Requirements Document):
-${context.prd}`,
+${compressedContext.prd || 'No PRD available'}`,
 
-      // Architecture section  
+      // Compressed Architecture section  
       `ARCHITECTURE:
-${context.architecture}`,
+${compressedContext.architecture || 'No architecture available'}`,
 
-      // Specifications section
+      // Compressed Specifications section with intelligent truncation
       `SPECIFICATIONS:
-${context.specifications}`,
+${this.truncateSpecificationsIntelligently(compressedContext.specifications || '')}`,
 
-      // File structure section
+      // File structure section (kept intact)
       `FILE STRUCTURE:
 ${context.fileStructure}`,
 
-      // Tasks section with formatted output
+      // Compressed Tasks section with enhanced formatting
       `TASKS (${context.tasks.length} total):
-${this.formatTasksForAnalysis(context.tasks)}`,
+${this.formatTasksForAnalysisWithCompression(compressedContext.tasks || [])}`,
 
       // Validation issues section
       `VALIDATION ISSUES FOUND:
@@ -104,15 +128,33 @@ ${this.formatValidationResults(validationResults)}`,
   }
 
   /**
-   * Format tasks for analysis display
+   * Format tasks for analysis with intelligent compression
    */
-  private formatTasksForAnalysis(tasks: UnifiedProjectContext['tasks']): string {
-    return tasks.map(t => 
-      `${t.id} (order: ${t.order}): ${this.truncateText(t.title, 50)}
-Dependencies: [${t.dependencies.join(', ') || 'none'}]
-Details: ${this.truncateText(t.details, 200)}...`
-    ).join('\n\n');
+  private formatTasksForAnalysisWithCompression(tasks: any[]): string {
+    if (!tasks || tasks.length === 0) return 'No tasks available';
+
+    return tasks.map(t => {
+      // Use intelligent truncation for task descriptions
+      const titleResult = IntelligentTruncation.truncateWithStructure(t.title || '', { maxLength: 80 });
+      const detailsResult = IntelligentTruncation.truncateTaskDescription(t.description || '', 300);
+      
+      return `${t.id} (order: ${t.order}): ${titleResult.truncatedText}
+Dependencies: [${(t.dependencies || []).join(', ') || 'none'}]
+Details: ${detailsResult.truncatedText}`;
+    }).join('\n\n');
   }
+
+  /**
+   * Intelligently truncate specifications preserving technical details
+   */
+  private truncateSpecificationsIntelligently(specifications: string): string {
+    if (!specifications || specifications.length === 0) return 'No specifications available';
+    
+    const result = IntelligentTruncation.truncateSpecifications(specifications, 2000);
+    return result.truncatedText;
+  }
+
+
 
   /**
    * Format validation results for analysis display
@@ -142,96 +184,172 @@ Details: ${this.truncateText(t.details, 200)}...`
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
   }
 
+  /**
+   * Enhanced project consistency analysis with hierarchical validation
+   */
   async analyzeProjectConsistency(
     context: UnifiedProjectContext,
     apiKey?: string,
-    model?: string
-  ): Promise<RefinementAnalysis> {
+    model?: string,
+    apiBase?: string
+  ): Promise<RefinementAnalysis & { hierarchicalAnalysis?: HierarchicalAnalysis }> {
     
-    // First run structural validation
-    const validationResults = ContextValidator.validateFullContext(context);
+    const sessionId = `refinement-${Date.now()}`;
+    const monitor = this.performanceMonitor.startMonitoring(sessionId);
     
-    // Then perform AI-powered consistency analysis
-    const promptSections = this.buildConsistencyAnalysisPrompt(context, validationResults);
-    
-    // Combine all sections for the final prompt
-    const prompt = `You are an expert software architect conducting a comprehensive consistency analysis of a project plan. Analyze the following project components for logical consistency, completeness, and alignment.
+    try {
+      // Select optimal context strategy
+      this.currentStrategy = this.strategyManager.selectOptimalStrategy(context);
+      
+      // Perform hierarchical analysis (5-layer validation)
+      const startTime = Date.now();
+      const hierarchicalAnalysis = await this.hierarchicalAnalyzer.analyzeHierarchicalConsistency(
+        context, apiKey, model, apiBase
+      );
+      
+      this.performanceMonitor.recordProcessingTime(sessionId, 'hierarchical_analysis', Date.now() - startTime);
+      
+      // First run structural validation
+      const validationResults = ContextValidator.validateFullContext(context);
+      
+      // Then perform AI-powered consistency analysis with compression
+      const promptSections = this.buildConsistencyAnalysisPrompt(context, validationResults);
+      const prompt = `You are an expert software architect conducting a comprehensive consistency analysis of a project plan. Analyze the following project components for logical consistency, completeness, and alignment.
 
 ${promptSections.join('\n\n')}
 
 Provide your analysis as a JSON object conforming to the schema.`;
 
-    if (!model) {
-      throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
-    }
-    const modelName = model;
-    
-    const { output } = await ai.generate({
-      model: modelName,
-      prompt: prompt,
-      output: { schema: RefinementAnalysisSchema },
-      config: apiKey ? { apiKey } : undefined,
-    });
+      if (!model) {
+        throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+      }
 
-    if (!output) {
-      throw new Error('Failed to generate refinement analysis');
-    }
+      const tokensUsed = Math.ceil(prompt.length / 4); // Rough estimate
+      this.performanceMonitor.recordTokenUsage(sessionId, 'consistency_analysis', tokensUsed);
+      
+      const analysisStart = Date.now();
+      const { output } = await ai.generate({
+        model,
+        prompt: prompt,
+        output: { schema: RefinementAnalysisSchema },
+        config: { 
+          ...(apiKey ? { apiKey } : {}),
+          ...(apiBase ? { apiBase } : {})
+        },
+      });
 
-    return output as typeof RefinementAnalysisSchema._type;
+      this.performanceMonitor.recordProcessingTime(sessionId, 'ai_analysis', Date.now() - analysisStart);
+
+      if (!output) {
+        throw new Error('Failed to generate refinement analysis');
+      }
+
+      // Combine traditional and hierarchical analysis
+      const combinedAnalysis = this.combineAnalysisResults(
+        output as typeof RefinementAnalysisSchema._type,
+        hierarchicalAnalysis
+      );
+
+      // Record accuracy metrics
+      this.performanceMonitor.recordAccuracy(sessionId, {
+        refinementAccuracy: combinedAnalysis.overallConsistency,
+        validationAccuracy: hierarchicalAnalysis.overallConsistency
+      });
+
+      return {
+        ...combinedAnalysis,
+        hierarchicalAnalysis
+      };
+
+    } finally {
+      this.performanceMonitor.cleanup(sessionId);
+    }
   }
 
+  /**
+   * Enhanced refinement application with progressive strategies
+   */
   async applyRefinements(
     context: UnifiedProjectContext,
-    analysis: RefinementAnalysis,
+    analysis: RefinementAnalysis & { hierarchicalAnalysis?: HierarchicalAnalysis },
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
-    let refinedContext = { ...context };
+    const sessionId = `apply-refinement-${Date.now()}`;
+    const monitor = this.performanceMonitor.startMonitoring(sessionId);
     
-    // Apply refinements based on recommended action
-    switch (analysis.recommendedAction) {
-      case 'refine_architecture':
-        refinedContext = await this.refineArchitecture(refinedContext, analysis.suggestions, apiKey, model);
-        break;
+    try {
+      // Use progressive refinement if hierarchical analysis is available
+      if (analysis.hierarchicalAnalysis) {
+        const progressiveResult = await this.progressiveRefinement.executeProgressiveRefinement(
+          context,
+          analysis.hierarchicalAnalysis,
+          3 // Max iterations
+        );
         
-      case 'refine_tasks':
-        refinedContext = await this.refineTasks(refinedContext, analysis.suggestions, apiKey, model);
-        break;
+        // Record performance metrics
+        const metrics = this.progressiveRefinement.getMetrics();
+        this.performanceMonitor.recordAccuracy(sessionId, {
+          refinementAccuracy: progressiveResult.finalAnalysis.overallConsistency,
+          consistencyImprovement: progressiveResult.finalAnalysis.overallConsistency - analysis.hierarchicalAnalysis.overallConsistency
+        });
         
-      case 'refine_specifications':
-        refinedContext = await this.refineSpecifications(refinedContext, analysis.suggestions, apiKey, model);
-        break;
-        
-      case 'major_revision':
-        refinedContext = await this.performMajorRevision(refinedContext, analysis, apiKey, model);
-        break;
-        
-      case 'accept':
-        // No changes needed
-        break;
+        return progressiveResult.refinedContext;
+      }
+      
+      // Fallback to traditional refinement
+      let refinedContext = { ...context };
+      
+      // Apply refinements based on recommended action
+      switch (analysis.recommendedAction) {
+        case 'refine_architecture':
+          refinedContext = await this.refineArchitecture(refinedContext, analysis.suggestions, apiKey, model, apiBase);
+          break;
+          
+        case 'refine_tasks':
+          refinedContext = await this.refineTasks(refinedContext, analysis.suggestions, apiKey, model, apiBase);
+          break;
+          
+        case 'refine_specifications':
+          refinedContext = await this.refineSpecifications(refinedContext, analysis.suggestions, apiKey, model, apiBase);
+          break;
+          
+        case 'major_revision':
+          refinedContext = await this.performMajorRevision(refinedContext, analysis, apiKey, model, apiBase);
+          break;
+          
+        case 'accept':
+          // No changes needed
+          break;
+      }
+      
+      // Update version and timestamp
+      refinedContext.version += 1;
+      refinedContext.lastUpdated = new Date().toISOString();
+      
+      // Add refinement to validation history
+      refinedContext.validationHistory.push({
+        isValid: analysis.overallConsistency >= 80,
+        issues: analysis.criticalIssues,
+        component: 'dependencies', // Represents overall project consistency
+        severity: analysis.criticalIssues.length > 0 ? 'error' : 'info',
+      });
+      
+      return refinedContext;
+
+    } finally {
+      this.performanceMonitor.cleanup(sessionId);
     }
-    
-    // Update version and timestamp
-    refinedContext.version += 1;
-    refinedContext.lastUpdated = new Date().toISOString();
-    
-    // Add refinement to validation history
-    refinedContext.validationHistory.push({
-      isValid: analysis.overallConsistency >= 80,
-      issues: analysis.criticalIssues,
-      component: 'dependencies', // Represents overall project consistency
-      severity: analysis.criticalIssues.length > 0 ? 'error' : 'info',
-    });
-    
-    return refinedContext;
   }
 
   private async refineArchitecture(
     context: UnifiedProjectContext,
     suggestions: RefinementSuggestion[],
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     const archSuggestions = suggestions.filter(s => s.component === 'architecture');
@@ -258,7 +376,10 @@ Provide a refined architecture that addresses these specific issues while mainta
     const { output } = await ai.generate({
       model: modelName,
       prompt: refinementPrompt,
-      config: apiKey ? { apiKey } : undefined,
+      config: { 
+        ...(apiKey ? { apiKey } : {}),
+        ...(apiBase ? { apiBase } : {})
+      },
     });
 
     return {
@@ -271,7 +392,8 @@ Provide a refined architecture that addresses these specific issues while mainta
     context: UnifiedProjectContext,
     suggestions: RefinementSuggestion[],
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     const taskSuggestions = suggestions.filter(s => s.component === 'tasks' || s.component === 'dependencies');
@@ -285,7 +407,8 @@ Provide a refined architecture that addresses these specific issues while mainta
         fileStructure: context.fileStructure,
       },
       apiKey,
-      model
+      model,
+      apiBase
     );
     
     // Transform to unified format with better dependency inference
@@ -307,7 +430,8 @@ Provide a refined architecture that addresses these specific issues while mainta
     context: UnifiedProjectContext,
     suggestions: RefinementSuggestion[],
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     const specSuggestions = suggestions.filter(s => s.component === 'specifications');
@@ -334,7 +458,10 @@ Provide refined specifications that address these issues.`;
     const { output } = await ai.generate({
       model: modelName,
       prompt: refinementPrompt,
-      config: apiKey ? { apiKey } : undefined,
+      config: { 
+        ...(apiKey ? { apiKey } : {}),
+        ...(apiBase ? { apiBase } : {})
+      },
     });
 
     return {
@@ -347,14 +474,16 @@ Provide refined specifications that address these issues.`;
     context: UnifiedProjectContext,
     analysis: RefinementAnalysis,
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     // Major revision: regenerate architecture and cascade changes
     const archResult = await generateArchitecture(
       { prd: context.prd },
       apiKey,
-      model
+      model,
+      apiBase
     );
     
     // This would trigger a complete regeneration workflow
@@ -411,5 +540,97 @@ Provide refined specifications that address these issues.`;
     }
     
     return [...new Set(dependencies)]; // Remove duplicates
+  }
+
+  /**
+   * Combine traditional and hierarchical analysis results
+   */
+  private combineAnalysisResults(
+    traditional: RefinementAnalysis,
+    hierarchical: HierarchicalAnalysis
+  ): RefinementAnalysis {
+    
+    // Weight traditional and hierarchical scores
+    const combinedConsistency = Math.round(
+      (traditional.overallConsistency * 0.6) + (hierarchical.overallConsistency * 0.4)
+    );
+
+    // Combine critical issues
+    const combinedCriticalIssues = [
+      ...traditional.criticalIssues,
+      ...hierarchical.criticalIssues
+    ].filter((issue, index, array) => array.indexOf(issue) === index); // Remove duplicates
+
+    // Enhanced suggestions with hierarchical insights
+    const enhancedSuggestions = [
+      ...traditional.suggestions,
+      ...hierarchical.recommendations.map(rec => ({
+        component: this.mapLayerToComponent(rec.layer),
+        issue: `Layer ${rec.layer}: ${rec.action}`,
+        suggestion: rec.impact,
+        priority: rec.priority,
+        reasoning: `Hierarchical analysis recommendation for ${rec.layer} layer`
+      }))
+    ];
+
+    // Determine action based on combined analysis
+    let recommendedAction = traditional.recommendedAction;
+    if (hierarchical.metrics.criticalLayers > 2) {
+      recommendedAction = 'major_revision';
+    } else if (combinedConsistency < 70) {
+      recommendedAction = 'refine_architecture';
+    }
+
+    return {
+      overallConsistency: combinedConsistency,
+      criticalIssues: combinedCriticalIssues,
+      suggestions: enhancedSuggestions,
+      recommendedAction
+    };
+  }
+
+  /**
+   * Map hierarchical layer to refinement component
+   */
+  private mapLayerToComponent(layer: string): 'architecture' | 'fileStructure' | 'specifications' | 'tasks' | 'dependencies' {
+    switch (layer) {
+      case 'requirements': return 'specifications';
+      case 'architecture': return 'architecture';
+      case 'design': return 'specifications';
+      case 'implementation': return 'tasks';
+      case 'integration': return 'dependencies';
+      default: return 'architecture';
+    }
+  }
+
+  /**
+   * Get performance dashboard for monitoring
+   */
+  getPerformanceDashboard() {
+    return this.performanceMonitor.getRealTimeDashboard();
+  }
+
+  /**
+   * Get current context strategy
+   */
+  getCurrentStrategy(): ContextStrategy | undefined {
+    return this.currentStrategy;
+  }
+
+  /**
+   * Get strategy recommendations for a context
+   */
+  getStrategyRecommendations(context: UnifiedProjectContext) {
+    return this.strategyManager.getStrategyRecommendations(context);
+  }
+
+  /**
+   * Set custom context strategy
+   */
+  setStrategy(strategyName: string) {
+    const strategy = this.strategyManager.getStrategy(strategyName as any);
+    if (strategy) {
+      this.currentStrategy = strategy;
+    }
   }
 }
