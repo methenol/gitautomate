@@ -10,6 +10,7 @@ import { generateTasks } from '@/ai/flows/generate-tasks';
 import { generateArchitecture } from '@/ai/flows/generate-architecture';
 import { ai } from '@/ai/litellm';
 import { z } from 'zod';
+import { ContextCompressor, CompressedContext } from '@/ai/utils/context-compression';
 
 const RefinementSuggestionSchema = z.object({
   component: z.enum(['architecture', 'fileStructure', 'specifications', 'tasks', 'dependencies']),
@@ -33,7 +34,84 @@ export type RefinementAnalysis = z.infer<typeof RefinementAnalysisSchema>;
 export class IterativeRefinementEngine {
   
   /**
-   * Build consistency analysis prompt in manageable sections
+   * Build optimized consistency analysis prompt using intelligent context compression
+   */
+  private buildOptimizedConsistencyPrompt(
+    context: UnifiedProjectContext,
+    validationResults: ValidationResult[],
+    maxTokens: number = 4000
+  ): string {
+    
+    // Use intelligent compression to fit within token limits
+    const compressed = ContextCompressor.compressForAnalysis(context, validationResults, {
+      maxTokens,
+      focusAreas: ['architecture', 'tasks', 'dependencies']
+    });
+    
+    // Build focused prompt with compressed context
+    const prompt = `You are an expert software architect conducting a comprehensive consistency analysis. 
+I've provided a compressed view of the project components optimized for analysis.
+
+COMPRESSED PROJECT CONTEXT:
+==========================
+
+PRD SUMMARY:
+${compressed.prd}
+
+ARCHITECTURE OVERVIEW:
+${compressed.architecture}
+
+SPECIFICATIONS SUMMARY:  
+${compressed.specifications}
+
+FILE STRUCTURE:
+${compressed.fileStructure}
+
+TASKS OVERVIEW (Prioritized by Dependencies):
+${compressed.tasks}
+
+VALIDATION ISSUES:
+${compressed.validationIssues}
+
+COMPRESSION STATS:
+- Compression Ratio: ${(compressed.compressionRatio * 100).toFixed(1)}%
+- Tokens Saved: ${compressed.tokensSaved}
+
+ANALYSIS REQUIREMENTS:
+=====================
+
+1. CONSISTENCY SCORING: Provide an overall consistency score (0-100):
+   - Architecture-PRD alignment (25 points)
+   - Task-Architecture coherence (25 points)  
+   - Dependency logic (25 points)
+   - Implementation feasibility (25 points)
+
+2. CRITICAL ISSUES: Identify top 3 issues that would prevent successful implementation:
+   - Missing essential components
+   - Logical contradictions
+   - Impossible dependencies
+   - Architecture-implementation mismatches
+
+3. REFINEMENT SUGGESTIONS: Provide focused, actionable suggestions:
+   - Specific component to modify
+   - Clear problem description
+   - Concrete improvement recommendation
+   - Priority level with reasoning
+
+4. RECOMMENDED ACTION: Choose the most appropriate next step:
+   - accept: Project is sufficiently consistent (score ≥ 85)
+   - refine_architecture: Architecture needs revision
+   - refine_tasks: Task breakdown needs improvement  
+   - refine_specifications: Specifications need clarification
+   - major_revision: Fundamental issues require major changes
+
+Provide your analysis as a JSON object conforming to the expected schema.`;
+
+    return prompt;
+  }
+
+  /**
+   * Build consistency analysis prompt in manageable sections (legacy method)
    */
   private buildConsistencyAnalysisPrompt(
     context: UnifiedProjectContext,
@@ -152,15 +230,8 @@ Details: ${this.truncateText(t.details, 200)}...`
     // First run structural validation
     const validationResults = ContextValidator.validateFullContext(context);
     
-    // Then perform AI-powered consistency analysis
-    const promptSections = this.buildConsistencyAnalysisPrompt(context, validationResults);
-    
-    // Combine all sections for the final prompt
-    const prompt = `You are an expert software architect conducting a comprehensive consistency analysis of a project plan. Analyze the following project components for logical consistency, completeness, and alignment.
-
-${promptSections.join('\n\n')}
-
-Provide your analysis as a JSON object conforming to the schema.`;
+    // Use optimized context compression for better token efficiency
+    const prompt = this.buildOptimizedConsistencyPrompt(context, validationResults);
 
     if (!model) {
       throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
@@ -182,6 +253,157 @@ Provide your analysis as a JSON object conforming to the schema.`;
     }
 
     return output as typeof RefinementAnalysisSchema._type;
+  }
+
+  /**
+   * Analyze project consistency using chunked approach for very large projects
+   */
+  async analyzeProjectConsistencyChunked(
+    context: UnifiedProjectContext,
+    apiKey?: string,
+    model?: string,
+    apiBase?: string
+  ): Promise<RefinementAnalysis> {
+    
+    const validationResults = ContextValidator.validateFullContext(context);
+    
+    // Estimate if we need chunking (rough token estimate)
+    const estimatedTokens = Math.ceil((
+      context.prd.length + 
+      context.architecture.length + 
+      context.specifications.length + 
+      context.fileStructure.length +
+      context.tasks.reduce((sum, task) => sum + task.title.length + task.details.length, 0)
+    ) / 4);
+    
+    // Use chunked approach for very large projects
+    if (estimatedTokens > 8000 || context.tasks.length > 20) {
+      return await this.performChunkedAnalysis(context, validationResults, apiKey, model, apiBase);
+    }
+    
+    // Use standard optimized analysis for normal-sized projects  
+    return await this.analyzeProjectConsistency(context, apiKey, model, apiBase);
+  }
+
+  /**
+   * Perform chunked analysis for large projects
+   */
+  private async performChunkedAnalysis(
+    context: UnifiedProjectContext,
+    validationResults: ValidationResult[],
+    apiKey?: string,
+    model?: string,
+    apiBase?: string
+  ): Promise<RefinementAnalysis> {
+    
+    // Analyze different aspects separately
+    const chunkTypes: ('architecture' | 'tasks' | 'dependencies' | 'cross-validation')[] = [
+      'architecture', 'tasks', 'dependencies', 'cross-validation'
+    ];
+    
+    const chunkAnalyses: Partial<RefinementAnalysis>[] = [];
+    
+    for (const chunkType of chunkTypes) {
+      const focusedContext = ContextCompressor.createFocusedChunks(context, validationResults, chunkType);
+      
+      const focusedPrompt = this.buildFocusedChunkPrompt(focusedContext, chunkType);
+      
+      if (!model) {
+        throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
+      }
+      
+      const { output } = await ai.generate({
+        model: model,
+        prompt: focusedPrompt,
+        output: { schema: RefinementAnalysisSchema },
+        config: (apiKey || apiBase) ? {
+          ...(apiKey && {apiKey}),
+          ...(apiBase && {apiBase})
+        } : undefined,
+      });
+
+      if (output) {
+        chunkAnalyses.push(output as typeof RefinementAnalysisSchema._type);
+      }
+    }
+    
+    // Combine chunk analyses into final result
+    return this.combineChunkAnalyses(chunkAnalyses);
+  }
+
+  /**
+   * Build focused prompt for specific chunk analysis
+   */
+  private buildFocusedChunkPrompt(compressed: CompressedContext, chunkType: string): string {
+    
+    const focusInstructions = {
+      architecture: 'Focus on architectural consistency, component relationships, and technical feasibility.',
+      tasks: 'Focus on task completeness, logical ordering, and implementation feasibility.',  
+      dependencies: 'Focus on dependency relationships, blocking issues, and execution flow.',
+      'cross-validation': 'Focus on cross-component alignment and overall project coherence.'
+    };
+    
+    return `You are analyzing a ${chunkType} aspect of a software project for consistency issues.
+
+${focusInstructions[chunkType as keyof typeof focusInstructions]}
+
+PROJECT CONTEXT (Compressed):
+============================
+
+PRD: ${compressed.prd}
+ARCHITECTURE: ${compressed.architecture}  
+SPECIFICATIONS: ${compressed.specifications}
+FILE STRUCTURE: ${compressed.fileStructure}
+TASKS: ${compressed.tasks}
+VALIDATION ISSUES: ${compressed.validationIssues}
+
+ANALYSIS FOCUS: ${chunkType.toUpperCase()}
+================================
+
+Provide analysis as JSON focusing specifically on ${chunkType}-related consistency issues.
+Rate consistency 0-100 for this aspect and provide targeted suggestions.`;
+  }
+
+  /**
+   * Combine multiple chunk analyses into unified result
+   */
+  private combineChunkAnalyses(analyses: Partial<RefinementAnalysis>[]): RefinementAnalysis {
+    
+    // Calculate average consistency score
+    const scores = analyses.map(a => a.overallConsistency || 0).filter(s => s > 0);
+    const averageConsistency = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+    
+    // Combine all suggestions and issues
+    const allSuggestions = analyses.flatMap(a => a.suggestions || []);
+    const allIssues = analyses.flatMap(a => a.criticalIssues || []);
+    
+    // Determine recommended action based on lowest consistency area
+    const lowestScore = Math.min(...scores);
+    let recommendedAction: RefinementAnalysis['recommendedAction'] = 'accept';
+    
+    if (lowestScore < 70) {
+      recommendedAction = 'major_revision';
+    } else if (lowestScore < 80) {
+      // Determine which specific area needs most work
+      const architectureScore = analyses.find(a => a.suggestions?.some(s => s.component === 'architecture'))?.overallConsistency || 100;
+      const taskScore = analyses.find(a => a.suggestions?.some(s => s.component === 'tasks'))?.overallConsistency || 100;
+      const specScore = analyses.find(a => a.suggestions?.some(s => s.component === 'specifications'))?.overallConsistency || 100;
+      
+      if (architectureScore <= taskScore && architectureScore <= specScore) {
+        recommendedAction = 'refine_architecture';
+      } else if (taskScore <= specScore) {
+        recommendedAction = 'refine_tasks';
+      } else {
+        recommendedAction = 'refine_specifications';
+      }
+    }
+    
+    return {
+      overallConsistency: averageConsistency,
+      criticalIssues: allIssues.slice(0, 5), // Top 5 issues
+      suggestions: allSuggestions.slice(0, 8), // Top 8 suggestions  
+      recommendedAction
+    };
   }
 
   async applyRefinements(

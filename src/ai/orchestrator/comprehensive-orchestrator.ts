@@ -153,8 +153,8 @@ export class ComprehensiveOrchestrator {
       for (let i = 0; i < maxRefinementIterations; i++) {
         iterationCount = i + 1;
         
-        // Analyze consistency
-        const analysis = await this.refinementEngine.analyzeProjectConsistency(context, apiKey, model, apiBase);
+        // Analyze consistency using intelligent context management  
+        const analysis = await this.refinementEngine.analyzeProjectConsistencyChunked(context, apiKey, model, apiBase);
         consistencyScore = analysis.overallConsistency;
         
         debugInfo.refinementHistory.push(
