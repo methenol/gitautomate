@@ -487,12 +487,11 @@ export class SpecKitIntegration {
         specifications = content;
       } else if (content.includes('[NEEDS CLARIFICATION')) {
         // Extract ambiguities
-        const ambiguityMatches = content.match(/\[NEEDS CLARIFICATION:([^\]]+)\]/g);
-        if (ambiguityMatches) {
-          ambiguityMatches.forEach(match => {
-            const question = match.replace('[NEEDS CLARIFICATION:', '').replace(']', '');
-            ambiguities.push({ field: 'general', question });
-          });
+        const ambiguityPattern = /\[NEEDS CLARIFICATION:([^\]]+)\]/g;
+        let match;
+        while ((match = ambiguityPattern.exec(content)) !== null) {
+          const question = match[1].trim();
+          ambiguities.push({ field: 'general', question });
         }
       }
     }
