@@ -226,56 +226,6 @@ Based on the information above, generate a comprehensive implementation plan tha
 
 CRITICAL: Generate actual, detailed content specific to this task title and architecture. Do not output generic template placeholders.`;
 
-2. **Integration Testing**: Test with dependent modules
-3. **Contract Compliance**: Ensure API contracts are satisfied
-
-## Technical Requirements (from Architecture & Specifications)
-- Technology Stack: Extract specific technologies from the architecture specification
-- Performance Constraints: Define response time targets and throughput requirements
-- Security Requirements: [Authentication, authorization]  
-- Data Models: Define entity relationships from the specifications
-
-## Acceptance Criteria
-This task is complete when:
-- [ ] All tests pass consistently  
-- [ ] Implementation follows architecture patterns
-- [ ] Integration points work correctly
-- [ ] Performance targets are met
-- [ ] Security requirements satisfied
-
-## Dependencies and Prerequisites
-- **Required Tasks**: Identify any dependent task IDs that must be completed
-- **External Services**: List required APIs, databases, and third-party services
-- **Configuration Setup**: Define environment variables and configuration files needed
-
-## Required Libraries
-Based on the architecture specifications include all necessary dependencies:
-- Core language and framework libraries (e.g., Express.js, React, TypeScript)
-- Testing frameworks for TDD compliance
-- Database drivers or query builders as specified in architecture
-
-## Implementation Notes
-- Follow Test-Driven Development principles strictly: Write tests before implementation, ensure RED-GREEN-REFACTOR cycle
-- Maintain separation of concerns between components to ensure modularity and testability  
-- Use established coding patterns from the architecture for consistency across the project
-- Ensure proper error handling and logging with meaningful error messages for debugging
-
-## Constitution Check (Spec-Kit Principles)
-Based on Spec-Kit constitutional principles:
-- [ ] **Library First**: Feature designed as standalone library with clear boundaries
-- [ ] **Test First**: Tests written before implementation (TDD compliance verified)
-- [ ] **Simplicity Gate**: Using ≤3 projects? No unnecessary abstraction layers?
-- [ ] **Anti-Abstraction**: Use framework features directly rather than wrapping
-
----
-
-Architecture Context:
-{{{architecture}}}
-
-Specifications:  
-{{{specifications}}}
-`;
-
 
 export class SpecKitIntegration {
   /**
