@@ -286,6 +286,13 @@ Specifications:
 {{specifications}}}
 `;
 
+  /**
+   * Sanitize filenames for consistent naming
+   */
+  private sanitizeFilename(name: string): string {
+    return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '');
+  }
+
 export class SpecKitIntegration {
   /**
    * Generate enhanced architecture using spec-kit principles
@@ -321,10 +328,10 @@ export class SpecKitIntegration {
         // Parse and validate the generated specification
         const parsedSpec = await this.parseSpecification(markdownContent);
         
-        // Lint the output for quality
+        // Lint the output for quality using helper method
         const lintResult = await MarkdownLinter.lintAndFix(
           markdownContent, 
-          `spec-${featureName.toLowerCase().replace(/\s+/g, '-')}.md`
+          this.sanitizeFilename(`spec-${featureName}`)
         );
 
         if (lintResult.isValid) {
@@ -413,8 +420,8 @@ export class SpecKitIntegration {
       throw new Error('Model is required. Please provide a model in "provider/model" format.');
     }
 
-    const testFilePath = `tests/${input.title.toLowerCase().replace(/\s+/g, '-')}.test.ts`;
-    const mainFile = `src/${input.title.toLowerCase().replace(/\s+/g, '-')}.ts`;
+    const testFilePath = `tests/${this.sanitizeFilename(input.title)}.test.ts`;
+    const mainFile = `src/${this.sanitizeFilename(input.title)}.ts`;
     const configFile = input.fileStructure ? 'config/index.ts' : undefined;
 
     const prompt = TASK_DETAILS_TEMPLATE
@@ -436,10 +443,10 @@ export class SpecKitIntegration {
 
         const markdownContent = output as string;
         
-        // Lint and enhance the task details
+        // Lint and enhance the task details using helper method
         const lintResult = await MarkdownLinter.lintAndFix(
           markdownContent,
-          `task-${input.title.toLowerCase().replace(/\s+/g, '-')}.md`
+          this.sanitizeFilename(`task-${input.title}`)
         );
 
         if (lintResult.isValid) {
@@ -741,4 +748,18 @@ export class SpecKitIntegration {
 
 // Export singleton instance for easy use
 export const specKitIntegration = new SpecKitIntegration();
+
+/**
+ * Standalone research task function compatible with existing orchestrator interface
+ */
+export async function generateTaskDetailsWithSpecKitStandalone(
+  input: SpecKitTaskDetailsInput,
+  apiKey?: string,
+  model?: string,
+  temperature = 0.7
+): Promise<SpecKitTaskDetailsOutput> {
+  
+  const integrationInstance = new SpecKitIntegration();
+  return await integrationInstance.generateTaskDetailsWithSpecKitResearch(input, apiKey, model, temperature);
+}
 

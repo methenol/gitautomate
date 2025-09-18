@@ -216,7 +216,7 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
           console.log(`✅ Enhanced research for task "${task.title}" completed with spec-kit integration`);
           
         } catch (error) {
-          console.warn('Spec-kit research for task "%s" failed, falling back to legacy:', task.title, error);
+          console.warn(`Spec-kit research for task "${task.title}" failed, falling back to legacy:`, error);
           
           // Fallback to original implementation
           researchResult = await researchTask(

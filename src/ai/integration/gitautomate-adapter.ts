@@ -16,7 +16,7 @@ import { researchTask } from '@/ai/flows/research-task';
 import { specKitIntegration, SpecKitArchitectureInput, SpecKitTasksInput, SpecKitTaskDetailsInput } from './spec-kit-integration';
 import { GenerateArchitectureOutput } from '@/ai/flows/generate-architecture';
 import type { GenerateTasksOutput } from '@/ai/flows/generate-tasks';
-// import { TaskSchema } from '@/types'; // TaskSchema is currently unused
+
 
 // Legacy input/output types for backward compatibility
 type GenerateArchitectureLegacyInput = {
