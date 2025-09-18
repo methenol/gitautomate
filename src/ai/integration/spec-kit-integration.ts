@@ -773,6 +773,10 @@ export async function researchTaskEnhanced(
   temperature = 0.7
 ): Promise<SpecKitTaskDetailsOutput> {
   
+  if (!model) {
+    throw new Error('Model is required. Please provide a model in "provider/model" format.');
+  }
+
   // Use the enhanced task details generation with spec-kit principles
   const result = await generateTaskDetailsWithSpecKitStandalone(input, apiKey, model, temperature);
   
@@ -783,5 +787,82 @@ export async function researchTaskEnhanced(
     markdownContent: enhancedContent,
     validationResults: result.validationResults
   };
+}
+
+/**
+ * Enhance task content with spec-kit principles and validation
+ */
+async function enhanceWithSpecKitPrinciples(content: string, input: SpecKitTaskDetailsInput): Promise<string> {
+  
+  // Apply TDD validation from spec-kit constitution
+  const tddValidation = validateTDDCompliance(content);
+  
+  // Apply simplicity gate check
+  const contentWithSimplicity = applySimplicityGate(content, input);
+  
+  // Apply anti-abstraction principle check
+  const contentWithAbstractionCheck = applyAntiAbstractionPrinciple(contentWithSimplicity);
+  
+  // Add parallel execution guidance if applicable
+  const finalContent = enhanceWithParallelExecutionGuidance(contentWithAbstractionCheck, input);
+  
+  return finalContent;
+}
+
+/**
+ * Validate TDD compliance following spec-kit constitution
+ */
+function validateTDDCompliance(content: string): boolean {
+  const hasRedGreenRefactor = content.toLowerCase().includes('red') && 
+                            content.toLowerCase().includes('green') &&
+                            content.toLowerCase().includes('refactor');
+  
+  const hasTestFirstOrder = /tests.*before.*implementation|failing tests.*pass/im.test(content);
+  
+  return hasRedGreenRefactor && hasTestFirstOrder;
+}
+
+/**
+ * Apply simplicity gate from spec-kit constitution
+ */
+function applySimplicityGate(content: string, input: SpecKitTaskDetailsInput): string {
+  const projectCount = (content.match(/project|service/g) || []).length;
+  
+  if (projectCount > 3 && !content.includes('justified complexity')) {
+    content += '\n\n## Constitution Check\n- [ ] Simplicity Gate: Task involves multiple projects - ensure complexity is justified';
+  }
+  
+  return content;
+}
+
+/**
+ * Apply anti-abstraction principle from spec-kit constitution
+ */
+function applyAntiAbstractionPrinciple(content: string): string {
+  const hasUnnecessaryWrappers = /wrapper|abstraction layer|interface overuse/im.test(content);
+  
+  if (hasUnnecessaryWrappers) {
+    content += '\n\n## Anti-Abstraction Check\n- [ ] Consider using framework features directly rather than unnecessary wrappers';
+  }
+  
+  return content;
+}
+
+/**
+ * Enhance with parallel execution guidance from spec-kit
+ */
+function enhanceWithParallelExecutionGuidance(content: string, input: SpecKitTaskDetailsInput): string {
+  const fileMatches = content.match(/src\/[^/]+\.ts|tests\/[^/]+\.test\.ts/g);
+  
+  if (fileMatches && fileMatches.length > 1) {
+    const uniqueFiles = [...new Set(fileMatches)];
+    
+    if (uniqueFiles.length > 1 && !content.includes('[P]')) {
+      const parallelGuidance = `\n## Parallel Execution\nThis task involves ${uniqueFiles.length} different files and can be marked [P] for parallel execution if dependencies allow.`;
+      content += parallelGuidance;
+    }
+  }
+  
+  return content;
 }
 
