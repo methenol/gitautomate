@@ -206,15 +206,15 @@ Generate actionable tasks following this template and constitution principles.
 `;
 
 const TASK_DETAILS_TEMPLATE = `
-# Task Implementation Plan: [TASK_TITLE]
+# Task Implementation Plan: {{{taskTitle}}}
 
 ## Context
 This task is part of a larger feature implementation. The architecture emphasizes modular design with clear separation of concerns.
 
 ### Position in Architecture
-- **Feature**: [Extract from architecture]
-- **Dependencies**: [Related tasks and components]  
-- **Integration Points**: [How this connects to other systems]
+- **Feature**: Extract from architecture context below
+- **Dependencies**: Related tasks and components  
+- **Integration Points**: How this connects to other systems
 
 ## Implementation Steps (Enhanced GitAutomate)
 
@@ -236,26 +236,26 @@ This task is part of a larger feature implementation. The architecture emphasize
 
 ### Phase 2: Implementation Details
 #### Files to Create/Modify
-- **{{{mainFile}}}**: [Primary implementation]
-- **{{{testFile}}}**: [Unit and integration tests]  
-- **{{{configFile}}}?**: [Configuration if needed]
+- **{{{mainFile}}}**: Primary implementation file for this task's functionality
+- **{{{testFile}}}**: Unit and integration tests following TDD principles  
+- **{{{configFile}}}?**: Configuration file if required by architecture
 
 #### Key Components
-1. **Core Logic**: [Describe the main functionality]
-2. **Data Validation**: [Input validation rules]
-3. **Error Handling**: [Exception handling patterns]
-4. **Integration Points**: [How this connects to other services]
+1. **Core Logic**: Describe the main functionality including business logic and data processing steps
+2. **Data Validation**: Input validation rules, sanitization requirements, and business rule enforcement  
+3. **Error Handling**: Exception types, error messages, logging patterns, and graceful degradation
+4. **Integration Points**: API connections, database interactions, external service integrations
 
 ### Phase 3: Integration & Validation
-1. **Unit Testing**: Verify individual components work correctly
+1. **Unit Testing**: Verify individual components work correctly in isolation
 2. **Integration Testing**: Test with dependent modules
 3. **Contract Compliance**: Ensure API contracts are satisfied
 
 ## Technical Requirements (from Architecture & Specifications)
-- Technology Stack: [Extract from architecture]
-- Performance Constraints: [Response times, scalability]
+- Technology Stack: Extract specific technologies from the architecture specification
+- Performance Constraints: Define response time targets and throughput requirements
 - Security Requirements: [Authentication, authorization]  
-- Data Models: [Entity definitions and relationships]
+- Data Models: Define entity relationships from the specifications
 
 ## Acceptance Criteria
 This task is complete when:
@@ -266,16 +266,28 @@ This task is complete when:
 - [ ] Security requirements satisfied
 
 ## Dependencies and Prerequisites
-- **Required Tasks**: [List dependent task IDs]
-- **External Services**: [APIs, databases, etc.]
-- **Configuration Setup**: [Environment variables, configs]
+- **Required Tasks**: Identify any dependent task IDs that must be completed
+- **External Services**: List required APIs, databases, and third-party services
+- **Configuration Setup**: Define environment variables and configuration files needed
+
+## Required Libraries
+Based on the architecture specifications include all necessary dependencies:
+- Core language and framework libraries (e.g., Express.js, React, TypeScript)
+- Testing frameworks for TDD compliance
+- Database drivers or query builders as specified in architecture
 
 ## Implementation Notes
-- Follow Test-Driven Development principles strictly
-- Maintain separation of concerns between components  
-- Use established coding patterns from the architecture
-- Ensure proper error handling and logging
-- Document any assumptions or design decisions
+- Follow Test-Driven Development principles strictly: Write tests before implementation, ensure RED-GREEN-REFACTOR cycle
+- Maintain separation of concerns between components to ensure modularity and testability  
+- Use established coding patterns from the architecture for consistency across the project
+- Ensure proper error handling and logging with meaningful error messages for debugging
+
+## Constitution Check (Spec-Kit Principles)
+Based on Spec-Kit constitutional principles:
+- [ ] **Library First**: Feature designed as standalone library with clear boundaries
+- [ ] **Test First**: Tests written before implementation (TDD compliance verified)
+- [ ] **Simplicity Gate**: Using ≤3 projects? No unnecessary abstraction layers?
+- [ ] **Anti-Abstraction**: Use framework features directly rather than wrapping
 
 ---
 
