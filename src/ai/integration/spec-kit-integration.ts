@@ -520,7 +520,7 @@ export class SpecKitIntegration {
       if (taskMatch) {
         tasks.push({
           id: taskMatch[1],
-          title: taskMatch[2].replace(/^\s*[-\[\]]+\s*/, ''), // Remove checkbox
+          title: taskMatch[2].replace(/^\s*[-[\]]+\s*/, ''), // Remove checkbox
           description: taskMatch[2],
           type: this.categorizeTask(taskMatch[2]),
           dependencies: [],
@@ -557,7 +557,7 @@ export class SpecKitIntegration {
     if (desc.includes('setup') || desc.includes('config')) return 1;
     if (desc.includes('test') && desc.includes('[P]')) return 2; // Parallel tests
     if (desc.includes('model') || desc.includes('service')) return 3;
-    if (docstring.includes('endpoint') || docstring.includes('api')) return 4;
+    if (desc.includes('endpoint') || desc.includes('api')) return 4;
     
     return 2; // Default
   }
@@ -641,12 +641,12 @@ export class SpecKitIntegration {
     
     // Common file path patterns
     if (description.includes('src/')) {
-      const srcMatch = description.match(/src\/[^\s\)]+/g);
+      const srcMatch = description.match(/src\/[^\s)]+/g);
       if (srcMatch) patterns.push(...srcMatch);
     }
     
     if (description.includes('tests/')) {
-      const testMatch = description.match(/tests\/[^\s\)]+/g);
+      const testMatch = description.match(/tests\/[^\s)]+/g);
       if (testMatch) patterns.push(...testMatch);
     }
 

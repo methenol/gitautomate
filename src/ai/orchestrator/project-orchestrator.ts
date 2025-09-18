@@ -88,7 +88,7 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
         console.log('✅ Enhanced task generation completed with spec-kit integration');
         
         // Transform tasks to include dependency tracking
-        context.tasks = tasksResult.tasks.map((task, index) => ({
+        context.tasks = tasksResult.tasks.map((task: any, index: number) => ({
           ...task,
           id: `task-${index + 1}`,
           order: index + 1,

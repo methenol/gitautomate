@@ -14,8 +14,9 @@ import { generateArchitecture } from '@/ai/flows/generate-architecture';
 import { generateTasks } from '@/ai/flows/generate-tasks'; 
 import { researchTask } from '@/ai/flows/research-task';
 import { specKitIntegration, SpecKitArchitectureInput, SpecKitTasksInput, SpecKitTaskDetailsInput } from './spec-kit-integration';
-import { GenerateArchitectureOutput, GenerateTasksOutput, ResearchTaskInput } from '@/ai/flows/generate-architecture';
-import { TaskSchema } from '@/types';
+import { GenerateArchitectureOutput } from '@/ai/flows/generate-architecture';
+import type { GenerateTasksOutput } from '@/ai/flows/generate-tasks';
+// import { TaskSchema } from '@/types'; // TaskSchema is currently unused
 
 // Legacy input/output types for backward compatibility
 type GenerateArchitectureLegacyInput = {
@@ -114,7 +115,7 @@ export async function generateTasksEnhanced(
     console.warn('Spec-kit integration failed, falling back to legacy generation:', specKitError);
     
     // Fallback to original implementation
-    return generateTasks(input, apiKey, model, apiBase, useTDD, temperature);
+    return generateTasks(input as any, apiKey, model, apiBase, useTDD, temperature);
   }
 }
 
@@ -155,7 +156,7 @@ export async function researchTaskEnhanced(
     console.warn('Spec-kit integration failed, falling back to legacy generation:', specKitError);
     
     // Fallback to original implementation
-    return researchTask(input, apiKey, model, apiBase, useTDD, temperature);
+    return researchTask(input as any, apiKey, model, apiBase, useTDD, temperature);
   }
 }
 
@@ -219,7 +220,7 @@ export class EnhancedProjectOrchestrator {
       );
 
       // Step 3: Generate task details for each task using enhanced version  
-      const tasksWithDetails = [];
+      const tasksWithDetails: Array<{title: string, details?: string}> = [];
       
       for (let i = 0; i < tasksResult.tasks.length; i++) {
         const task = tasksResult.tasks[i];
@@ -259,7 +260,7 @@ export class EnhancedProjectOrchestrator {
           ...task,
           id: `task-${index + 1}`,
           order: index + 1,
-          dependencies: this.inferTaskDependencies(task.title, tasksWithDetails),
+          dependencies: this.inferTaskDependencies(task.title, tasksWithDetails as any[]),
           status: 'pending' as const,
         })),
         validationResults: {
@@ -420,12 +421,12 @@ export class EnhancedProjectOrchestrator {
     const patterns = [];
     
     if (title.includes('src/')) {
-      const srcMatch = title.match(/src\/[^\s\)]+/g);
+      const srcMatch = title.match(/src\/[^\s)]+/g);
       if (srcMatch) patterns.push(...srcMatch);
     }
     
     if (title.includes('tests/')) {
-      const testMatch = title.match(/tests\/[^\s\)]+/g);
+      const testMatch = title.match(/tests\/[^\s)]+/g);
       if (testMatch) patterns.push(...testMatch);
     }
 
