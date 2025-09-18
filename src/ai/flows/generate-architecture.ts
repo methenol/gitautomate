@@ -2,6 +2,11 @@
 
 /**
  * @fileOverview This file defines a Genkit flow for generating a software architecture and specifications from a PRD.
+ * Inspired by spec-kit patterns, this implementation includes:
+ * - Phase-based execution (Research → Design → Planning)
+ * - Technical context extraction with NEEDS CLARIFICATION markers  
+ * - Structured output formats aligned with spec-kit templates
+ * - Quality gates for requirement completeness
  *
  * - generateArchitecture - A function that takes a PRD as input and returns a proposed software architecture and specifications.
  * - GenerateArchitectureInput - The input type for the generateArchitecture function, which includes the PRD.
@@ -11,6 +16,10 @@
 import {ai} from '@/ai/litellm';
 import {z} from 'zod';
 import { MarkdownLinter } from '@/services/markdown-linter';
+
+// Load spec-kit inspired templates
+import specTemplate from '@/ai/templates/spec-template.md?raw';
+import planTemplate from '@/ai/templates/plan-template.md?raw';
 
 const GenerateArchitectureInputSchema = z.object({
   prd: z
@@ -48,46 +57,53 @@ export async function generateArchitecture(
   while (retries > 0) {
     const {output} = await ai.generate({
       model: model,
-      prompt: `You are a senior software architect tasked with creating a comprehensive software architecture and detailed specifications from a Product Requirements Document (PRD).
+      prompt: `You are a senior software architect following spec-kit patterns to create comprehensive software architecture, specifications, and implementation plans from a Product Requirements Document (PRD).
 
-Based on the following PRD, generate BOTH a software architecture AND detailed specifications. These are two separate deliverables that must both be fully developed.
+**FOLLOW THIS EXACT WORKFLOW**:
+1. Phase 0: Research & Clarification - Extract all unknowns and mark with [NEEDS CLARIFICATION]
+2. Phase 1: Design - Create structured architecture and specifications  
+3. Phase 2: Planning - Generate implementation plan structure
 
-**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
+**CRITICAL OUTPUT FORMAT**: You MUST output ONLY valid markdown following spec-kit template patterns. Use proper headers, lists, code blocks, and formatting.
 
-**ARCHITECTURE** should include:
-- High-level system design and component structure
-- Technology stack and framework choices
-- Data flow and integration patterns
-- Security considerations and architecture patterns
-- Scalability and performance considerations
-- Deployment and infrastructure approach
+**ARCHITECTURE REQUIREMENTS**:
+- High-level system design with clear component boundaries
+- Technology stack selection with rationale (avoid vague choices)
+- Data flow diagrams (as text descriptions)
+- Security architecture with threat mitigation strategies
+- Scalability considerations and performance bottleneck planning
+- Deployment strategy with infrastructure recommendations
 
-**SPECIFICATIONS** should include:
-- Detailed functional requirements
-- User stories and use cases
-- API endpoints and data models
-- User interface requirements
-- Business logic and workflows
-- Non-functional requirements (performance, security, etc.)
-- Integration requirements
-- Data processing and validation rules
+**SPECIFICATIONS REQUIREMENTS**:
+- Detailed functional requirements (testable, measurable)
+- User stories in Gherkin-style format (Given/When/Then)
+- Data models with entity relationships and validation rules
+- API specifications (REST/GraphQL endpoints, request/response formats)
+- UI wireframe descriptions (key screens, user flows)
+- Non-functional requirements with clear success criteria
+- Integration points and external dependency specifications
 
-CRITICAL: The specifications MUST be comprehensive and standalone - they should NOT reference the architecture or say "see architecture above". Both sections must contain detailed, actionable content. You MUST include BOTH an architecture and specification.
+**QUALITY GATES**:
+- All technical assumptions must be marked with [NEEDS CLARIFICATION] if not explicitly stated in PRD
+- Requirements must be actionable and implementable (no vague "improve performance" statements)
+- Data models must include all entities mentioned in user stories
+- Architecture must align with common industry best practices for the identified technology stack
 
 PRD:
 ${input.prd}
 
-You must structure your response with two main sections separated by a markdown heading:
+**STRUCTURE YOUR RESPONSE WITH THESE SECTIONS**:
 
-# Architecture
+# Feature Specification
+{Follow the spec-template.md format with all mandatory sections}
 
-{Your complete architecture content here in markdown format}
+# Implementation Plan  
+{Follow the plan-template.md format including Technical Context, Project Structure, and Phases}
 
-# Specifications
+# Architecture Details
+{Your complete architecture content with clear component diagrams as text}
 
-{Your complete specifications content here in markdown format}
-
-**IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`,
+**IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Use proper section headers and follow the spec-kit template structures provided.**`,
       config: (apiKey || apiBase || temperature !== undefined) ? {
         ...(apiKey && {apiKey}),
         ...(apiBase && {apiBase}),
@@ -101,37 +117,46 @@ You must structure your response with two main sections separated by a markdown 
     
     let architecture = '';
     let specifications = '';
+    let featureSpec = '';
     
     for (const section of sections) {
       const lines = section.trim().split('\n');
       const title = lines[0].toLowerCase();
       const content = lines.slice(1).join('\n').trim();
       
-      if (title.includes('architecture')) {
+      if (title.includes('architecture') || title.includes('architecture details')) {
         architecture = content;
       } else if (title.includes('specification') || title.includes('spec')) {
         specifications = content;
+      } else if (title.includes('feature specification')) {
+        featureSpec = content;
       }
     }
     
     // If sections not found by header parsing, try fallback splitting
     if (!architecture || !specifications) {
-      const fallbackSplit = markdownContent.split(/(?=# (?:Architecture|Specifications?))/i);
+      const fallbackSplit = markdownContent.split(/(?=# (?:Architecture|Specifications?|Feature Specification))/i);
       for (const part of fallbackSplit) {
         if (part.toLowerCase().includes('architecture')) {
           architecture = part.replace(/^# Architecture\s*/i, '').trim();
         } else if (part.toLowerCase().includes('specification')) {
           specifications = part.replace(/^# Specifications?\s*/i, '').trim();
+        } else if (part.toLowerCase().includes('feature specification')) {
+          featureSpec = part.replace(/^# Feature Specification\s*/i, '').trim();
         }
       }
     }
     
-    // Ensure we have both sections
+    // Ensure we have both core sections - feature spec becomes the new "specifications"
     if (!architecture) {
-      architecture = markdownContent.split(/# Specifications?/i)[0].replace(/^# Architecture\s*/i, '').trim();
+      const archMatch = markdownContent.match(/# Architecture\s*([\s\S]*?)(?=\n# |$)/i);
+      architecture = archMatch ? archMatch[1].trim() : '';
     }
-    if (!specifications) {
-      const specMatch = markdownContent.match(/# Specifications?([\s\S]*)$/i);
+    
+    if (!specifications && featureSpec) {
+      specifications = featureSpec; // Use feature spec as primary specification if available
+    } else if (!specifications) {
+      const specMatch = markdownContent.match(/# Specifications?\s*([\s\S]*)$/i);
       specifications = specMatch ? specMatch[1].trim() : '';
     }
 

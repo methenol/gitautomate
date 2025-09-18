@@ -1,9 +1,9 @@
 'use server';
 
 /**
- * @fileOverview Transforms the architecture and specifications into actionable task titles.
+ * @fileOverview Transforms the architecture and specifications into actionable task titles following spec-kit patterns.
  *
- * - generateTasks - A function that transforms architecture and specifications into task titles.
+ * - generateTasks - A function that transforms architecture and specifications into structured, ordered tasks.
  * - GenerateTasksInput - The input type for the generateTasks function.
  * - GenerateTasksOutput - The return type for the generateTasks function.
  * - Task - The type for an individual task. Details are populated in a separate step.
@@ -12,6 +12,9 @@
 import {ai} from '@/ai/litellm';
 import { TaskSchema } from '@/types';
 import {z} from 'zod';
+
+// Load spec-kit inspired templates
+import tasksTemplate from '@/ai/templates/tasks-template.md?raw';
 
 
 const _GenerateTasksInputSchema = z.object({
@@ -27,44 +30,29 @@ const GenerateTasksOutputSchema = z.object({
 });
 export type GenerateTasksOutput = z.infer<typeof GenerateTasksOutputSchema>;
 
-const standardPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable, granular development task *titles*.
+const standardPrompt = `You are a lead software engineer following spec-kit patterns to create a detailed, structured project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable development tasks following strict phase-based organization.
 
-**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting.**
+**FOLLOW SPEC-KIT TASK GENERATION RULES**:
+1. **Phase Order**: Setup → Tests → Core Implementation → Integration → Polish (Tests MUST come before implementation)
+2. **Task Structure**: Use the tasks-template.md format with clear phases and sections  
+3. **Dependency Awareness**: Ensure tasks follow logical dependency order (models before services, tests before implementation)
+4. **File Specificity**: Include exact file paths when relevant (e.g., "models/user.ts", "tests/unit/auth.test.ts")
+5. **Comprehensiveness**: Cover ALL aspects of the architecture, specifications, and file structure
 
-CRITICAL: Each item in your response MUST be an actionable development task. DO NOT include section headings, organizational markers, or grouping labels like "--BACKEND FOUNDATION--" or "## Frontend Tasks". Every single task title must represent a concrete, implementable unit of work that an AI programmer can execute.
+**CRITICAL OUTPUT FORMAT**: You MUST output ONLY valid markdown following the tasks-template.md structure. Use proper headers, lists, and code blocks. DO NOT output JSON or any other format.
 
-You MUST generate a COMPREHENSIVE set of tasks that covers ALL aspects of the PRD, architecture, and specifications. Generate at least 10-15 tasks for a typical project, more for complex projects. Do not generate just 1-2 tasks - break down the work into meaningful, actionable chunks.
+**TASK CATEGORIES TO INCLUDE**:
+- **Phase 1: Setup**: Project initialization, dependencies, configuration  
+- **Phase 2: Tests First**: Test structure and failing tests (MUST come before implementation)
+- **Phase 3: Core Implementation**: Models, services, core functionality (ONLY after tests are failing)
+- **Phase 4: Integration**: Database connections, API routes, external integrations
+- **Phase 5: Polish**: Documentation, performance tuning, final validation
 
-The tasks must be generated in a strict, sequential order that a developer would follow. Start with foundational tasks like project setup (which must include configuring pre-commit git hooks to enforce code styles, run tests, and check for syntax errors), creating the component library, and configuring CI/CD. Then, build out the features in a logical sequence, ensuring that any dependencies are addressed in prior tasks. For example, user authentication should be built before features that require a logged-in user.
-
-These tasks are for an AI programmer, so they must be clear, unambiguous, and represent a single, contained unit of work. The tasks should represent meaningful chunks of work. Avoid creating tasks that are too small or trivial. For example, "Implement user login page" is a good task, but "Add password input to login form" is too granular.
-
-Architecture:
-{{{architecture}}}
-
-File Structure:
-{{{fileStructure}}}
-
-Specifications:
-{{{specifications}}}
-
-Output format: List each task as a markdown bullet point. Do not include task details - just the task titles.
-
-**IMPORTANT: Output ONLY markdown content with a bulleted list of task titles. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`;
-
-const tddPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable, granular development task *titles*.
-
-**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting.**
-
-CRITICAL: Each item in your response MUST be an actionable development task. DO NOT include section headings, organizational markers, or grouping labels like "--BACKEND FOUNDATION--" or "## Frontend Tasks". Every single task title must represent a concrete, implementable unit of work that an AI programmer can execute.
-
-You MUST generate a COMPREHENSIVE set of tasks that covers ALL aspects of the PRD, architecture, and specifications. Generate at least 10-15 tasks for a typical project, more for complex projects. Do not generate just 1-2 tasks - break down the work into meaningful, actionable chunks.
-
-The tasks must be generated in a strict, sequential order that a developer would follow. Start with foundational tasks like project setup (which must include configuring pre-commit git hooks to enforce code styles, run tests, and check for syntax errors), creating the component library, and configuring CI/CD. The very next task must be to "Configure the testing environment". Then, build out the features in a logical sequence, ensuring that any dependencies are addressed in prior tasks. For example, user authentication should be built before features that require a logged-in user.
-
-These tasks are for an AI programmer, so they must be clear, unambiguous, and represent a single, contained unit of work. The tasks should represent meaningful chunks of work. Avoid creating tasks that are too small or trivial. For example, "Implement user login page" is a good task, but "Add password input to login form" is too granular.
-
-For each task, the implementation must strictly follow all phases of Test-Driven Development (Red-Green-Refactor).
+**TASK QUALITY STANDARDS**:
+- Each task must be actionable and represent a single, implementable unit of work
+- Avoid overly granular tasks (e.g., "Implement user login" is good; "Add password field" is too small)
+- Include file paths for all code-related tasks
+- Follow strict sequential ordering based on dependencies
 
 Architecture:
 {{{architecture}}}
@@ -75,9 +63,70 @@ File Structure:
 Specifications:
 {{{specifications}}}
 
-Output format: List each task as a markdown bullet point. Do not include task details - just the task titles.
+**OUTPUT FORMAT**: Follow the exact structure from tasks-template.md with these sections:
+# Tasks: [Feature Name]
+## Phase 1: Setup
+- [ ] Task title with file path if relevant
+## Phase 2: Tests First ⚠️ (MUST complete before implementation)
+- [ ] Task title with file path if relevant  
+## Phase 3: Core Implementation (ONLY after tests are failing)
+- [ ] Task title with file path if relevant
+## Phase 4: Integration
+- [ ] Task title with file path if relevant
+## Phase 5: Polish & Validation
+- [ ] Task title with file path if relevant
 
-**IMPORTANT: Output ONLY markdown content with a bulleted list of task titles. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`;
+**IMPORTANT: Output ONLY markdown content following the tasks-template.md structure. Do not include JSON or any other formatting.**`;
+
+const tddPrompt = `You are a lead software engineer following spec-kit patterns to create a Test-Driven Development (TDD) focused project plan for an AI programmer. Your task is to break down architecture, file structure, and specifications into actionable tasks that strictly follow Red-Green-Refactor methodology.
+
+**FOLLOW SPEC-KIT TDD RULES**:
+1. **Strict Phase Order**: Setup → Test Structure → Red (Failing Tests) → Green (Implement Minimum Code) → Refactor → Next Feature
+2. **Test-Driven Structure**: Every implementation task must be preceded by its corresponding test task  
+3. **Explicit TDD Markers**: Clearly distinguish between test tasks and implementation tasks
+4. **Dependency Enforcement**: Tests for Component A must be written before tests for Component B that depends on A
+5. **File Specificity**: Include exact file paths for both tests and implementation files
+
+**CRITICAL OUTPUT FORMAT**: You MUST output ONLY valid markdown following the tasks-template.md structure with TDD emphasis. Use proper headers, lists, and code blocks. DO NOT output JSON or any other format.
+
+**TASK CATEGORIES TO INCLUDE (TDD SPECIFIC)**:
+- **Phase 1: Setup**: Project initialization, dependencies, TDD tool configuration  
+- **Phase 2: Test Structure**: Create test directories and skeleton files for ALL future features
+- **Phase 3: Red Phase**: Write failing tests for core functionality (MUST come first)
+- **Phase 4: Green Phase**: Implement minimum code to make tests pass
+- **Phase 5: Refactor Phase**: Clean up code, improve design while maintaining test coverage
+- **Phase 6: Integration**: Connect components with TDD approach
+- **Phase 7: Polish**: Documentation, performance testing, final validation
+
+**TDD-SPECIFIC QUALITY STANDARDS**:
+- For every implementation task, there MUST be a corresponding test task that comes before it
+- Test tasks must specify expected failure behavior ("This test should fail initially")
+- Implementation tasks must reference the specific test they are making pass
+- Include both test file paths and implementation file paths for all tasks
+
+Architecture:
+{{{architecture}}}
+
+File Structure:
+{{{fileStructure}}}
+
+Specifications:
+{{{specifications}}}
+
+**OUTPUT FORMAT**: Follow the exact structure from tasks-template.md but with TDD emphasis:
+# Tasks: [Feature Name] (TDD-Focused)
+## Phase 1: Setup & Test Configuration
+- [ ] Task title with file path if relevant  
+## Phase 2: Red Phase - Write Failing Tests (MUST complete first)
+- [ ] Task title with file path and expected failure behavior
+## Phase 3: Green Phase - Implement Minimum Code to Pass Tests
+- [ ] Task title with file path and referenced test
+## Phase 4: Refactor Phase - Improve Design
+- [ ] Task title with file path and refactoring goal
+## Phase 5: Integration & Polish
+- [ ] Task title with file path if relevant
+
+**IMPORTANT: Output ONLY markdown content following the tasks-template.md structure with TDD-specific requirements. Do not include JSON or any other formatting.**`;
 
 export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, apiBase?: string, useTDD?: boolean, temperature?: number): Promise<GenerateTasksOutput> {
   if (!model) {
@@ -102,9 +151,17 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
     } : undefined,
   });
   
-  // Parse markdown output to extract task titles
+  // Parse markdown output to extract task titles with structure awareness
   const markdownContent = output as string;
-  const tasks: Array<{ title: string; details: string }> = [];
+  
+  // Try to parse by sections (Phase X) which is the spec-kit format first
+  const sectionTasks = parseSpecKitTaskStructure(markdownContent);
+  
+  if (sectionTasks.length > 0) {
+    return { tasks: sectionTasks };
+  }
+
+  // Fall back to bullet point parsing for backward compatibility
   
   // Extract bullet points from markdown
   const lines = markdownContent.split('\n');
@@ -138,5 +195,82 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
     throw new Error('Failed to extract task titles from generated content');
   }
   
+  // If no tasks found at all, throw error
+  if (tasks.length === 0) {
+    throw new Error('Failed to extract task titles from generated content');
+  }
+
   return { tasks };
 }
+
+/**
+ * Parse tasks from spec-kit structured markdown format with sections like "## Phase X:"
+ */
+function parseSpecKitTaskStructure(markdownContent: string): Array<{ title: string; details: string }> {
+  const tasks: Array<{ title: string; details: string }> = [];
+  const lines = markdownContent.split('\n');
+  
+  let inTaskList = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Check for section headers (Phase X:)
+    if (line.startsWith('## ') && line.toLowerCase().includes('phase')) {
+      inTaskList = true;
+      continue;
+    }
+
+    // Check for end of task list (next section or end of document)
+    if ((i + 1 < lines.length && lines[i + 1].trim().startsWith('## ')) || i === lines.length - 1) {
+      inTaskList = false;
+    }
+
+    // Extract task bullet points within sections
+    if (inTaskList && line.startsWith('- [ ] ')) {
+      const title = line.substring(5).trim(); // Remove "- [ ] " prefix
+      if (title) {
+        tasks.push({ title, details: '' });
+      }
+    }
+  }
+
+  return tasks;
+}
+
+/**
+ * Parse tasks from simple bullet point format (backward compatibility)
+ */
+function parseBulletPointTasks(markdownContent: string): Array<{ title: string; details: string }> {
+  const tasks: Array<{ title: string; details: string }> = [];
+  const lines = markdownContent.split('\n');
+
+  // Extract bullet points from markdown
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      const title = trimmed.substring(2).trim();
+      if (title) {
+        tasks.push({ title, details: '' });
+      }
+    }
+  }
+
+  // If no bullet points found, try alternative parsing
+  if (tasks.length === 0) {
+    // Try to extract lines that look like task titles
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('**')) {
+        // Check if it looks like a task title (contains action words)
+        const actionWords = ['implement', 'create', 'build', 'setup', 'configure', 'add', 'develop', 'design', 'integrate', 'test'];
+        if (actionWords.some(word => trimmed.toLowerCase().includes(word))) {
+          tasks.push({ title: trimmed, details: '' });
+        }
+      }
+    }
+  }
+
+  return tasks;
+}
+
