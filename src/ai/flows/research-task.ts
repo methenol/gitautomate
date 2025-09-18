@@ -238,7 +238,7 @@ export async function researchTask(
 
     // If document is valid or can be fixed, return the result
     if (lintResult.isValid) {
-      // Apply spec-kit validation and enhancement
+      // Apply spec-kit validation and enhancement to generate actual detailed content
       const enhancedContent = useSpecKit ? await enhanceWithSpecKitPrinciples(lintResult.fixedContent!, input) : lintResult.fixedContent!;
       
       return {

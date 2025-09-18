@@ -763,3 +763,25 @@ export async function generateTaskDetailsWithSpecKitStandalone(
   return await integrationInstance.generateTaskDetailsWithSpecKit(input, apiKey, model, temperature);
 }
 
+/**
+ * Research task function that uses spec-kit principles for detailed task generation
+ */
+export async function researchTaskEnhanced(
+  input: SpecKitTaskDetailsInput,
+  apiKey?: string,
+  model?: string,
+  temperature = 0.7
+): Promise<SpecKitTaskDetailsOutput> {
+  
+  // Use the enhanced task details generation with spec-kit principles
+  const result = await generateTaskDetailsWithSpecKitStandalone(input, apiKey, model, temperature);
+  
+  // Apply additional spec-kit validation and enhancement
+  const enhancedContent = await enhanceWithSpecKitPrinciples(result.markdownContent, input);
+  
+  return {
+    markdownContent: enhancedContent,
+    validationResults: result.validationResults
+  };
+}
+
