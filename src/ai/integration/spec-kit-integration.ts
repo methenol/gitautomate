@@ -205,49 +205,29 @@ Specifications:
 Generate actionable tasks following this template and constitution principles.
 `;
 
-const TASK_DETAILS_TEMPLATE = `
-# Task Implementation Plan: {{{taskTitle}}}
+const TASK_DETAILS_TEMPLATE = `You are an expert software engineer following Spec-Kit principles. Based on the task title and provided architecture/specifications, generate a detailed implementation plan for this specific task.
 
-## Context
-This task is part of a larger feature implementation. The architecture emphasizes modular design with clear separation of concerns.
+Task Title: {{{taskTitle}}}
 
-### Position in Architecture
-- **Feature**: Extract from architecture context below
-- **Dependencies**: Related tasks and components  
-- **Integration Points**: How this connects to other systems
+Architecture Context:
+{{{architecture}}}
 
-## Implementation Steps (Enhanced GitAutomate)
+Specifications:
+{{{specifications}}}
 
-### Phase 1: Test-Driven Development Setup
-1. **Write Failing Tests** (RED phase)
-   - Create test file: {{{testFilePath}}}
-   - Define test scenarios that must pass
-   - Ensure tests fail with current implementation
+File Structure: 
+{{{fileStructure}}}
 
-2. **Implement to Pass Tests** (GREEN phase)
-   - Create minimal implementation to make tests pass
-   - Follow architecture patterns and conventions
-   - Integrate with existing systems
+Generate a comprehensive implementation plan following Spec-Kit principles:
 
-3. **Refactor** (REFACTOR phase)
-   - Improve code quality without changing behavior
-   - Apply coding standards and best practices
-   - Ensure tests still pass
+1. **Context**: Explain how this specific task fits into the overall architecture
+2. **Implementation Steps**: Provide detailed, actionable steps for this specific task only
+3. **Technical Requirements**: Extract specific technologies and requirements from the architecture that apply to this task
+4. **Required Libraries**: List only libraries needed for THIS specific task based on the architecture
+5. **Acceptance Criteria**: Define completion criteria for THIS task specifically
 
-### Phase 2: Implementation Details
-#### Files to Create/Modify
-- **{{{mainFile}}}**: Primary implementation file for this task's functionality
-- **{{{testFile}}}**: Unit and integration tests following TDD principles  
-- **{{{configFile}}}?**: Configuration file if required by architecture
+Output detailed, actionable content - not generic template text.`;
 
-#### Key Components
-1. **Core Logic**: Describe the main functionality including business logic and data processing steps
-2. **Data Validation**: Input validation rules, sanitization requirements, and business rule enforcement  
-3. **Error Handling**: Exception types, error messages, logging patterns, and graceful degradation
-4. **Integration Points**: API connections, database interactions, external service integrations
-
-### Phase 3: Integration & Validation
-1. **Unit Testing**: Verify individual components work correctly in isolation
 2. **Integration Testing**: Test with dependent modules
 3. **Contract Compliance**: Ensure API contracts are satisfied
 
