@@ -16,6 +16,9 @@ import { generateArchitecture } from '@/ai/flows/generate-architecture';
 import { generateFileStructure } from '@/ai/flows/generate-file-structure';
 import { researchTask } from '@/ai/flows/research-task';
 
+// Import enhanced spec-kit integration
+import { generateArchitectureEnhanced, generateTasksEnhanced, researchTaskEnhanced } from '@/ai/integration/gitautomate-adapter';
+
 export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
   
   async generateUnifiedPlan(input: Partial<UnifiedProjectContext>): Promise<UnifiedProjectContext> {
@@ -31,15 +34,30 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
       version: (input.version || 0) + 1,
     };
 
-    // Step 1: Generate architecture & specifications if needed
+    // Step 1: Generate architecture & specifications if needed (using enhanced spec-kit integration)
     if (!context.architecture && context.prd) {
-      const archResult = await generateArchitecture(
-        { prd: context.prd },
-        undefined, // Use default API key
-        undefined // Use default model
-      );
-      context.architecture = archResult.architecture;
-      context.specifications = archResult.specifications;
+      try {
+        const archResult = await generateArchitectureEnhanced(
+          { prd: context.prd },
+          undefined, // Use default API key
+          undefined // Use default model
+        );
+        context.architecture = archResult.architecture;
+        context.specifications = archResult.specifications;
+        
+        console.log('✅ Enhanced architecture generation completed with spec-kit integration');
+      } catch (error) {
+        console.warn('Spec-kit architecture generation failed, falling back to legacy:', error);
+        
+        // Fallback to original implementation
+        const archResult = await generateArchitecture(
+          { prd: context.prd },
+          undefined, // Use default API key
+          undefined // Use default model
+        );
+        context.architecture = archResult.architecture;
+        context.specifications = archResult.specifications;
+      }
     }
 
     // Step 2: Generate file structure if needed
@@ -54,24 +72,51 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
       context.fileStructure = fileResult.fileStructure || '';
     }
 
-    // Step 3: Generate tasks with dependency awareness
+    // Step 3: Generate tasks with dependency awareness (using enhanced spec-kit integration)
     if (context.architecture && context.specifications && context.fileStructure) {
-      const tasksResult = await generateTasks(
-        {
-          architecture: context.architecture,
-          specifications: context.specifications,
-          fileStructure: context.fileStructure
-        }
-      );
-      
-      // Transform tasks to include dependency tracking
-      context.tasks = tasksResult.tasks.map((task, index) => ({
-        ...task,
-        id: `task-${index + 1}`,
-        order: index + 1,
-        dependencies: this.inferTaskDependencies(task.title, tasksResult.tasks, index),
-        status: 'pending' as const,
-      }));
+      try {
+        const tasksResult = await generateTasksEnhanced(
+          {
+            architecture: context.architecture,
+            specifications: context.specifications,
+            fileStructure: context.fileStructure
+          },
+          undefined, // Use default API key
+          undefined  // Use default model
+        );
+        
+        console.log('✅ Enhanced task generation completed with spec-kit integration');
+        
+        // Transform tasks to include dependency tracking
+        context.tasks = tasksResult.tasks.map((task, index) => ({
+          ...task,
+          id: `task-${index + 1}`,
+          order: index + 1,
+          dependencies: this.inferTaskDependencies(task.title, tasksResult.tasks, index),
+          status: 'pending' as const,
+        }));
+
+      } catch (error) {
+        console.warn('Spec-kit task generation failed, falling back to legacy:', error);
+        
+        // Fallback to original implementation
+        const tasksResult = await generateTasks(
+          {
+            architecture: context.architecture,
+            specifications: context.specifications,
+            fileStructure: context.fileStructure
+          }
+        );
+        
+        // Transform tasks to include dependency tracking  
+        context.tasks = tasksResult.tasks.map((task, index) => ({
+          ...task,
+          id: `task-${index + 1}`,
+          order: index + 1,
+          dependencies: this.inferTaskDependencies(task.title, tasksResult.tasks, index),
+          status: 'pending' as const,
+        }));
+      }
 
       // Build dependency graph
       context.dependencyGraph = this.buildDependencyGraph(context.tasks);
@@ -153,15 +198,36 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
         const taskIndex = updatedTasks.findIndex(t => t.id === task.id);
         updatedTasks[taskIndex] = { ...task, status: 'researching' };
 
-        // Research with full context of completed tasks
-        const researchResult = await researchTask(
-          {
-            title: task.title,
-            architecture: context.architecture,
-            fileStructure: context.fileStructure,
-            specifications: context.specifications
-          }
-        );
+        // Research with full context of completed tasks (using enhanced spec-kit integration)
+        let researchResult;
+        
+        try {
+          researchResult = await researchTaskEnhanced(
+            {
+              title: task.title,
+              architecture: context.architecture,
+              fileStructure: context.fileStructure,
+              specifications: context.specifications
+            },
+            undefined, // Use default API key
+            undefined  // Use default model
+          );
+          
+          console.log(`✅ Enhanced research for task "${task.title}" completed with spec-kit integration`);
+          
+        } catch (error) {
+          console.warn(`Spec-kit research for task "${task.title}" failed, falling back to legacy:`, error);
+          
+          // Fallback to original implementation
+          researchResult = await researchTask(
+            {
+              title: task.title,
+              architecture: context.architecture,
+              fileStructure: context.fileStructure,
+              specifications: context.specifications
+            }
+          );
+        }
 
         // Update task with research results
         const formattedDetails = researchResult.markdownContent;
