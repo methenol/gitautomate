@@ -205,28 +205,26 @@ Specifications:
 Generate actionable tasks following this template and constitution principles.
 `;
 
-const TASK_DETAILS_TEMPLATE = `You are an expert software engineer following Spec-Kit principles. Based on the task title and provided architecture/specifications, generate a detailed implementation plan for this specific task.
+const TASK_DETAILS_TEMPLATE = `You are an expert software engineer following Spec-Kit principles. Generate a detailed implementation plan for the specific task provided below.
 
-Task Title: {{{taskTitle}}}
-
-Architecture Context:
+**Task Title**: {{{taskTitle}}}
+**Architecture Context**: 
 {{{architecture}}}
 
-Specifications:
+**Specifications**:  
 {{{specifications}}}
 
-File Structure: 
-{{{fileStructure}}}
+**File Structure Reference**: {{{fileStructure}}}
 
-Generate a comprehensive implementation plan following Spec-Kit principles:
+Based on the information above, generate a comprehensive implementation plan that includes:
 
-1. **Context**: Explain how this specific task fits into the overall architecture
-2. **Implementation Steps**: Provide detailed, actionable steps for this specific task only
-3. **Technical Requirements**: Extract specific technologies and requirements from the architecture that apply to this task
-4. **Required Libraries**: List only libraries needed for THIS specific task based on the architecture
-5. **Acceptance Criteria**: Define completion criteria for THIS task specifically
+1. **Context**: Explain how this specific task fits into the overall system architecture
+2. **Implementation Steps**: Provide detailed, actionable steps for THIS specific task only (not generic template content)
+3. **Technical Requirements**: Extract relevant technologies, frameworks, and requirements from the architecture that apply to this specific task
+4. **Required Libraries**: List only libraries and dependencies needed for THIS specific task based on the architecture
+5. **Acceptance Criteria**: Define clear completion criteria for THIS specific task
 
-Output detailed, actionable content - not generic template text.`;
+CRITICAL: Generate actual, detailed content specific to this task title and architecture. Do not output generic template placeholders.`;
 
 2. **Integration Testing**: Test with dependent modules
 3. **Contract Compliance**: Ensure API contracts are satisfied
