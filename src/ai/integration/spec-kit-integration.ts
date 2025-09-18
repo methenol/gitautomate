@@ -283,17 +283,17 @@ Architecture Context:
 {{{architecture}}}
 
 Specifications:  
-{{specifications}}}
+{{{specifications}}}
 `;
 
+
+export class SpecKitIntegration {
   /**
    * Sanitize filenames for consistent naming
    */
   private sanitizeFilename(name: string): string {
-    return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '');
+    return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
   }
-
-export class SpecKitIntegration {
   /**
    * Generate enhanced architecture using spec-kit principles
    */
@@ -372,7 +372,7 @@ export class SpecKitIntegration {
 
     const prompt = TASK_GENERATION_TEMPLATE
       .replace('{{{architecture}}}', input.architecture)
-      .replace('{{specifications}}}', input.specifications);
+      .replace('{{{specifications}}}', input.specifications);
 
     let retries = 3;
     while (retries > 0) {
@@ -430,7 +430,7 @@ export class SpecKitIntegration {
       .replace('{{{mainFile}}}', mainFile)
       .replace('{{{configFile}}}', configFile || '')
       .replace('{{{architecture}}}', input.architecture)
-      .replace('{{specifications}}}', input.specifications);
+      .replace('{{{specifications}}}', input.specifications);
 
     let retries = 3;
     while (retries > 0) {
@@ -760,6 +760,6 @@ export async function generateTaskDetailsWithSpecKitStandalone(
 ): Promise<SpecKitTaskDetailsOutput> {
   
   const integrationInstance = new SpecKitIntegration();
-  return await integrationInstance.generateTaskDetailsWithSpecKitResearch(input, apiKey, model, temperature);
+  return await integrationInstance.generateTaskDetailsWithSpecKit(input, apiKey, model, temperature);
 }
 
