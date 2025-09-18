@@ -218,15 +218,13 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
         } catch (error) {
           console.warn(`Spec-kit research for task "${task.title}" failed, falling back to legacy:`, error);
           
-          // Fallback to original implementation
-          researchResult = await researchTask(
-            {
-              title: task.title,
-              architecture: context.architecture,
-              fileStructure: context.fileStructure,
-              specifications: context.specifications
-            }
-          );
+          // Fallback to original implementation  
+          researchResult = await researchTask({
+            title: task.title,
+            architecture: context.architecture || '',
+            fileStructure: context.fileStructure || '',
+            specifications: context.specifications || ''
+          });
         }
 
         // Update task with research results
