@@ -119,51 +119,52 @@ ${input.prd}
 
     // Parse the markdown output to extract architecture and specifications
     const markdownContent = output as string;
-    const sections = markdownContent.split(/^# /m).filter(section => section.trim());
     
-    let architecture = '';
-    let specifications = '';
-    let featureSpec = '';
+    // Simple fallback approach - use the entire content for both sections if parsing fails
+    let architecture = markdownContent;
+    let specifications = markdownContent;
     
-    for (const section of sections) {
-      const lines = section.trim().split('\n');
-      const title = lines[0].toLowerCase();
-      const content = lines.slice(1).join('\n').trim();
+    // Try to extract sections, but don't fail if parsing is complex
+    try {
+      const lines = markdownContent.split('\n');
+      let inArchitectureSection = false;
+      let inSpecsSection = false;
       
-      if (title.includes('architecture') || title.includes('architecture details')) {
-        architecture = content;
-      } else if (title.includes('specification') || title.includes('spec')) {
-        specifications = content;
-      } else if (title.includes('feature specification')) {
-        featureSpec = content;
-      }
-    }
-    
-    // If sections not found by header parsing, try fallback splitting
-    if (!architecture || !specifications) {
-      const fallbackSplit = markdownContent.split(/(?=# (?:Architecture|Specifications?|Feature Specification))/i);
-      for (const part of fallbackSplit) {
-        if (part.toLowerCase().includes('architecture')) {
-          architecture = part.replace(/^# Architecture\s*/i, '').trim();
-        } else if (part.toLowerCase().includes('specification')) {
-          specifications = part.replace(/^# Specifications?\s*/i, '').trim();
-        } else if (part.toLowerCase().includes('feature specification')) {
-          featureSpec = part.replace(/^# Feature Specification\s*/i, '').trim();
+      const architectureLines: string[] = [];
+      const specsLines: string[] = [];
+      
+      for (const line of lines) {
+        if (line.startsWith('# Architecture') || line.toLowerCase().includes('architecture')) {
+          inArchitectureSection = true;
+          inSpecsSection = false;
+        } else if (line.startsWith('# Specifications') || line.toLowerCase().includes('specification')) {
+          inSpecsSection = true;
+          inArchitectureSection = false;
+        } else if (line.startsWith('# ')) {
+          // New section found, reset flags
+          inArchitectureSection = false;
+          inSpecsSection = false;
+        }
+        
+        if (inArchitectureSection && !line.startsWith('# ')) {
+          architectureLines.push(line);
+        }
+        
+        if (inSpecsSection && !line.startsWith('# ')) {
+          specsLines.push(line);
         }
       }
-    }
-    
-    // Ensure we have both core sections - feature spec becomes the new "specifications"
-    if (!architecture) {
-      const archMatch = markdownContent.match(/# Architecture\s*([\s\S]*?)(?=\n# |$)/i);
-      architecture = archMatch ? archMatch[1].trim() : '';
-    }
-    
-    if (!specifications && featureSpec) {
-      specifications = featureSpec; // Use feature spec as primary specification if available
-    } else if (!specifications) {
-      const specMatch = markdownContent.match(/# Specifications?\s*([\s\S]*)$/i);
-      specifications = specMatch ? specMatch[1].trim() : '';
+      
+      if (architectureLines.length > 0) {
+        architecture = architectureLines.join('\n').trim();
+      }
+      
+      if (specsLines.length > 0) {
+        specifications = specsLines.join('\n').trim();
+      }
+    } catch (error) {
+      // If parsing fails, use the entire content for both sections
+      console.log('Section parsing failed, using full content');
     }
 
     // Lint and fix the generated architecture and specifications
