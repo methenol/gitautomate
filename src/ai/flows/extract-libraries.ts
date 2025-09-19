@@ -14,7 +14,7 @@ import {z} from 'zod';
 const _ExtractLibrariesInputSchema = z.object({
   taskDetails: z.string().describe('The task details text containing library information.'),
 });
-export type ExtractLibrariesInput = z.infer<typeof ExtractLibrariesInputSchema>;
+export type ExtractLibrariesInput = z.infer<typeof _ExtractLibrariesInputSchema>;
 
 const _ExtractLibrariesOutputSchema = z.object({
   libraries: z.array(z.string()).describe('A list of extracted library names.'),

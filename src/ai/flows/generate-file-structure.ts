@@ -23,7 +23,7 @@ const _GenerateFileStructureInputSchema = z.object({
     .string()
     .describe('The detailed specifications for the project.'),
 });
-export type GenerateFileStructureInput = z.infer<typeof GenerateFileStructureInputSchema>;
+export type GenerateFileStructureInput = z.infer<typeof _GenerateFileStructureInputSchema>;
 
 const _GenerateFileStructureOutputSchema = z.object({
   fileStructure: z

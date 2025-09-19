@@ -25,7 +25,7 @@ const _ResearchTaskOutputSchema = z.object({
     .string()
     .describe('Complete markdown-formatted task documentation ready for GitHub issues. Must include proper markdown headers, formatting, and structure.'),
 });
-export type ResearchTaskOutput = z.infer<typeof ResearchTaskOutputSchema>;
+export type ResearchTaskOutput = z.infer<typeof _ResearchTaskOutputSchema>;
 
 const standardPrompt = `You are an expert project manager and senior software engineer following spec-kit patterns. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format that aligns with spec-kit quality standards.
 

@@ -22,7 +22,7 @@ const __GenerateTasksInputSchema = z.object({
   specifications: z.string().describe('The specifications of the project.'),
   fileStructure: z.string().describe('The file structure of the project.'),
 });
-export type GenerateTasksInput = z.infer<typeof _GenerateTasksInputSchema>;
+export type GenerateTasksInput = z.infer<typeof __GenerateTasksInputSchema>;
 
 
 const _GenerateTasksOutputSchema = z.object({
@@ -242,7 +242,7 @@ function parseSpecKitTaskStructure(markdownContent: string): Array<{ title: stri
 /**
  * Parse tasks from simple bullet point format (backward compatibility)
  */
-function _parseBulletPointTasks(markdownContent: string): Array<{ title; details }> {
+function _parseBulletPointTasks(markdownContent: string): Array<{ title: string; details: string }> {
   const tasks: Array<{ title: string; details: string }> = [];
   const lines = markdownContent.split('\n');
 

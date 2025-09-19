@@ -29,7 +29,7 @@ const _GenerateArchitectureInputSchema = z.object({
     ),
 });
 export type GenerateArchitectureInput = z.infer<
-  typeof GenerateArchitectureInputSchema
+  typeof _GenerateArchitectureInputSchema
 >;
 
 const _GenerateArchitectureOutputSchema = z.object({
@@ -39,7 +39,7 @@ const _GenerateArchitectureOutputSchema = z.object({
     .describe('The generated specifications based on the PRD. Use markdown formatting.'),
 });
 export type GenerateArchitectureOutput = z.infer<
-  typeof GenerateArchitectureOutputSchema
+  typeof _GenerateArchitectureOutputSchema
 >;
 
 export async function generateArchitecture(

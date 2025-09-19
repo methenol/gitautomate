@@ -37,7 +37,7 @@ const _GenerateAgentsMdInputSchema = z.object({
     ),
 });
 export type GenerateAgentsMdInput = z.infer<
-  typeof GenerateAgentsMdInputSchema
+  typeof _GenerateAgentsMdInputSchema
 >;
 
 const _GenerateAgentsMdOutputSchema = z.object({
