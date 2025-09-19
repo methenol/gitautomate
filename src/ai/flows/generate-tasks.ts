@@ -14,10 +14,10 @@ import { TaskSchema } from '@/types';
 import {z} from 'zod';
 
 // Load spec-kit inspired templates
-import tasksTemplate from '@/ai/templates/tasks-template.md?raw';
+// import tasksTemplate from '@/ai/templates/tasks-template.md?raw';
 
 
-const _GenerateTasksInputSchema = z.object({
+const __GenerateTasksInputSchema = z.object({
   architecture: z.string().describe('The architecture of the project.'),
   specifications: z.string().describe('The specifications of the project.'),
   fileStructure: z.string().describe('The file structure of the project.'),
@@ -25,10 +25,10 @@ const _GenerateTasksInputSchema = z.object({
 export type GenerateTasksInput = z.infer<typeof _GenerateTasksInputSchema>;
 
 
-const GenerateTasksOutputSchema = z.object({
+const _GenerateTasksOutputSchema = z.object({
   tasks: z.array(TaskSchema).describe('A list of actionable task titles.'),
 });
-export type GenerateTasksOutput = z.infer<typeof GenerateTasksOutputSchema>;
+export type GenerateTasksOutput = z.infer<typeof _GenerateTasksOutputSchema>;
 
 const standardPrompt = `You are a lead software engineer following spec-kit patterns to create a detailed, structured project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable development tasks following strict phase-based organization.
 
@@ -164,6 +164,7 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
   // Fall back to bullet point parsing for backward compatibility
   
   // Extract bullet points from markdown
+  const tasks: Array<{ title: string; details: string }> = [];
   const lines = markdownContent.split('\n');
   for (const line of lines) {
     const trimmed = line.trim();
@@ -241,7 +242,7 @@ function parseSpecKitTaskStructure(markdownContent: string): Array<{ title: stri
 /**
  * Parse tasks from simple bullet point format (backward compatibility)
  */
-function parseBulletPointTasks(markdownContent: string): Array<{ title: string; details: string }> {
+function _parseBulletPointTasks(markdownContent: string): Array<{ title; details }> {
   const tasks: Array<{ title: string; details: string }> = [];
   const lines = markdownContent.split('\n');
 

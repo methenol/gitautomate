@@ -20,7 +20,7 @@ const _ResearchTaskInputSchema = z.object({
 });
 export type ResearchTaskInput = { title: string; architecture: string; fileStructure: string; specifications: string };
 
-const ResearchTaskOutputSchema = z.object({
+const _ResearchTaskOutputSchema = z.object({
   markdownContent: z
     .string()
     .describe('Complete markdown-formatted task documentation ready for GitHub issues. Must include proper markdown headers, formatting, and structure.'),

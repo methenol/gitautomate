@@ -18,10 +18,10 @@ import {z} from 'zod';
 import { MarkdownLinter } from '@/services/markdown-linter';
 
 // Load spec-kit inspired templates
-import specTemplate from '@/ai/templates/spec-template.md?raw';
-import planTemplate from '@/ai/templates/plan-template.md?raw';
+// import specTemplate from '@/ai/templates/spec-template.md?raw';
+// import planTemplate from '@/ai/templates/plan-template.md?raw';
 
-const GenerateArchitectureInputSchema = z.object({
+const _GenerateArchitectureInputSchema = z.object({
   prd: z
     .string()
     .describe(
@@ -32,7 +32,7 @@ export type GenerateArchitectureInput = z.infer<
   typeof GenerateArchitectureInputSchema
 >;
 
-const GenerateArchitectureOutputSchema = z.object({
+const _GenerateArchitectureOutputSchema = z.object({
   architecture: z.string().describe('The proposed software architecture. Use markdown formatting.'),
   specifications: z
     .string()

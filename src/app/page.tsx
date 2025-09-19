@@ -138,7 +138,7 @@ export default function Home() {
   const [apiKey, setApiKey] = useState<string>('');
   const [apiBase, setApiBase] = useState<string>('');
   const [useTDD, setUseTDD] = useState<boolean>(false);
-  const [temperature, setTemperature] = useState<number>(0.7);
+  const [_temperature, _setTemperature] = useState<number>(0.7);
   const [documentationEnabled, setDocumentationEnabled] = useState<boolean>(true);
   const [documentationSources, setDocumentationSources] = useState<string[]>(['github', 'official']);
   const [maxDocumentationSizeKB, setMaxDocumentationSizeKB] = useState<number>(512);
@@ -285,7 +285,7 @@ export default function Home() {
       
       setIsSettingsOpen(false);
       toast({ title: 'Success', description: 'Settings saved securely.' });
-    } catch (error) {
+    } catch (_error) {
       toast({
         variant: 'destructive',
         title: 'Error',
