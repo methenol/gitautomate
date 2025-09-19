@@ -14,7 +14,7 @@ import { TaskSchema } from '@/types';
 import {z} from 'zod';
 
 // Load spec-kit inspired templates
-// import tasksTemplate from '@/ai/templates/tasks-template.md?raw';
+import tasksTemplate from '@/ai/templates/tasks-template.md?raw';
 
 
 const __GenerateTasksInputSchema = z.object({
@@ -54,6 +54,9 @@ const standardPrompt = `You are a lead software engineer following spec-kit patt
 - Include file paths for all code-related tasks
 - Follow strict sequential ordering based on dependencies
 
+**REFERENCE TEMPLATE**: Use the following template as your structure guide:
+${tasksTemplate}
+
 Architecture:
 {{{architecture}}}
 
@@ -62,19 +65,6 @@ File Structure:
 
 Specifications:
 {{{specifications}}}
-
-**OUTPUT FORMAT**: Follow the exact structure from tasks-template.md with these sections:
-# Tasks: [Feature Name]
-## Phase 1: Setup
-- [ ] Task title with file path if relevant
-## Phase 2: Tests First ⚠️ (MUST complete before implementation)
-- [ ] Task title with file path if relevant  
-## Phase 3: Core Implementation (ONLY after tests are failing)
-- [ ] Task title with file path if relevant
-## Phase 4: Integration
-- [ ] Task title with file path if relevant
-## Phase 5: Polish & Validation
-- [ ] Task title with file path if relevant
 
 **IMPORTANT: Output ONLY markdown content following the tasks-template.md structure. Do not include JSON or any other formatting.**`;
 
@@ -103,6 +93,9 @@ const tddPrompt = `You are a lead software engineer following spec-kit patterns 
 - Test tasks must specify expected failure behavior ("This test should fail initially")
 - Implementation tasks must reference the specific test they are making pass
 - Include both test file paths and implementation file paths for all tasks
+
+**REFERENCE TEMPLATE**: Use the following template as your structure guide (adapted for TDD):
+${tasksTemplate}
 
 Architecture:
 {{{architecture}}}
@@ -195,11 +188,6 @@ export async function generateTasks(input: GenerateTasksInput, apiKey?: string, 
   if (tasks.length === 0) {
     throw new Error('Failed to extract task titles from generated content');
   }
-  
-  // If no tasks found at all, throw error
-  if (tasks.length === 0) {
-    throw new Error('Failed to extract task titles from generated content');
-  }
 
   return { tasks };
 }
@@ -223,7 +211,7 @@ function parseSpecKitTaskStructure(markdownContent: string): Array<{ title: stri
     }
 
     // Check for end of task list (next section or end of document)
-    if ((i + 1 < lines.length && lines[i + 1].trim().startsWith('## ')) || i === lines.length - 1) {
+    if ((i + 1 < lines.length && lines[i + 1].trim().startsWith('## '))) {
       inTaskList = false;
     }
 
@@ -232,42 +220,6 @@ function parseSpecKitTaskStructure(markdownContent: string): Array<{ title: stri
       const title = line.substring(5).trim(); // Remove "- [ ] " prefix
       if (title) {
         tasks.push({ title, details: '' });
-      }
-    }
-  }
-
-  return tasks;
-}
-
-/**
- * Parse tasks from simple bullet point format (backward compatibility)
- */
-function _parseBulletPointTasks(markdownContent: string): Array<{ title: string; details: string }> {
-  const tasks: Array<{ title: string; details: string }> = [];
-  const lines = markdownContent.split('\n');
-
-  // Extract bullet points from markdown
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      const title = trimmed.substring(2).trim();
-      if (title) {
-        tasks.push({ title, details: '' });
-      }
-    }
-  }
-
-  // If no bullet points found, try alternative parsing
-  if (tasks.length === 0) {
-    // Try to extract lines that look like task titles
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('**')) {
-        // Check if it looks like a task title (contains action words)
-        const actionWords = ['implement', 'create', 'build', 'setup', 'configure', 'add', 'develop', 'design', 'integrate', 'test'];
-        if (actionWords.some(word => trimmed.toLowerCase().includes(word))) {
-          tasks.push({ title: trimmed, details: '' });
-        }
       }
     }
   }

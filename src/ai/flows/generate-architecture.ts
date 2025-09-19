@@ -18,8 +18,8 @@ import {z} from 'zod';
 import { MarkdownLinter } from '@/services/markdown-linter';
 
 // Load spec-kit inspired templates
-// import specTemplate from '@/ai/templates/spec-template.md?raw';
-// import planTemplate from '@/ai/templates/plan-template.md?raw';
+import specTemplate from '@/ai/templates/spec-template.md?raw';
+import planTemplate from '@/ai/templates/plan-template.md?raw';
 
 const _GenerateArchitectureInputSchema = z.object({
   prd: z
@@ -65,6 +65,12 @@ export async function generateArchitecture(
 3. Phase 2: Planning - Generate implementation plan structure
 
 **CRITICAL OUTPUT FORMAT**: You MUST output ONLY valid markdown following spec-kit template patterns. Use proper headers, lists, code blocks, and formatting.
+
+**REFERENCE TEMPLATES**: 
+- For specifications: Use spec-template.md as your structure guide
+${specTemplate}
+- For implementation plan: Use plan-template.md as your structure guide  
+${planTemplate}
 
 **ARCHITECTURE REQUIREMENTS**:
 - High-level system design with clear component boundaries
