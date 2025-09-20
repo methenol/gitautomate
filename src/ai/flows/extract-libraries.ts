@@ -11,15 +11,15 @@
 import {ai} from '@/ai/litellm';
 import {z} from 'zod';
 
-const ExtractLibrariesInputSchema = z.object({
+const _ExtractLibrariesInputSchema = z.object({
   taskDetails: z.string().describe('The task details text containing library information.'),
 });
-export type ExtractLibrariesInput = z.infer<typeof ExtractLibrariesInputSchema>;
+export type ExtractLibrariesInput = z.infer<typeof _ExtractLibrariesInputSchema>;
 
-const ExtractLibrariesOutputSchema = z.object({
+const _ExtractLibrariesOutputSchema = z.object({
   libraries: z.array(z.string()).describe('A list of extracted library names.'),
 });
-export type ExtractLibrariesOutput = z.infer<typeof ExtractLibrariesOutputSchema>;
+export type ExtractLibrariesOutput = z.infer<typeof _ExtractLibrariesOutputSchema>;
 
 const extractionPrompt = `You are a software development expert tasked with extracting required libraries, packages, frameworks, and tools from development task details.
 

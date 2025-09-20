@@ -2,6 +2,11 @@
 
 /**
  * @fileOverview This file defines a Genkit flow for generating a software architecture and specifications from a PRD.
+ * Inspired by spec-kit patterns, this implementation includes:
+ * - Phase-based execution (Research → Design → Planning)
+ * - Technical context extraction with NEEDS CLARIFICATION markers  
+ * - Structured output formats aligned with spec-kit templates
+ * - Quality gates for requirement completeness
  *
  * - generateArchitecture - A function that takes a PRD as input and returns a proposed software architecture and specifications.
  * - GenerateArchitectureInput - The input type for the generateArchitecture function, which includes the PRD.
@@ -12,7 +17,11 @@ import {ai} from '@/ai/litellm';
 import {z} from 'zod';
 import { MarkdownLinter } from '@/services/markdown-linter';
 
-const GenerateArchitectureInputSchema = z.object({
+// Load spec-kit inspired templates
+import specTemplate from '@/ai/templates/spec-template.md?raw';
+import planTemplate from '@/ai/templates/plan-template.md?raw';
+
+const _GenerateArchitectureInputSchema = z.object({
   prd: z
     .string()
     .describe(
@@ -20,17 +29,17 @@ const GenerateArchitectureInputSchema = z.object({
     ),
 });
 export type GenerateArchitectureInput = z.infer<
-  typeof GenerateArchitectureInputSchema
+  typeof _GenerateArchitectureInputSchema
 >;
 
-const GenerateArchitectureOutputSchema = z.object({
+const _GenerateArchitectureOutputSchema = z.object({
   architecture: z.string().describe('The proposed software architecture. Use markdown formatting.'),
   specifications: z
     .string()
     .describe('The generated specifications based on the PRD. Use markdown formatting.'),
 });
 export type GenerateArchitectureOutput = z.infer<
-  typeof GenerateArchitectureOutputSchema
+  typeof _GenerateArchitectureOutputSchema
 >;
 
 export async function generateArchitecture(
@@ -48,46 +57,59 @@ export async function generateArchitecture(
   while (retries > 0) {
     const {output} = await ai.generate({
       model: model,
-      prompt: `You are a senior software architect tasked with creating a comprehensive software architecture and detailed specifications from a Product Requirements Document (PRD).
+      prompt: `You are a senior software architect following spec-kit patterns to create comprehensive software architecture, specifications, and implementation plans from a Product Requirements Document (PRD).
 
-Based on the following PRD, generate BOTH a software architecture AND detailed specifications. These are two separate deliverables that must both be fully developed.
+**FOLLOW THIS EXACT WORKFLOW**:
+1. Phase 0: Research & Clarification - Extract all unknowns and mark with [NEEDS CLARIFICATION]
+2. Phase 1: Design - Create structured architecture and specifications  
+3. Phase 2: Planning - Generate implementation plan structure
 
-**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
+**CRITICAL OUTPUT FORMAT**: You MUST output ONLY valid markdown following spec-kit template patterns. Use proper headers, lists, code blocks, and formatting.
 
-**ARCHITECTURE** should include:
-- High-level system design and component structure
-- Technology stack and framework choices
-- Data flow and integration patterns
-- Security considerations and architecture patterns
-- Scalability and performance considerations
-- Deployment and infrastructure approach
+**REFERENCE TEMPLATES**: 
+- For specifications: Use spec-template.md as your structure guide
+${specTemplate}
+- For implementation plan: Use plan-template.md as your structure guide  
+${planTemplate}
 
-**SPECIFICATIONS** should include:
-- Detailed functional requirements
-- User stories and use cases
-- API endpoints and data models
-- User interface requirements
-- Business logic and workflows
-- Non-functional requirements (performance, security, etc.)
-- Integration requirements
-- Data processing and validation rules
+**ARCHITECTURE REQUIREMENTS**:
+- High-level system design with clear component boundaries
+- Technology stack selection with rationale (avoid vague choices)
+- Data flow diagrams (as text descriptions)
+- Security architecture with threat mitigation strategies
+- Scalability considerations and performance bottleneck planning
+- Deployment strategy with infrastructure recommendations
 
-CRITICAL: The specifications MUST be comprehensive and standalone - they should NOT reference the architecture or say "see architecture above". Both sections must contain detailed, actionable content. You MUST include BOTH an architecture and specification.
+**SPECIFICATIONS REQUIREMENTS**:
+- Detailed functional requirements (testable, measurable)
+- User stories in Gherkin-style format (Given/When/Then)
+- Data models with entity relationships and validation rules
+- API specifications (REST/GraphQL endpoints, request/response formats)
+- UI wireframe descriptions (key screens, user flows)
+- Non-functional requirements with clear success criteria
+- Integration points and external dependency specifications
+
+**QUALITY GATES**:
+- All technical assumptions must be marked with [NEEDS CLARIFICATION] if not explicitly stated in PRD
+- Requirements must be actionable and implementable (no vague "improve performance" statements)
+- Data models must include all entities mentioned in user stories
+- Architecture must align with common industry best practices for the identified technology stack
 
 PRD:
 ${input.prd}
 
-You must structure your response with two main sections separated by a markdown heading:
+**STRUCTURE YOUR RESPONSE WITH THESE SECTIONS**:
 
-# Architecture
+# Feature Specification
+{Follow the spec-template.md format with all mandatory sections}
 
-{Your complete architecture content here in markdown format}
+# Implementation Plan  
+{Follow the plan-template.md format including Technical Context, Project Structure, and Phases}
 
-# Specifications
+# Architecture Details
+{Your complete architecture content with clear component diagrams as text}
 
-{Your complete specifications content here in markdown format}
-
-**IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`,
+**IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Use proper section headers and follow the spec-kit template structures provided.**`,
       config: (apiKey || apiBase || temperature !== undefined) ? {
         ...(apiKey && {apiKey}),
         ...(apiBase && {apiBase}),
@@ -97,42 +119,52 @@ You must structure your response with two main sections separated by a markdown 
 
     // Parse the markdown output to extract architecture and specifications
     const markdownContent = output as string;
-    const sections = markdownContent.split(/^# /m).filter(section => section.trim());
     
-    let architecture = '';
-    let specifications = '';
+    // Simple fallback approach - use the entire content for both sections if parsing fails
+    let architecture = markdownContent;
+    let specifications = markdownContent;
     
-    for (const section of sections) {
-      const lines = section.trim().split('\n');
-      const title = lines[0].toLowerCase();
-      const content = lines.slice(1).join('\n').trim();
+    // Try to extract sections, but don't fail if parsing is complex
+    try {
+      const lines = markdownContent.split('\n');
+      let inArchitectureSection = false;
+      let inSpecsSection = false;
       
-      if (title.includes('architecture')) {
-        architecture = content;
-      } else if (title.includes('specification') || title.includes('spec')) {
-        specifications = content;
-      }
-    }
-    
-    // If sections not found by header parsing, try fallback splitting
-    if (!architecture || !specifications) {
-      const fallbackSplit = markdownContent.split(/(?=# (?:Architecture|Specifications?))/i);
-      for (const part of fallbackSplit) {
-        if (part.toLowerCase().includes('architecture')) {
-          architecture = part.replace(/^# Architecture\s*/i, '').trim();
-        } else if (part.toLowerCase().includes('specification')) {
-          specifications = part.replace(/^# Specifications?\s*/i, '').trim();
+      const architectureLines: string[] = [];
+      const specsLines: string[] = [];
+      
+      for (const line of lines) {
+        if (line.startsWith('# Architecture') || line.toLowerCase().includes('architecture')) {
+          inArchitectureSection = true;
+          inSpecsSection = false;
+        } else if (line.startsWith('# Specifications') || line.toLowerCase().includes('specification')) {
+          inSpecsSection = true;
+          inArchitectureSection = false;
+        } else if (line.startsWith('# ')) {
+          // New section found, reset flags
+          inArchitectureSection = false;
+          inSpecsSection = false;
+        }
+        
+        if (inArchitectureSection && !line.startsWith('# ')) {
+          architectureLines.push(line);
+        }
+        
+        if (inSpecsSection && !line.startsWith('# ')) {
+          specsLines.push(line);
         }
       }
-    }
-    
-    // Ensure we have both sections
-    if (!architecture) {
-      architecture = markdownContent.split(/# Specifications?/i)[0].replace(/^# Architecture\s*/i, '').trim();
-    }
-    if (!specifications) {
-      const specMatch = markdownContent.match(/# Specifications?([\s\S]*)$/i);
-      specifications = specMatch ? specMatch[1].trim() : '';
+      
+      if (architectureLines.length > 0) {
+        architecture = architectureLines.join('\n').trim();
+      }
+      
+      if (specsLines.length > 0) {
+        specifications = specsLines.join('\n').trim();
+      }
+    } catch (error) {
+      // If parsing fails, use the entire content for both sections
+      console.log('Section parsing failed, using full content');
     }
 
     // Lint and fix the generated architecture and specifications

@@ -8,6 +8,20 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  webpack: (config, { isServer }) => {
+    // Handle markdown files with ?raw query
+    config.module.rules.push({
+      test: /\.md(\?raw)?$/,
+      type: 'asset/source',
+      use: [
+        {
+          loader: 'raw-loader'
+        }
+      ]
+    });
+
+    return config;
+  },
   images: {
     remotePatterns: [
       {
