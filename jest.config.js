@@ -11,6 +11,8 @@ const customJestConfig = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@octokit/rest$': '<rootDir>/__mocks__//@octokit/rest.js',
+    '^cheerio$': '<rootDir>/__mocks__/cheerio.js',
   },
   testTimeout: 30000,
   transform: {
@@ -26,7 +28,7 @@ const customJestConfig = {
     '!src/**/*.d.ts',
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!(@octokit/.*|cheerio|.*\\.mjs$)/)'
+    'node_modules'
   ],
   clearMocks: true,
   automock: false,

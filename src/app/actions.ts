@@ -161,7 +161,8 @@ export async function runGenerateAgentsMd(
       input,
       options?.apiKey,
       options?.model,
-      options?.apiBase
+      options?.apiBase,
+      options?.temperature
     );
     return result;
   } catch (error) {

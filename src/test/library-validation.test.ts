@@ -25,7 +25,7 @@ describe('Library Extraction - Core Functionality', () => {
       }
     ];
 
-    const libraries = await LibraryIdentifier.identifyLibraries(problematicTasks);
+    const libraries = await LibraryIdentifier.identifyLibraries(problematicTasks, 'test-api-key', 'test/model', 'https://api.openai.com/v1');
     const libraryNames = libraries.map(lib => lib.name);
     
     console.log('Extracted libraries:', libraryNames);

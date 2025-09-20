@@ -202,6 +202,8 @@ export default function Home() {
           setApiKey(settings.apiKey || '');
           setApiBase(settings.apiBase || '');
           setUseTDD(settings.useTDD || false);
+          const loadedTemperature = settings.temperature ?? 0.7;
+          setTemperature(loadedTemperature);
           setDocumentationEnabled(settings.documentation?.enabled ?? true);
           setDocumentationSources(settings.documentation?.sources || ['github', 'official']);
           setMaxDocumentationSizeKB(settings.documentation?.maxDocumentationSizeKB || 512);
@@ -211,6 +213,7 @@ export default function Home() {
           form.setValue('apiKey', settings.apiKey || '');
           form.setValue('apiBase', settings.apiBase || '');
           form.setValue('useTDD', settings.useTDD || false);
+          form.setValue('temperature', loadedTemperature);
           form.setValue('documentation', {
             enabled: settings.documentation?.enabled ?? true,
             sources: settings.documentation?.sources || ['github', 'official'],
@@ -279,6 +282,8 @@ export default function Home() {
       setApiKey(values.apiKey || '');
       setApiBase(values.apiBase || '');
       setUseTDD(values.useTDD);
+      const savedTemperature = values.temperature ?? 0.7;
+      setTemperature(savedTemperature);
       setDocumentationEnabled(values.documentation?.enabled ?? true);
       setDocumentationSources(values.documentation?.sources || ['github', 'official']);
       setMaxDocumentationSizeKB(values.documentation?.maxDocumentationSizeKB || 512);
@@ -309,7 +314,7 @@ export default function Home() {
       // Automatically generate file structure after architecture/specs
       const fileStructResult = await runGenerateFileStructure(
         { prd, architecture: result.architecture, specifications: result.specifications },
-        { apiKey: apiKey, model: llmModel, apiBase: apiBase }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase, temperature }
       );
       setFileStructure(fileStructResult.fileStructure || '');
     } catch (error) {
@@ -330,7 +335,7 @@ export default function Home() {
     try {
       const result = await runResearchTask(
         { title: task.title, architecture, fileStructure, specifications },
-        { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD, temperature }
       );
       setTasks(currentTasks =>
         currentTasks.map(t => t.title === task.title ? { ...t, details: result.markdownContent } : t)
@@ -349,7 +354,7 @@ export default function Home() {
     } finally {
       setTaskLoading(prev => ({ ...prev, [task.title]: false }));
     }
-  }, [architecture, fileStructure, specifications, apiKey, llmModel, useTDD, selectedTask?.title]);
+  }, [architecture, fileStructure, specifications, apiKey, llmModel, useTDD, temperature, selectedTask?.title]);
 
 
   const handleGenerateTasks = async () => {
@@ -361,7 +366,7 @@ export default function Home() {
     try {
       const result = await runGenerateTasks(
         { architecture, specifications, fileStructure },
-        { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD, temperature }
       );
       const initialTasks = result.tasks;
 
