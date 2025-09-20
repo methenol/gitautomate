@@ -379,7 +379,7 @@ export default function Home() {
         return;
       }
       
-      const tasksWithPlaceholders = initialTasks.map((t) => ({ ...t, details: 'Researching...' }));
+      const tasksWithPlaceholders = initialTasks.map((t: any) => ({ ...t, details: 'Researching...' }));
       setTasks(tasksWithPlaceholders);
       setLoading((prev) => ({ ...prev, tasks: false, researching: true }));
       

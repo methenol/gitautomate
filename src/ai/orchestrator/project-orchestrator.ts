@@ -18,7 +18,13 @@ import { researchTask } from '@/ai/flows/research-task';
 
 export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
   
-  async generateUnifiedPlan(input: Partial<UnifiedProjectContext>): Promise<UnifiedProjectContext> {
+  async generateUnifiedPlan(
+    input: Partial<UnifiedProjectContext>, 
+    apiKey?: string, 
+    model?: string,
+    apiBase?: string,
+    useTDD: boolean = false
+  ): Promise<UnifiedProjectContext> {
     const context: UnifiedProjectContext = {
       prd: input.prd || '',
       architecture: input.architecture || '',
@@ -35,8 +41,9 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
     if (!context.architecture && context.prd) {
       const archResult = await generateArchitecture(
         { prd: context.prd },
-        undefined, // Use default API key
-        undefined // Use default model
+        apiKey,
+        model,
+        apiBase
       );
       context.architecture = archResult.architecture;
       context.specifications = archResult.specifications;
@@ -49,7 +56,10 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
           prd: context.prd,
           architecture: context.architecture,
           specifications: context.specifications
-        }
+        },
+        apiKey,
+        model,
+        apiBase
       );
       context.fileStructure = fileResult.fileStructure || '';
     }
@@ -61,7 +71,11 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
           architecture: context.architecture,
           specifications: context.specifications,
           fileStructure: context.fileStructure
-        }
+        },
+        apiKey,
+        model,
+        apiBase,
+        useTDD
       );
       
       // Transform tasks to include dependency tracking
@@ -77,7 +91,7 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
       context.dependencyGraph = this.buildDependencyGraph(context.tasks);
     }
 
-    // Step 4: Validate the generated context
+    // Step 4: Validate the final context
     const validationResults = this.validateContext(context);
     context.validationHistory = validationResults;
 
@@ -140,7 +154,13 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
     return updatedContext;
   }
 
-  async researchTasksWithDependencies(context: UnifiedProjectContext): Promise<UnifiedProjectContext> {
+  async researchTasksWithDependencies(
+    context: UnifiedProjectContext, 
+    apiKey?: string, 
+    model?: string,
+    apiBase?: string,
+    useTDD: boolean = false
+  ): Promise<UnifiedProjectContext> {
     const updatedTasks = [...context.tasks];
     const completedTaskIds: string[] = [];
 
@@ -160,7 +180,11 @@ export class UnifiedProjectOrchestrator implements ProjectOrchestrator {
             architecture: context.architecture,
             fileStructure: context.fileStructure,
             specifications: context.specifications
-          }
+          },
+          apiKey,
+          model,
+          apiBase,
+          useTDD
         );
 
         // Update task with research results
