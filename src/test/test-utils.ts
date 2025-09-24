@@ -24,36 +24,85 @@ export function createMockAIResponse(libraries: string[]): { output: string } {
  */
 export function createSmartAIMock() {
   return jest.fn().mockImplementation(({ prompt }: { prompt: string }) => {
-    // Extract libraries based on common patterns in prompts
+    // Extract libraries based on patterns in prompts
     const libraries: string[] = [];
     
-    // Frontend technologies
-    if (prompt.includes('react') || prompt.includes('React')) libraries.push('react');
-    if (prompt.includes('vue') || prompt.includes('Vue')) libraries.push('vue');
-    if (prompt.includes('angular') || prompt.includes('Angular')) libraries.push('angular');
-    if (prompt.includes('typescript') || prompt.includes('TypeScript')) libraries.push('typescript');
+    // Get the task details section from the prompt (after "Task Details:")
+    const taskDetailsMatch = prompt.match(/Task Details:\s*(.*?)(?:\n\nExtract the library names now:|$)/s);
+    const taskContent = taskDetailsMatch ? taskDetailsMatch[1].toLowerCase() : prompt.toLowerCase();
     
-    // Backend technologies
-    if (prompt.includes('express') || prompt.includes('Express')) libraries.push('express');
-    if (prompt.includes('django') || prompt.includes('Django')) libraries.push('django');
-    if (prompt.includes('flask') || prompt.includes('Flask')) libraries.push('flask');
-    if (prompt.includes('nodejs') || prompt.includes('Node.js')) libraries.push('nodejs');
+    // Library mappings with their keywords
+    const libraryMappings = {
+      'react': ['react'],
+      'axios': ['axios'],
+      'vue': ['vue'],
+      'angular': ['angular'],
+      'svelte': ['svelte'],
+      'typescript': ['typescript'],
+      'express': ['express', 'expressjs'],
+      'fastify': ['fastify'],
+      'django': ['django'],
+      'flask': ['flask'],
+      'nodejs': ['nodejs', 'node.js'],
+      'mongodb': ['mongodb', 'mongo'],
+      'mongoose': ['mongoose'],
+      'postgresql': ['postgresql', 'postgres'],
+      'redis': ['redis'],
+      'mysql': ['mysql'],
+      'jest': ['jest'],
+      '@testing-library/react': ['@testing-library/react', 'testing-library'],
+      'supertest': ['supertest'],
+      'mongodb-memory-server': ['mongodb-memory-server'],
+      '@types/jest': ['@types/jest'],
+      'cypress': ['cypress'],
+      'mocha': ['mocha'],
+      'docker': ['docker'],
+      'kubernetes': ['kubernetes', 'k8s'],
+      'nginx': ['nginx'],
+      'webpack': ['webpack'],
+      'pygame': ['pygame'],
+      'lodash': ['lodash'],
+      'moment': ['moment'],
+      'redux': ['redux'],
+      'tensorflow': ['tensorflow'],
+      'react-dom': ['react-dom'],
+      'react-router': ['react-router'],
+      'react-router-dom': ['react-router-dom'],
+      'react-native': ['react-native'],
+      'redux-toolkit': ['redux-toolkit'],
+      'nextjs': ['next.js', 'nextjs', 'next'],
+      'bcryptjs': ['bcryptjs', 'bcrypt'],
+      'jsonwebtoken': ['jsonwebtoken', 'jwt'],
+      'cors': ['cors'],
+      'joi': ['joi'],
+      'express-rate-limit': ['express-rate-limit'],
+      'tailwindcss': ['tailwindcss', 'tailwind'],
+      'vite': ['vite'],
+      'validlibrary': ['validlibrary'], // Test library
+    };
     
-    // Databases
-    if (prompt.includes('mongodb') || prompt.includes('MongoDB')) libraries.push('mongodb');
-    if (prompt.includes('postgresql') || prompt.includes('PostgreSQL')) libraries.push('postgresql');
-    if (prompt.includes('redis') || prompt.includes('Redis')) libraries.push('redis');
-    if (prompt.includes('mysql') || prompt.includes('MySQL')) libraries.push('mysql');
+    // Check each library mapping against the task content
+    Object.entries(libraryMappings).forEach(([library, keywords]) => {
+      if (keywords.some(keyword => taskContent.includes(keyword.toLowerCase()))) {
+        libraries.push(library);
+      }
+    });
     
-    // Testing
-    if (prompt.includes('jest') || prompt.includes('Jest')) libraries.push('jest');
-    if (prompt.includes('cypress') || prompt.includes('Cypress')) libraries.push('cypress');
-    if (prompt.includes('mocha') || prompt.includes('Mocha')) libraries.push('mocha');
-    
-    // DevOps/Tools
-    if (prompt.includes('docker') || prompt.includes('Docker')) libraries.push('docker');
-    if (prompt.includes('webpack') || prompt.includes('Webpack')) libraries.push('webpack');
-    if (prompt.includes('axios') || prompt.includes('Axios')) libraries.push('axios');
+    // Handle npm install patterns specifically
+    if (taskContent.includes('npm install')) {
+      const installMatches = taskContent.match(/npm install\s+([\w\s\-@/.]+)/gi);
+      if (installMatches) {
+        installMatches.forEach(match => {
+          const packages = match.replace(/npm install/i, '').trim().split(/\s+/);
+          packages.forEach(pkg => {
+            const cleanPkg = pkg.replace(/[@\d\.\^~<>=]/g, '').trim();
+            if (cleanPkg && cleanPkg.length > 1 && /^[a-zA-Z][\w-]*$/.test(cleanPkg)) {
+              libraries.push(cleanPkg);
+            }
+          });
+        });
+      }
+    }
     
     return Promise.resolve(createMockAIResponse([...new Set(libraries)])); // Remove duplicates
   });
