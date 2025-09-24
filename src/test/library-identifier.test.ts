@@ -1,4 +1,5 @@
 import { LibraryIdentifier } from '@/services/library-identifier';
+import { createSmartAIMock, getTestParams, suppressConsoleWarnings } from './test-utils';
 
 // Mock the ai module to avoid real API calls during tests
 jest.mock('@/ai/litellm', () => ({
@@ -8,40 +9,15 @@ jest.mock('@/ai/litellm', () => ({
 }));
 
 describe('LibraryIdentifier', () => {
+  // Suppress console warnings for cleaner test output
+  suppressConsoleWarnings();
+  
   beforeEach(() => {
     // Reset mocks before each test
     jest.clearAllMocks();
     
-    // Mock successful AI responses for library extraction
-    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
-      // Extract expected libraries from the test prompts
-      if (prompt.includes('react') && prompt.includes('axios')) {
-        return Promise.resolve({
-          output: 'react\naxios'
-        });
-      } else if (prompt.includes('npm install express')) {
-        return Promise.resolve({
-          output: 'express\njest\nmongoose'
-        });
-      } else if (prompt.includes('Database Setup') && prompt.includes('Testing')) {
-        return Promise.resolve({
-          output: 'postgresql\nredis\njest\ncypress'
-        });
-      } else if (prompt.includes('Full Stack Setup')) {
-        return Promise.resolve({
-          output: 'react\nvue\nexpress\ndjango\nmongodb\njest\ndocker'
-        });
-      } else if (prompt.includes('General Planning')) {
-        return Promise.resolve({
-          output: '' // No libraries for empty tasks test
-        });
-      }
-      
-      // Default response - return some basic libraries to avoid failures while debugging
-      return Promise.resolve({
-        output: 'express\njest'
-      });
-    });
+    // Use smart AI mock that responds based on prompt content
+    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(createSmartAIMock());
   });
 
   describe('identifyLibraries', () => {
@@ -54,11 +30,12 @@ describe('LibraryIdentifier', () => {
         }
       ];
 
+      const params = getTestParams();
       const libraries = await LibraryIdentifier.identifyLibraries(
         tasks,
-        'test-api-key',
-        'test/model',
-        'https://api.openai.com/v1'
+        params.apiKey,
+        params.model,
+        params.apiBase
       );
       
       expect(libraries).toHaveLength(2);
@@ -80,11 +57,12 @@ describe('LibraryIdentifier', () => {
         }
       ];
 
+      const params = getTestParams();
       const libraries = await LibraryIdentifier.identifyLibraries(
         tasks,
-        'test-api-key',
-        'test/model',
-        'https://api.openai.com/v1'
+        params.apiKey,
+        params.model,
+        params.apiBase
       );
       
       expect(libraries.length).toBeGreaterThan(0);
@@ -107,11 +85,12 @@ describe('LibraryIdentifier', () => {
         }
       ];
 
+      const params = getTestParams();
       const libraries = await LibraryIdentifier.identifyLibraries(
         tasks,
-        'test-api-key',
-        'test/model',
-        'https://api.openai.com/v1'
+        params.apiKey,
+        params.model,
+        params.apiBase
       );
       
       expect(libraries.map(lib => lib.name)).toContain('postgresql');
@@ -136,11 +115,12 @@ describe('LibraryIdentifier', () => {
         }
       ];
 
+      const params = getTestParams();
       const libraries = await LibraryIdentifier.identifyLibraries(
         tasks,
-        'test-api-key',
-        'test/model',
-        'https://api.openai.com/v1'
+        params.apiKey,
+        params.model,
+        params.apiBase
       );
       
       // Should not include invalid names like config.font_path.sprite
@@ -157,11 +137,12 @@ describe('LibraryIdentifier', () => {
         }
       ];
 
+      const params = getTestParams();
       const libraries = await LibraryIdentifier.identifyLibraries(
         tasks,
-        'test-api-key',
-        'test/model',
-        'https://api.openai.com/v1'
+        params.apiKey,
+        params.model,
+        params.apiBase
       );
       
       // Should extract libraries without hardcoded categorization
@@ -183,11 +164,12 @@ describe('LibraryIdentifier', () => {
     it('should handle empty tasks gracefully', async () => {
       const tasks: Array<{ id: string; title: string; details: string }> = [];
       
+      const params = getTestParams();
       const libraries = await LibraryIdentifier.identifyLibraries(
         tasks,
-        'test-api-key',
-        'test/model',
-        'https://api.openai.com/v1'
+        params.apiKey,
+        params.model,
+        params.apiBase
       );
       
       expect(libraries).toHaveLength(0);
@@ -202,11 +184,12 @@ describe('LibraryIdentifier', () => {
         }
       ];
 
+      const params = getTestParams();
       const libraries = await LibraryIdentifier.identifyLibraries(
         tasks,
-        'test-api-key',
-        'test/model',
-        'https://api.openai.com/v1'
+        params.apiKey,
+        params.model,
+        params.apiBase
       );
       
       expect(libraries).toHaveLength(0);

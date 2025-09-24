@@ -1,5 +1,6 @@
 import { LibraryIdentifier } from '@/services/library-identifier';
 import { DocumentationFetcher } from '@/services/documentation-fetcher';
+import { createSmartAIMock, getTestParams, suppressConsoleWarnings } from './test-utils';
 
 // Mock the ai module to avoid real API calls during tests
 jest.mock('@/ai/litellm', () => ({
@@ -9,34 +10,15 @@ jest.mock('@/ai/litellm', () => ({
 }));
 
 describe('Integration Tests - Real Functionality', () => {
+  // Suppress console warnings for cleaner test output
+  suppressConsoleWarnings();
+  
   beforeEach(() => {
     // Reset mocks before each test
     jest.clearAllMocks();
     
-    // Mock successful AI responses for library extraction
-    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
-      // Extract expected libraries from the test prompts
-      if (prompt.includes('react') && prompt.includes('typescript')) {
-        return Promise.resolve({
-          output: 'react\ntypescript'
-        });
-      } else if (prompt.includes('express') && prompt.includes('mongoose')) {
-        return Promise.resolve({
-          output: 'express\nmongoose'
-        });
-      } else if (prompt.includes('pygame') && prompt.includes('sprite')) {
-        return Promise.resolve({
-          output: 'pygame'
-        });
-      } else if (prompt.includes('Next.js') || prompt.includes('GraphQL')) {
-        return Promise.resolve({
-          output: 'next.js\nexpress\ngraphql'
-        });
-      } else if (prompt.includes('Database') || prompt.includes('Testing')) {
-        return Promise.resolve({
-          output: 'postgresql\nredis\njest'
-        });
-      }
+    // Use smart AI mock that responds based on prompt content
+    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(createSmartAIMock());
       
       // Default response
       return Promise.resolve({
@@ -44,6 +26,7 @@ describe('Integration Tests - Real Functionality', () => {
       });
     });
   });
+
   describe('Library Extraction', () => {
     it('should extract only real library names from realistic project tasks', async () => {
       const realProjectTasks = [
@@ -85,7 +68,8 @@ describe('Integration Tests - Real Functionality', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(realProjectTasks);
+      const params = getTestParams();
+      const libraries = await LibraryIdentifier.identifyLibraries(realProjectTasks, params.apiKey, params.model, params.apiBase);
       
       // Should extract real libraries, not garbage
       const libraryNames = libraries.map(lib => lib.name);
@@ -131,7 +115,8 @@ describe('Integration Tests - Real Functionality', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(complexTasks, 'test-api-key', 'test/model', 'https://api.openai.com/v1');
+      const params = getTestParams();
+      const libraries = await LibraryIdentifier.identifyLibraries(complexTasks, params.apiKey, params.model, params.apiBase);
       const libraryNames = libraries.map(lib => lib.name);
       
       // Should extract pygame but not the class/method names
@@ -153,7 +138,8 @@ describe('Integration Tests - Real Functionality', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(tasks, 'test-api-key', 'test/model', 'https://api.openai.com/v1');
+      const params = getTestParams();
+      const libraries = await LibraryIdentifier.identifyLibraries(tasks, params.apiKey, params.model, params.apiBase);
       
       const react = libraries.find(lib => lib.name === 'react');
       const express = libraries.find(lib => lib.name === 'express');
@@ -266,7 +252,8 @@ describe('Integration Tests - Real Functionality', () => {
       ];
 
       // Step 1: Extract libraries
-      const libraries = await LibraryIdentifier.identifyLibraries(projectTasks, 'test-api-key', 'test/model', 'https://api.openai.com/v1');
+      const params = getTestParams();
+      const libraries = await LibraryIdentifier.identifyLibraries(projectTasks, params.apiKey, params.model, params.apiBase);
       expect(libraries.length).toBeGreaterThan(3);
       
       // Step 2: Filter high-confidence libraries
