@@ -114,29 +114,60 @@ describe('DocumentationFetcher Service', () => {
         }
       ];
 
+      // Mock the external API calls that searchAndVerifyLibrary makes
+      const mockVerifiedLibrary = {
+        name: 'react',
+        fullName: 'facebook/react',
+        description: 'A declarative, efficient, and flexible JavaScript library',
+        url: 'https://github.com/facebook/react',
+        stars: 50000,
+        language: 'JavaScript',
+        isVerified: true
+      };
+
       const mockLibraryDoc: LibraryDocumentation = {
         name: 'react',
         version: '18.0.0',
         description: 'A JavaScript library for building user interfaces',
         sources: [
           {
-            type: 'official',
+            type: 'official-site',
             url: 'https://react.dev/',
             title: 'React Documentation',
             content: 'React documentation content',
             sizeKB: 50,
-            lastUpdated: new Date().toISOString()
+            lastUpdated: new Date('2020-01-01').toISOString()
           }
         ],
         sizeKB: 50,
-        fetchedAt: new Date().toISOString()
+        fetchedAt: new Date('2020-01-01').toISOString()
       };
 
-      // Mock internal methods
+      // Mock internal methods properly
       jest.spyOn(documentationFetcher as any, 'searchAndVerifyLibrary')
-        .mockResolvedValueOnce({ name: 'react', verified: true });
+        .mockResolvedValueOnce(mockVerifiedLibrary);
       jest.spyOn(documentationFetcher as any, 'fetchFromSources')
-        .mockResolvedValueOnce(mockLibraryDoc);
+        .mockResolvedValueOnce([
+          {
+            type: 'official-site',
+            url: 'https://react.dev/',
+            title: 'React Documentation',
+            content: 'React documentation content',
+            sizeKB: 50,
+            lastUpdated: new Date('2020-01-01').toISOString()
+          }
+        ]);
+      jest.spyOn(documentationFetcher as any, 'cleanDocumentationWithAI')
+        .mockResolvedValueOnce([
+          {
+            type: 'official-site',
+            url: 'https://react.dev/',
+            title: 'React Documentation',
+            content: 'React documentation content',
+            sizeKB: 50,
+            lastUpdated: new Date('2020-01-01').toISOString()
+          }
+        ]);
       jest.spyOn(documentationFetcher as any, 'getCachedDocumentation')
         .mockResolvedValueOnce(null);
       jest.spyOn(documentationFetcher as any, 'cacheDocumentation')
@@ -145,7 +176,7 @@ describe('DocumentationFetcher Service', () => {
       const result = await documentationFetcher.fetchLibraryDocumentation(libraries);
 
       expect(result.libraries).toHaveLength(1);
-      expect(result.libraries[0].name).toBe('react');
+      expect(result.libraries[0].libraryName).toBe('react');
       expect(result.fetchedCount).toBe(1);
       expect(result.totalSizeKB).toBe(50);
     });
@@ -240,11 +271,21 @@ describe('DocumentationFetcher Service', () => {
       };
 
       jest.spyOn(documentationFetcher as any, 'searchAndVerifyLibrary')
-        .mockResolvedValueOnce({ name: 'large-lib', verified: true });
+        .mockResolvedValueOnce({
+          name: 'large-lib',
+          fullName: 'test/large-lib',
+          description: 'A large library',
+          url: 'https://github.com/test/large-lib',
+          stars: 1000,
+          language: 'JavaScript',
+          isVerified: true
+        });
       jest.spyOn(documentationFetcher as any, 'getCachedDocumentation')
         .mockResolvedValueOnce(null);
       jest.spyOn(documentationFetcher as any, 'fetchFromSources')
-        .mockResolvedValueOnce(largeDoc);
+        .mockResolvedValueOnce(largeDoc.sources);
+      jest.spyOn(documentationFetcher as any, 'cleanDocumentationWithAI')
+        .mockResolvedValueOnce(largeDoc.sources);
       jest.spyOn(documentationFetcher as any, 'trimDocumentationSources')
         .mockReturnValueOnce(trimmedDoc.sources);
       jest.spyOn(documentationFetcher as any, 'cacheDocumentation')
@@ -322,29 +363,71 @@ describe('DocumentationFetcher Service', () => {
 
       // Mock both libraries as valid
       jest.spyOn(documentationFetcher as any, 'searchAndVerifyLibrary')
-        .mockResolvedValueOnce({ name: 'lib1', verified: true })
-        .mockResolvedValueOnce({ name: 'lib2', verified: true });
+        .mockResolvedValueOnce({
+          name: 'lib1',
+          fullName: 'test/lib1',
+          description: 'Library 1',
+          url: 'https://github.com/test/lib1',
+          stars: 500,
+          language: 'JavaScript',
+          isVerified: true
+        })
+        .mockResolvedValueOnce({
+          name: 'lib2',
+          fullName: 'test/lib2',
+          description: 'Library 2',
+          url: 'https://github.com/test/lib2',
+          stars: 300,
+          language: 'TypeScript',
+          isVerified: true
+        });
       
       jest.spyOn(documentationFetcher as any, 'getCachedDocumentation')
         .mockResolvedValue(null);
 
       jest.spyOn(documentationFetcher as any, 'fetchFromSources')
-        .mockResolvedValueOnce({
-          name: 'lib1',
-          version: '1.0.0',
-          description: 'Library 1',
-          sources: [],
-          sizeKB: 10,
-          fetchedAt: new Date().toISOString()
-        })
-        .mockResolvedValueOnce({
-          name: 'lib2',
-          version: '2.0.0',
-          description: 'Library 2',
-          sources: [],
-          sizeKB: 20,
-          fetchedAt: new Date().toISOString()
-        });
+        .mockResolvedValueOnce([
+          {
+            type: 'github-readme',
+            url: 'https://github.com/test/lib1/README.md',
+            title: 'lib1 README',
+            content: 'Library 1 documentation',
+            sizeKB: 10,
+            lastUpdated: new Date('2020-01-01').toISOString()
+          }
+        ])
+        .mockResolvedValueOnce([
+          {
+            type: 'github-readme', 
+            url: 'https://github.com/test/lib2/README.md',
+            title: 'lib2 README',
+            content: 'Library 2 documentation',
+            sizeKB: 20,
+            lastUpdated: new Date('2020-01-01').toISOString()
+          }
+        ]);
+
+      jest.spyOn(documentationFetcher as any, 'cleanDocumentationWithAI')
+        .mockResolvedValueOnce([
+          {
+            type: 'github-readme',
+            url: 'https://github.com/test/lib1/README.md',
+            title: 'lib1 README',
+            content: 'Library 1 documentation',
+            sizeKB: 10,
+            lastUpdated: new Date('2020-01-01').toISOString()
+          }
+        ])
+        .mockResolvedValueOnce([
+          {
+            type: 'github-readme',
+            url: 'https://github.com/test/lib2/README.md', 
+            title: 'lib2 README',
+            content: 'Library 2 documentation',
+            sizeKB: 20,
+            lastUpdated: new Date('2020-01-01').toISOString()
+          }
+        ]);
 
       jest.spyOn(documentationFetcher as any, 'cacheDocumentation')
         .mockResolvedValue(undefined);

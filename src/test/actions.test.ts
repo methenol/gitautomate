@@ -82,17 +82,19 @@ describe('App Actions', () => {
       mockGenerateArchitecture.mockRejectedValueOnce(error);
 
       await expect(runGenerateArchitecture(input)).rejects.toThrow(
-        'Failed to generate architecture. The model may have returned an unexpected response.'
+        'Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD.'
       );
     });
 
-    it('should preserve original error if it contains specific messages', async () => {
+    it('should preserve API key related errors', async () => {
       const input = { prd: 'Build an app' };
-      const error = new Error('Model is required');
+      const error = new Error('API key not found');
 
       mockGenerateArchitecture.mockRejectedValueOnce(error);
 
-      await expect(runGenerateArchitecture(input)).rejects.toThrow('Model is required');
+      await expect(runGenerateArchitecture(input)).rejects.toThrow(
+        'Failed to generate architecture: Your LLM API key is missing or invalid. Please check it in settings.'
+      );
     });
   });
 
@@ -260,7 +262,8 @@ describe('App Actions', () => {
         'test-key',
         'test/model',
         'https://api.test.com',
-        0.8
+        undefined, // useTDD
+        0.8 // temperature
       );
       expect(result).toBe(mockResult);
     });
@@ -273,12 +276,16 @@ describe('App Actions', () => {
         fileStructure: 'Test structure'
       };
 
-      mockResearchTask.mockRejectedValueOnce(new Error('Research failed'));
+      // Mock multiple failures to exhaust all retries
+      mockResearchTask
+        .mockRejectedValueOnce(new Error('Research failed'))
+        .mockRejectedValueOnce(new Error('Research failed'))
+        .mockRejectedValueOnce(new Error('Research failed'));
 
       await expect(runResearchTask(input)).rejects.toThrow(
-        'Failed to research task. The model may have returned an unexpected response.'
+        'Failed to research task "Test task" after 3 attempts. The AI may have refused to answer or returned an invalid format. Please try a different model if the issue persists.'
       );
-    });
+    }, 10000); // Increase timeout for retry logic
 
     it('should handle undefined options', async () => {
       const input = {
@@ -301,26 +308,43 @@ describe('App Actions', () => {
         undefined,
         undefined,
         undefined,
-        undefined
+        undefined, // useTDD
+        undefined // temperature
       );
       expect(result).toBe(mockResult);
     });
   });
 
   describe('error handling patterns', () => {
-    it('should preserve specific error messages', async () => {
-      const specificErrors = [
-        'Model is required',
-        'API key is required',
-        'Invalid model format'
+    it('should preserve API key related error messages', async () => {
+      const apiKeyErrors = [
+        'API key not found',
+        'API key is invalid', 
+        'Please check your LLM API key'
       ];
 
-      for (const errorMessage of specificErrors) {
+      for (const errorMessage of apiKeyErrors) {
         mockGenerateArchitecture.mockRejectedValueOnce(new Error(errorMessage));
         
         await expect(runGenerateArchitecture({ prd: 'Test' }))
-          .rejects.toThrow(errorMessage);
+          .rejects.toThrow('Failed to generate architecture: Your LLM API key is missing or invalid. Please check it in settings.');
       }
+    });
+
+    it('should transform non-API-key errors to generic message', async () => {
+      const genericErrors = [
+        'Model is required',
+        'Invalid model format',
+        'Network timeout'
+      ];
+
+      for (const errorMessage of genericErrors) {
+        mockGenerateArchitecture.mockRejectedValueOnce(new Error(errorMessage));
+        
+        await expect(runGenerateArchitecture({ prd: 'Test' }))
+          .rejects.toThrow('Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD.');
+      }
+    });
     });
 
     it('should provide generic error messages for unexpected errors', async () => {
