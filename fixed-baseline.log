@@ -1,0 +1,2025 @@
+
+> nextn@0.1.0 test
+> jest --runInBand --testTimeout=15000
+
+PASS src/test/extract-libraries.test.ts
+PASS src/test/library-identifier.test.ts
+PASS src/test/basic-validation.test.ts
+PASS src/test/markdown-comprehensive.test.ts
+PASS src/test/browser-markdown-linter-comprehensive.test.ts
+PASS src/test/context-validator.test.ts
+PASS src/test/complete-format-fix.test.ts
+PASS src/test/comprehensive-system.test.ts
+PASS src/test/markdown-formatting.test.ts
+PASS src/test/browser-markdown-linter.test.ts
+PASS src/test/research-task-format.test.ts
+FAIL src/test/research-task.test.ts (67.244 s)
+  ● researchTask AI Flow › basic functionality › should research task details and return enhanced task information
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "Implementation Steps"
+    Received string:    "Default research content"
+
+    [0m [90m 79 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m researchTask(input[33m,[39m params[33m.[39mapiKey[33m,[39m params[33m.[39mmodel[33m,[39m params[33m.[39mapiBase)[33m;[39m
+     [90m 80 |[39m
+    [31m[1m>[22m[39m[90m 81 |[39m       expect(result[33m.[39mmarkdownContent)[33m.[39mtoContain([32m'Implementation Steps'[39m)[33m;[39m
+     [90m    |[39m                                      [31m[1m^[22m[39m
+     [90m 82 |[39m       expect(result[33m.[39mmarkdownContent)[33m.[39mtoContain([32m'Required Libraries'[39m)[33m;[39m
+     [90m 83 |[39m       expect(result[33m.[39mmarkdownContent)[33m.[39mtoContain([32m'Acceptance Criteria'[39m)[33m;[39m
+     [90m 84 |[39m       expect(result[33m.[39mmarkdownContent)[33m.[39mtoContain([32m'jsonwebtoken'[39m)[33m;[39m[0m
+
+      at Object.toContain (src/test/research-task.test.ts:81:38)
+
+  ● researchTask AI Flow › error handling › should handle malformed response gracefully
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Invalid response format without proper structure"
+    Received: "Task research content"
+
+    [0m [90m 192 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m researchTask(input[33m,[39m params[33m.[39mapiKey[33m,[39m params[33m.[39mmodel[33m,[39m params[33m.[39mapiBase)[33m;[39m
+     [90m 193 |[39m
+    [31m[1m>[22m[39m[90m 194 |[39m       expect(result[33m.[39mmarkdownContent)[33m.[39mtoBe([32m'Invalid response format without proper structure'[39m)[33m;[39m
+     [90m     |[39m                                      [31m[1m^[22m[39m
+     [90m 195 |[39m     })[33m;[39m
+     [90m 196 |[39m   })[33m;[39m
+     [90m 197 |[39m[0m
+
+      at Object.toBe (src/test/research-task.test.ts:194:38)
+
+  ● researchTask AI Flow › configuration options › should pass configuration options to AI service
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: {"config": {"apiBase": "https://api.test.com", "apiKey": "test-key", "temperature": 0.8}, "model": "test/model", "prompt": StringContaining "Test task"}
+    Received
+           1
+              Object {
+                "config": Object {
+                  "apiBase": "https://api.test.com",
+                  "apiKey": "test-key",
+            -     "temperature": 0.8,
+                },
+                "model": "test/model",
+            -   "prompt": StringContaining "Test task",
+            +   "prompt": "You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format following Test-Driven Development (TDD) methodology.
+            +
+            + **CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
+            +
+            + The markdown content must follow this exact structure:
+            +
+            + # {Task Title}
+            +
+            + ## Context
+            +
+            + {Briefly explain how this task fits into the overall architecture}
+            +
+            + ## Implementation Steps (TDD Approach)
+            +
+            + {Provide a detailed, step-by-step implementation guide following Red-Green-Refactor methodology. Describe what needs to be implemented without including actual code snippets. Focus on:
+            + - Files that need to be created or modified
+            + - Functions/components that need to be implemented
+            + - Integration points with other system components
+            + - The expected behavior and functionality
+            + - Any specific considerations or edge cases
+            + - Test-Driven Development phases (Red-Green-Refactor)}
+            +
+            + ## Required Libraries
+            +
+            + {List all libraries, packages, frameworks, and tools needed for this specific task as a comma-separated list. Be comprehensive and specific. Examples:
+            + - react, typescript, @types/node, tailwindcss, react-router-dom
+            + - express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors
+            + - jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event}
+            +
+            + ## Documentation
+            +
+            + Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development.
+            +
+            + ## Acceptance Criteria
+            +
+            + {Define what it means for this task to be considered \"done\" as a bulleted list}
+            +
+            + Overall Project Architecture:
+            + Test architecture
+            +
+            + File Structure:
+            + Test structure
+            +
+            + Overall Project Specifications:
+            + Test specifications
+            +
+            + Now, provide the detailed implementation plan in markdown format for the following task:
+            +
+            + **Task Title: Test task**
+            +
+            + **IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**
+            + ",
+              },
+           2
+              Object {
+                "config": Object {
+                  "apiBase": "https://api.test.com",
+                  "apiKey": "test-key",
+            -     "temperature": 0.8,
+                },
+                "model": "test/model",
+            -   "prompt": StringContaining "Test task",
+            +   "prompt": "You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format following Test-Driven Development (TDD) methodology.
+            +
+            + **CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
+            +
+            + The markdown content must follow this exact structure:
+            +
+            + # {Task Title}
+            +
+            + ## Context
+            +
+            + {Briefly explain how this task fits into the overall architecture}
+            +
+            + ## Implementation Steps (TDD Approach)
+            +
+            + {Provide a detailed, step-by-step implementation guide following Red-Green-Refactor methodology. Describe what needs to be implemented without including actual code snippets. Focus on:
+            + - Files that need to be created or modified
+            + - Functions/components that need to be implemented
+            + - Integration points with other system components
+            + - The expected behavior and functionality
+            + - Any specific considerations or edge cases
+            + - Test-Driven Development phases (Red-Green-Refactor)}
+            +
+            + ## Required Libraries
+            +
+            + {List all libraries, packages, frameworks, and tools needed for this specific task as a comma-separated list. Be comprehensive and specific. Examples:
+            + - react, typescript, @types/node, tailwindcss, react-router-dom
+            + - express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors
+            + - jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event}
+            +
+            + ## Documentation
+            +
+            + Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development.
+            +
+            + ## Acceptance Criteria
+            +
+            + {Define what it means for this task to be considered \"done\" as a bulleted list}
+            +
+            + Overall Project Architecture:
+            + Test architecture
+            +
+            + File Structure:
+            + Test structure
+            +
+            + Overall Project Specifications:
+            + Test specifications
+            +
+            + Now, provide the detailed implementation plan in markdown format for the following task:
+            +
+            + **Task Title: Test task**
+            +
+            + **IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**
+            + ",
+              },
+           3
+              Object {
+                "config": Object {
+                  "apiBase": "https://api.test.com",
+                  "apiKey": "test-key",
+            -     "temperature": 0.8,
+                },
+                "model": "test/model",
+            -   "prompt": StringContaining "Test task",
+            +   "prompt": "You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format following Test-Driven Development (TDD) methodology.
+            +
+            + **CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
+            +
+            + The markdown content must follow this exact structure:
+            +
+            + # {Task Title}
+            +
+            + ## Context
+            +
+            + {Briefly explain how this task fits into the overall architecture}
+            +
+            + ## Implementation Steps (TDD Approach)
+            +
+            + {Provide a detailed, step-by-step implementation guide following Red-Green-Refactor methodology. Describe what needs to be implemented without including actual code snippets. Focus on:
+            + - Files that need to be created or modified
+            + - Functions/components that need to be implemented
+            + - Integration points with other system components
+            + - The expected behavior and functionality
+            + - Any specific considerations or edge cases
+            + - Test-Driven Development phases (Red-Green-Refactor)}
+            +
+            + ## Required Libraries
+            +
+            + {List all libraries, packages, frameworks, and tools needed for this specific task as a comma-separated list. Be comprehensive and specific. Examples:
+            + - react, typescript, @types/node, tailwindcss, react-router-dom
+            + - express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors
+            + - jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event}
+            +
+            + ## Documentation
+            +
+            + Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development.
+            +
+            + ## Acceptance Criteria
+            +
+            + {Define what it means for this task to be considered \"done\" as a bulleted list}
+            +
+            + Overall Project Architecture:
+            + Test architecture
+            +
+            + File Structure:
+            + Test structure
+            +
+            + Overall Project Specifications:
+            + Test specifications
+            +
+            + Now, provide the detailed implementation plan in markdown format for the following task:
+            +
+            + **Task Title: Test task**
+            +
+            + **IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**
+            + ",
+              },
+
+    Number of calls: 3
+
+    [0m [90m 216 |[39m       [36mawait[39m researchTask(input[33m,[39m apiKey[33m,[39m model[33m,[39m apiBase[33m,[39m temperature)[33m;[39m
+     [90m 217 |[39m
+    [31m[1m>[22m[39m[90m 218 |[39m       expect(mockAI[33m.[39mgenerate)[33m.[39mtoHaveBeenCalledWith({
+     [90m     |[39m                               [31m[1m^[22m[39m
+     [90m 219 |[39m         model[33m:[39m [32m'test/model'[39m[33m,[39m
+     [90m 220 |[39m         prompt[33m:[39m expect[33m.[39mstringContaining([32m'Test task'[39m)[33m,[39m
+     [90m 221 |[39m         config[33m:[39m {[0m
+
+      at Object.toHaveBeenCalledWith (src/test/research-task.test.ts:218:31)
+
+FAIL src/test/library-validation.test.ts
+  ● Console
+
+    console.error
+      LiteLLM generation error: LLM API error: Incorrect API key provided: test-api-key. You can find your API key at https://platform.openai.com/account/api-keys.
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/library-validation.test.ts:28:23)
+
+    console.error
+      LiteLLM generation error: LLM API error: Incorrect API key provided: test-api-key. You can find your API key at https://platform.openai.com/account/api-keys.
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/library-validation.test.ts:28:23)
+
+    console.error
+      LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/library-validation.test.ts:74:23)
+
+    console.error
+      LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/library-validation.test.ts:99:23)
+
+    console.error
+      LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/library-validation.test.ts:117:23)
+
+  ● Library Extraction - Core Functionality › should extract real libraries and reject garbage patterns
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "pygame"
+    Received array: []
+
+    [0m [90m 33 |[39m     
+     [90m 34 |[39m     [90m// Should extract real libraries[39m
+    [31m[1m>[22m[39m[90m 35 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'pygame'[39m)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 36 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'react'[39m)[33m;[39m
+     [90m 37 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'typescript'[39m)[33m;[39m
+     [90m 38 |[39m     [0m
+
+      at Object.toContain (src/test/library-validation.test.ts:35:26)
+
+  ● Library Extraction - Core Functionality › should handle import statements correctly
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "react"
+    Received array: []
+
+    [0m [90m 75 |[39m     [36mconst[39m libraryNames [33m=[39m libraries[33m.[39mmap(lib [33m=>[39m lib[33m.[39mname)[33m;[39m
+     [90m 76 |[39m     
+    [31m[1m>[22m[39m[90m 77 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'react'[39m)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 78 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'axios'[39m)[33m;[39m
+     [90m 79 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'express'[39m)[33m;[39m
+     [90m 80 |[39m     [0m
+
+      at Object.toContain (src/test/library-validation.test.ts:77:26)
+
+  ● Library Extraction - Core Functionality › should handle package manager commands
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "lodash"
+    Received array: []
+
+    [0m [90m 100 |[39m     [36mconst[39m libraryNames [33m=[39m libraries[33m.[39mmap(lib [33m=>[39m lib[33m.[39mname)[33m;[39m
+     [90m 101 |[39m     
+    [31m[1m>[22m[39m[90m 102 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'lodash'[39m)[33m;[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 103 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'moment'[39m)[33m;[39m
+     [90m 104 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'redux'[39m)[33m;[39m
+     [90m 105 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'tensorflow'[39m)[33m;[39m[0m
+
+      at Object.toContain (src/test/library-validation.test.ts:102:26)
+
+  ● Library Extraction - Core Functionality › should categorize libraries correctly
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 0
+
+    [0m [90m 124 |[39m     console[33m.[39mlog([32m'Categories:'[39m[33m,[39m categories)[33m;[39m
+     [90m 125 |[39m     [90m// Since no hardcoded categories, all libraries should have 'library' category[39m
+    [31m[1m>[22m[39m[90m 126 |[39m     expect([33mObject[39m[33m.[39mkeys(categories)[33m.[39mlength)[33m.[39mtoBe([35m1[39m)[33m;[39m
+     [90m     |[39m                                            [31m[1m^[22m[39m
+     [90m 127 |[39m     expect(categories[[32m'library'[39m])[33m.[39mtoBeDefined()[33m;[39m
+     [90m 128 |[39m   })[33m;[39m
+     [90m 129 |[39m[0m
+
+      at Object.toBe (src/test/library-validation.test.ts:126:44)
+
+FAIL src/test/integration.test.ts
+  ● Integration Tests - Real Functionality › Library Extraction › should extract only real library names from realistic project tasks
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "react"
+    Received array: []
+
+    [0m [90m 93 |[39m       
+     [90m 94 |[39m       [90m// Should contain real libraries[39m
+    [31m[1m>[22m[39m[90m 95 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'react'[39m)[33m;[39m
+     [90m    |[39m                            [31m[1m^[22m[39m
+     [90m 96 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'express'[39m)[33m;[39m
+     [90m 97 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'typescript'[39m)[33m;[39m
+     [90m 98 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'jest'[39m)[33m;[39m[0m
+
+      at Object.toContain (src/test/integration.test.ts:95:28)
+
+  ● Integration Tests - Real Functionality › Library Extraction › should not extract invalid names from complex technical content
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "pygame"
+    Received array: ["react", "typescript"]
+
+    [0m [90m 136 |[39m       
+     [90m 137 |[39m       [90m// Should extract pygame but not the class/method names[39m
+    [31m[1m>[22m[39m[90m 138 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'pygame'[39m)[33m;[39m
+     [90m     |[39m                            [31m[1m^[22m[39m
+     [90m 139 |[39m       expect(libraryNames)[33m.[39mnot[33m.[39mtoContain([32m'pygame.sprite.sprite'[39m)[33m;[39m
+     [90m 140 |[39m       expect(libraryNames)[33m.[39mnot[33m.[39mtoContain([32m'config.font_path'[39m)[33m;[39m 
+     [90m 141 |[39m       expect(libraryNames)[33m.[39mnot[33m.[39mtoContain([32m'base.sprite.collision_handler'[39m)[33m;[39m[0m
+
+      at Object.toContain (src/test/integration.test.ts:138:28)
+
+  ● Integration Tests - Real Functionality › Library Extraction › should categorize libraries correctly
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "library"
+    Received: undefined
+
+    [0m [90m 164 |[39m       [90m// All libraries should have 'library' category since no hardcoding allowed[39m
+     [90m 165 |[39m       expect(react[33m?[39m[33m.[39mcategory)[33m.[39mtoBe([32m'library'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 166 |[39m       expect(express[33m?[39m[33m.[39mcategory)[33m.[39mtoBe([32m'library'[39m)[33m;[39m
+     [90m     |[39m                                 [31m[1m^[22m[39m
+     [90m 167 |[39m       expect(postgresql[33m?[39m[33m.[39mcategory)[33m.[39mtoBe([32m'library'[39m)[33m;[39m
+     [90m 168 |[39m       expect(jest[33m?[39m[33m.[39mcategory)[33m.[39mtoBe([32m'library'[39m)[33m;[39m
+     [90m 169 |[39m       expect(docker[33m?[39m[33m.[39mcategory)[33m.[39mtoBe([32m'library'[39m)[33m;[39m[0m
+
+      at Object.toBe (src/test/integration.test.ts:166:33)
+
+  ● Integration Tests - Real Functionality › End-to-End Documentation Flow › should extract libraries and fetch documentation for a complete project
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 3
+    Received:   2
+
+    [0m [90m 268 |[39m       [90m// Step 1: Extract libraries[39m
+     [90m 269 |[39m       [36mconst[39m libraries [33m=[39m [36mawait[39m [33mLibraryIdentifier[39m[33m.[39midentifyLibraries(projectTasks[33m,[39m [32m'test-api-key'[39m[33m,[39m [32m'test/model'[39m[33m,[39m [32m'https://api.openai.com/v1'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 270 |[39m       expect(libraries[33m.[39mlength)[33m.[39mtoBeGreaterThan([35m3[39m)[33m;[39m
+     [90m     |[39m                                [31m[1m^[22m[39m
+     [90m 271 |[39m       
+     [90m 272 |[39m       [90m// Step 2: Filter high-confidence libraries[39m
+     [90m 273 |[39m       [36mconst[39m filtered [33m=[39m [33mLibraryIdentifier[39m[33m.[39mfilterLibraries(libraries[33m,[39m {[0m
+
+      at Object.toBeGreaterThan (src/test/integration.test.ts:270:32)
+
+PASS src/test/library-identifier-integration.test.ts
+PASS src/test/generate-tasks.test.ts
+PASS src/test/generate-file-structure.test.ts
+FAIL src/test/generate-architecture.test.ts
+  ● generateArchitecture AI Flow › error handling › should retry on markdown linting failures
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Fixed content"
+    Received: "Some spec content"
+
+    [0m [90m 207 |[39m
+     [90m 208 |[39m       expect(result[33m.[39marchitecture)[33m.[39mtoBe([32m'Fixed content'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 209 |[39m       expect(result[33m.[39mspecifications)[33m.[39mtoBe([32m'Fixed content'[39m)[33m;[39m
+     [90m     |[39m                                     [31m[1m^[22m[39m
+     [90m 210 |[39m       expect(mockAI[33m.[39mgenerate)[33m.[39mtoHaveBeenCalledTimes([35m3[39m)[33m;[39m [90m// Should retry[39m
+     [90m 211 |[39m     })[33m;[39m
+     [90m 212 |[39m   })[33m;[39m[0m
+
+      at Object.toBe (src/test/generate-architecture.test.ts:209:37)
+
+  ● generateArchitecture AI Flow › markdown parsing › should handle fallback parsing when headers are missing
+
+    expect(received).toBeTruthy()
+
+    Received: ""
+
+    [0m [90m 250 |[39m       [90m// Should still return content even with poor formatting[39m
+     [90m 251 |[39m       expect(result[33m.[39marchitecture)[33m.[39mtoBeTruthy()[33m;[39m
+    [31m[1m>[22m[39m[90m 252 |[39m       expect(result[33m.[39mspecifications)[33m.[39mtoBeTruthy()[33m;[39m
+     [90m     |[39m                                     [31m[1m^[22m[39m
+     [90m 253 |[39m     })[33m;[39m
+     [90m 254 |[39m   })[33m;[39m
+     [90m 255 |[39m[0m
+
+      at Object.toBeTruthy (src/test/generate-architecture.test.ts:252:37)
+
+FAIL src/test/enhanced-library-extraction.test.ts
+  ● Console
+
+    console.error
+      LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/enhanced-library-extraction.test.ts:33:22)
+
+    console.error
+      LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/enhanced-library-extraction.test.ts:33:22)
+
+    console.error
+      LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/enhanced-library-extraction.test.ts:71:22)
+
+    console.error
+      LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/enhanced-library-extraction.test.ts:90:22)
+
+    console.error
+      LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/enhanced-library-extraction.test.ts:116:22)
+
+    console.error
+      LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/enhanced-library-extraction.test.ts:189:22)
+
+    console.error
+      LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/enhanced-library-extraction.test.ts:189:22)
+
+    console.error
+      LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/enhanced-library-extraction.test.ts:189:22)
+
+    console.error
+      LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/enhanced-library-extraction.test.ts:227:22)
+
+  ● Enhanced Library Extraction › REQUIRED LIBRARIES pattern extraction › should extract libraries from REQUIRED LIBRARIES sections with highest confidence
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "react"
+    Received array: []
+
+    [0m [90m 40 |[39m       [90m// Should extract all explicitly required libraries[39m
+     [90m 41 |[39m       [36mconst[39m libraryNames [33m=[39m result[33m.[39mmap(lib [33m=>[39m lib[33m.[39mname)[33m.[39msort()[33m;[39m
+    [31m[1m>[22m[39m[90m 42 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'react'[39m)[33m;[39m
+     [90m    |[39m                            [31m[1m^[22m[39m
+     [90m 43 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'react-router-dom'[39m)[33m;[39m
+     [90m 44 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'tailwindcss'[39m)[33m;[39m
+     [90m 45 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'typescript'[39m)[33m;[39m[0m
+
+      at Object.toContain (src/test/enhanced-library-extraction.test.ts:42:28)
+
+  ● Enhanced Library Extraction › REQUIRED LIBRARIES pattern extraction › should handle comma-separated and space-separated library lists
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 6
+    + Received  + 1
+
+    - Array [
+    -   "angular",
+    -   "react",
+    -   "svelte",
+    -   "vue",
+    - ]
+    + Array []
+
+    [0m [90m 76 |[39m       )[33m;[39m
+     [90m 77 |[39m       [36mconst[39m names [33m=[39m result[33m.[39mmap(lib [33m=>[39m lib[33m.[39mname)[33m.[39msort()[33m;[39m
+    [31m[1m>[22m[39m[90m 78 |[39m       expect(names)[33m.[39mtoEqual([[32m'angular'[39m[33m,[39m [32m'react'[39m[33m,[39m [32m'svelte'[39m[33m,[39m [32m'vue'[39m])[33m;[39m
+     [90m    |[39m                     [31m[1m^[22m[39m
+     [90m 79 |[39m     })[33m;[39m
+     [90m 80 |[39m
+     [90m 81 |[39m     it([32m'should extract all valid library names from REQUIRED LIBRARIES'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+
+      at Object.toEqual (src/test/enhanced-library-extraction.test.ts:78:21)
+
+  ● Enhanced Library Extraction › REQUIRED LIBRARIES pattern extraction › should extract all valid library names from REQUIRED LIBRARIES
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 4
+    + Received  + 1
+
+    - Array [
+    -   "react",
+    -   "validlibrary",
+    - ]
+    + Array []
+
+    [0m [90m 91 |[39m       [36mconst[39m names [33m=[39m result[33m.[39mmap(lib [33m=>[39m lib[33m.[39mname)[33m.[39msort()[33m;[39m
+     [90m 92 |[39m       [90m// Now that we have better filtering, only valid library names should be extracted[39m
+    [31m[1m>[22m[39m[90m 93 |[39m       expect(names)[33m.[39mtoEqual([[32m'react'[39m[33m,[39m [32m'validlibrary'[39m])[33m;[39m
+     [90m    |[39m                     [31m[1m^[22m[39m
+     [90m 94 |[39m       
+     [90m 95 |[39m       [90m// Should filter out common non-library words like 'config' and 'utils'[39m
+     [90m 96 |[39m       expect(names)[33m.[39mnot[33m.[39mtoContain([32m'config'[39m)[33m;[39m[0m
+
+      at Object.toEqual (src/test/enhanced-library-extraction.test.ts:93:21)
+
+  ● Enhanced Library Extraction › Combined extraction patterns › should prioritize REQUIRED LIBRARIES over other patterns
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0.9
+    Received: undefined
+
+    [0m [90m 123 |[39m
+     [90m 124 |[39m       [90m// All libraries extracted by LLM have the same confidence score[39m
+    [31m[1m>[22m[39m[90m 125 |[39m       expect(expressLib[33m?[39m[33m.[39mconfidenceScore)[33m.[39mtoBe([35m0.9[39m)[33m;[39m [90m// LLM extracted[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 126 |[39m       expect(reactLib[33m?[39m[33m.[39mconfidenceScore)[33m.[39mtoBe([35m0.9[39m)[33m;[39m [90m// LLM extracted[39m
+     [90m 127 |[39m       expect(fastifyLib[33m?[39m[33m.[39mconfidenceScore)[33m.[39mtoBe([35m0.9[39m)[33m;[39m [90m// LLM extracted[39m
+     [90m 128 |[39m       expect(vueLib[33m?[39m[33m.[39mconfidenceScore)[33m.[39mtoBe([35m0.9[39m)[33m;[39m [90m// LLM extracted[39m[0m
+
+      at Object.toBe (src/test/enhanced-library-extraction.test.ts:125:43)
+
+  ● Enhanced Library Extraction › Real-world task scenarios › should extract comprehensive library list from realistic tasks
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 12
+    Received:    0
+
+    [0m [90m 190 |[39m       
+     [90m 191 |[39m       [90m// Should extract 12+ distinct libraries[39m
+    [31m[1m>[22m[39m[90m 192 |[39m       expect(result[33m.[39mlength)[33m.[39mtoBeGreaterThanOrEqual([35m12[39m)[33m;[39m
+     [90m     |[39m                             [31m[1m^[22m[39m
+     [90m 193 |[39m
+     [90m 194 |[39m       [90m// All libraries should have reasonable confidence[39m
+     [90m 195 |[39m       result[33m.[39mforEach(lib [33m=>[39m {[0m
+
+      at Object.toBeGreaterThanOrEqual (src/test/enhanced-library-extraction.test.ts:192:29)
+
+  ● Enhanced Library Extraction › Real-world task scenarios › should filter out invalid patterns that caused DNS errors
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "pygame"
+    Received array: []
+
+    [0m [90m 229 |[39m       
+     [90m 230 |[39m       [90m// Should only extract valid library names[39m
+    [31m[1m>[22m[39m[90m 231 |[39m       expect(names)[33m.[39mtoContain([32m'pygame'[39m)[33m;[39m
+     [90m     |[39m                     [31m[1m^[22m[39m
+     [90m 232 |[39m       expect(names)[33m.[39mtoContain([32m'react'[39m)[33m;[39m
+     [90m 233 |[39m       
+     [90m 234 |[39m       [90m// Should NOT extract problematic patterns[39m[0m
+
+      at Object.toContain (src/test/enhanced-library-extraction.test.ts:231:21)
+
+FAIL src/test/documentation-fetcher.test.ts
+  ● DocumentationFetcher › Documentation Size Management › should respect size limits
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "github-readme"
+    Received: "official-site"
+
+    [0m [90m 61 |[39m       
+     [90m 62 |[39m       [90m// Should prioritize README first[39m
+    [31m[1m>[22m[39m[90m 63 |[39m       expect(trimmed[[35m0[39m][33m.[39mtype)[33m.[39mtoBe([32m'github-readme'[39m)[33m;[39m
+     [90m    |[39m                               [31m[1m^[22m[39m
+     [90m 64 |[39m     })[33m;[39m
+     [90m 65 |[39m   })[33m;[39m
+     [90m 66 |[39m[0m
+
+      at Object.toBe (src/test/documentation-fetcher.test.ts:63:31)
+
+  ● DocumentationFetcher › Settings Handling › should return empty result when documentation is disabled
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 0
+    Received length: 1
+    Received array:  [{"cacheExpiry": "2025-10-01T19:01:24.460Z", "category": "frontend", "fetchedAt": "2025-09-24T19:01:24.460Z", "libraryName": "react", "sizeKB": 0, "sources": [{"content": "# react·
+    React is a JavaScript library for building user interfaces.·
+    ", "sizeKB": 0, "title": "react - NPM", "type": "npm", "url": "https://www.npmjs.com/package/react"}]}]
+
+    [0m [90m 75 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m fetcher[33m.[39mfetchLibraryDocumentation([library])[33m;[39m
+     [90m 76 |[39m       
+    [31m[1m>[22m[39m[90m 77 |[39m       expect(result[33m.[39mlibraries)[33m.[39mtoHaveLength([35m0[39m)[33m;[39m
+     [90m    |[39m                                [31m[1m^[22m[39m
+     [90m 78 |[39m       expect(result[33m.[39mfetchedCount)[33m.[39mtoBe([35m0[39m)[33m;[39m
+     [90m 79 |[39m     })[33m;[39m
+     [90m 80 |[39m[0m
+
+      at Object.toHaveLength (src/test/documentation-fetcher.test.ts:77:32)
+
+FAIL src/test/documentation-fetcher-comprehensive.test.ts
+  ● DocumentationFetcher Service › fetchLibraryDocumentation › should fetch documentation for valid libraries
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 0
+    Received array:  []
+
+    [0m [90m 145 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m documentationFetcher[33m.[39mfetchLibraryDocumentation(libraries)[33m;[39m
+     [90m 146 |[39m
+    [31m[1m>[22m[39m[90m 147 |[39m       expect(result[33m.[39mlibraries)[33m.[39mtoHaveLength([35m1[39m)[33m;[39m
+     [90m     |[39m                                [31m[1m^[22m[39m
+     [90m 148 |[39m       expect(result[33m.[39mlibraries[[35m0[39m][33m.[39mname)[33m.[39mtoBe([32m'react'[39m)[33m;[39m
+     [90m 149 |[39m       expect(result[33m.[39mfetchedCount)[33m.[39mtoBe([35m1[39m)[33m;[39m
+     [90m 150 |[39m       expect(result[33m.[39mtotalSizeKB)[33m.[39mtoBe([35m50[39m)[33m;[39m[0m
+
+      at Object.toHaveLength (src/test/documentation-fetcher-comprehensive.test.ts:147:32)
+
+  ● DocumentationFetcher Service › fetchLibraryDocumentation › should trim documentation if it exceeds size limits
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 0
+    Received array:  []
+
+    [0m [90m 253 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m documentationFetcher[33m.[39mfetchLibraryDocumentation(libraries)[33m;[39m
+     [90m 254 |[39m
+    [31m[1m>[22m[39m[90m 255 |[39m       expect(result[33m.[39mlibraries)[33m.[39mtoHaveLength([35m1[39m)[33m;[39m
+     [90m     |[39m                                [31m[1m^[22m[39m
+     [90m 256 |[39m       expect(result[33m.[39mtotalSizeKB)[33m.[39mtoBeLessThan([35m2000[39m)[33m;[39m
+     [90m 257 |[39m     })[33m;[39m
+     [90m 258 |[39m   })[33m;[39m[0m
+
+      at Object.toHaveLength (src/test/documentation-fetcher-comprehensive.test.ts:255:32)
+
+  ● DocumentationFetcher Service › error handling and edge cases › should handle concurrent library fetching
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 2
+    Received length: 0
+    Received array:  []
+
+    [0m [90m 352 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m documentationFetcher[33m.[39mfetchLibraryDocumentation(libraries)[33m;[39m
+     [90m 353 |[39m
+    [31m[1m>[22m[39m[90m 354 |[39m       expect(result[33m.[39mlibraries)[33m.[39mtoHaveLength([35m2[39m)[33m;[39m
+     [90m     |[39m                                [31m[1m^[22m[39m
+     [90m 355 |[39m       expect(result[33m.[39mfetchedCount)[33m.[39mtoBe([35m2[39m)[33m;[39m
+     [90m 356 |[39m       expect(result[33m.[39mtotalSizeKB)[33m.[39mtoBe([35m30[39m)[33m;[39m
+     [90m 357 |[39m     })[33m;[39m[0m
+
+      at Object.toHaveLength (src/test/documentation-fetcher-comprehensive.test.ts:354:32)
+
+FAIL src/test/actions.test.ts (15.172 s)
+  ● Console
+
+    console.error
+      Error generating architecture: Error: AI generation failed
+          at Object.<anonymous> (/home/runner/work/gitautomate/gitautomate/src/test/actions.test.ts:80:21)
+          at Promise.finally.completed (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+          at _callCircusTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+          at _runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at run (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+          at runAndTransformResultsToJestFormat (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+          at jestAdapter (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:343:7)
+
+    [0m [90m 35 |[39m     [36mreturn[39m result[33m;[39m
+     [90m 36 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 37 |[39m     console[33m.[39merror([32m'Error generating architecture:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 38 |[39m     [36mif[39m (
+     [90m 39 |[39m       error [36minstanceof[39m [33mError[39m [33m&&[39m
+     [90m 40 |[39m       (error[33m.[39mmessage[33m.[39mincludes([32m'API key not found'[39m) [33m||[39m[0m
+
+      at error (src/app/actions.ts:37:13)
+      at Object.<anonymous> (src/test/actions.test.ts:84:7)
+
+    console.error
+      Error generating architecture: Error: Model is required
+          at Object.<anonymous> (/home/runner/work/gitautomate/gitautomate/src/test/actions.test.ts:91:21)
+          at Promise.finally.completed (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+          at _callCircusTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+          at _runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at run (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+          at runAndTransformResultsToJestFormat (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+          at jestAdapter (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:343:7)
+
+    [0m [90m 35 |[39m     [36mreturn[39m result[33m;[39m
+     [90m 36 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 37 |[39m     console[33m.[39merror([32m'Error generating architecture:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 38 |[39m     [36mif[39m (
+     [90m 39 |[39m       error [36minstanceof[39m [33mError[39m [33m&&[39m
+     [90m 40 |[39m       (error[33m.[39mmessage[33m.[39mincludes([32m'API key not found'[39m) [33m||[39m[0m
+
+      at error (src/app/actions.ts:37:13)
+      at Object.<anonymous> (src/test/actions.test.ts:95:7)
+
+    console.error
+      Error generating tasks: Error: Generation failed
+          at Object.<anonymous> (/home/runner/work/gitautomate/gitautomate/src/test/actions.test.ts:166:47)
+          at Promise.finally.completed (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+          at _callCircusTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+          at _runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at run (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+          at runAndTransformResultsToJestFormat (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+          at jestAdapter (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:343:7)
+
+    [0m [90m 65 |[39m     [36mreturn[39m result[33m;[39m
+     [90m 66 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 67 |[39m     console[33m.[39merror([32m'Error generating tasks:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 68 |[39m     [36mthrow[39m [36mnew[39m [33mError[39m(
+     [90m 69 |[39m       [32m'Failed to generate tasks. The model may have returned an unexpected response.'[39m
+     [90m 70 |[39m     )[33m;[39m[0m
+
+      at error (src/app/actions.ts:67:13)
+      at Object.<anonymous> (src/test/actions.test.ts:168:7)
+
+    console.error
+      Error generating file structure: Error: Invalid API key
+          at Object.<anonymous> (/home/runner/work/gitautomate/gitautomate/src/test/actions.test.ts:213:55)
+          at Promise.finally.completed (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+          at _callCircusTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+          at _runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at run (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+          at runAndTransformResultsToJestFormat (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+          at jestAdapter (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:343:7)
+
+    [0m [90m  97 |[39m     [36mreturn[39m result[33m;[39m
+     [90m  98 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m  99 |[39m     console[33m.[39merror([32m'Error generating file structure:'[39m[33m,[39m error)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 100 |[39m     [36mif[39m (
+     [90m 101 |[39m       error [36minstanceof[39m [33mError[39m [33m&&[39m
+     [90m 102 |[39m       (error[33m.[39mmessage[33m.[39mincludes([32m'API key not found'[39m) [33m||[39m[0m
+
+      at error (src/app/actions.ts:99:13)
+      at Object.<anonymous> (src/test/actions.test.ts:215:7)
+
+    console.error
+      Error generating file structure: Error: Unknown error
+          at Object.<anonymous> (/home/runner/work/gitautomate/gitautomate/src/test/actions.test.ts:227:55)
+          at Promise.finally.completed (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+          at _callCircusTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+          at _runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at run (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+          at runAndTransformResultsToJestFormat (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+          at jestAdapter (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:343:7)
+
+    [0m [90m  97 |[39m     [36mreturn[39m result[33m;[39m
+     [90m  98 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m  99 |[39m     console[33m.[39merror([32m'Error generating file structure:'[39m[33m,[39m error)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 100 |[39m     [36mif[39m (
+     [90m 101 |[39m       error [36minstanceof[39m [33mError[39m [33m&&[39m
+     [90m 102 |[39m       (error[33m.[39mmessage[33m.[39mincludes([32m'API key not found'[39m) [33m||[39m[0m
+
+      at error (src/app/actions.ts:99:13)
+      at Object.<anonymous> (src/test/actions.test.ts:229:7)
+
+    console.error
+      Error researching task "Test task" (Attempt 1/3): Error: Research failed
+          at Object.<anonymous> (/home/runner/work/gitautomate/gitautomate/src/test/actions.test.ts:276:46)
+          at Promise.finally.completed (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+          at _callCircusTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+          at _runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at run (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+          at runAndTransformResultsToJestFormat (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+          at jestAdapter (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:343:7)
+
+    [0m [90m 130 |[39m       [36mreturn[39m result[33m;[39m
+     [90m 131 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 132 |[39m       console[33m.[39merror(
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 133 |[39m         [32m`Error researching task "${input.title}" (Attempt ${i + 1}/${MAX_RETRIES}):`[39m[33m,[39m
+     [90m 134 |[39m         error
+     [90m 135 |[39m       )[33m;[39m[0m
+
+      at error (src/app/actions.ts:132:15)
+      at Object.<anonymous> (src/test/actions.test.ts:278:7)
+
+    console.error
+      Error generating architecture: Error: Model is required
+          at Object.<anonymous> (/home/runner/work/gitautomate/gitautomate/src/test/actions.test.ts:319:56)
+          at Promise.finally.completed (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+          at _callCircusTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+          at _runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at run (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+          at runAndTransformResultsToJestFormat (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+          at jestAdapter (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:343:7)
+
+    [0m [90m 35 |[39m     [36mreturn[39m result[33m;[39m
+     [90m 36 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 37 |[39m     console[33m.[39merror([32m'Error generating architecture:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 38 |[39m     [36mif[39m (
+     [90m 39 |[39m       error [36minstanceof[39m [33mError[39m [33m&&[39m
+     [90m 40 |[39m       (error[33m.[39mmessage[33m.[39mincludes([32m'API key not found'[39m) [33m||[39m[0m
+
+      at error (src/app/actions.ts:37:13)
+      at Object.<anonymous> (src/test/actions.test.ts:321:9)
+
+    console.error
+      Error generating tasks: Error: Weird internal error
+          at Object.<anonymous> (/home/runner/work/gitautomate/gitautomate/src/test/actions.test.ts:327:31)
+          at Promise.finally.completed (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+          at _callCircusTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+          at _runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at _runTestsForDescribeBlock (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+          at run (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+          at runAndTransformResultsToJestFormat (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+          at jestAdapter (/home/runner/work/gitautomate/gitautomate/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/home/runner/work/gitautomate/gitautomate/node_modules/jest-runner/build/index.js:343:7)
+
+    [0m [90m 65 |[39m     [36mreturn[39m result[33m;[39m
+     [90m 66 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 67 |[39m     console[33m.[39merror([32m'Error generating tasks:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 68 |[39m     [36mthrow[39m [36mnew[39m [33mError[39m(
+     [90m 69 |[39m       [32m'Failed to generate tasks. The model may have returned an unexpected response.'[39m
+     [90m 70 |[39m     )[33m;[39m[0m
+
+      at error (src/app/actions.ts:67:13)
+      at Object.<anonymous> (src/test/actions.test.ts:337:7)
+
+  ● App Actions › runGenerateArchitecture › should handle errors from generateArchitecture
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected substring: "Failed to generate architecture. The model may have returned an unexpected response."
+    Received message:   "Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD."
+
+        [0m [90m 46 |[39m       )[33m;[39m
+         [90m 47 |[39m     }
+        [31m[1m>[22m[39m[90m 48 |[39m     [36mthrow[39m [36mnew[39m [33mError[39m(
+         [90m    |[39m           [31m[1m^[22m[39m
+         [90m 49 |[39m       [32m'Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD.'[39m
+         [90m 50 |[39m     )[33m;[39m
+         [90m 51 |[39m   }[0m
+
+      at runGenerateArchitecture (src/app/actions.ts:48:11)
+      at Object.<anonymous> (src/test/actions.test.ts:84:7)
+      at Object.toThrow (node_modules/expect/build/index.js:2155:20)
+      at Object.toThrow (src/test/actions.test.ts:84:60)
+
+  ● App Actions › runGenerateArchitecture › should preserve original error if it contains specific messages
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected substring: "Model is required"
+    Received message:   "Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD."
+
+        [0m [90m 46 |[39m       )[33m;[39m
+         [90m 47 |[39m     }
+        [31m[1m>[22m[39m[90m 48 |[39m     [36mthrow[39m [36mnew[39m [33mError[39m(
+         [90m    |[39m           [31m[1m^[22m[39m
+         [90m 49 |[39m       [32m'Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD.'[39m
+         [90m 50 |[39m     )[33m;[39m
+         [90m 51 |[39m   }[0m
+
+      at runGenerateArchitecture (src/app/actions.ts:48:11)
+      at Object.<anonymous> (src/test/actions.test.ts:95:7)
+      at Object.toThrow (node_modules/expect/build/index.js:2155:20)
+      at Object.toThrow (src/test/actions.test.ts:95:60)
+
+  ● App Actions › runGenerateFileStructure › should handle API key errors with specific message
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected substring: "Failed to generate file structure: Your LLM API key is missing or invalid. Please check it in settings."
+    Received message:   "File structure generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD, architecture, or specifications."
+
+        [0m [90m 108 |[39m       )[33m;[39m
+         [90m 109 |[39m     }
+        [31m[1m>[22m[39m[90m 110 |[39m     [36mthrow[39m [36mnew[39m [33mError[39m(
+         [90m     |[39m           [31m[1m^[22m[39m
+         [90m 111 |[39m       [32m'File structure generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD, architecture, or specifications.'[39m
+         [90m 112 |[39m     )[33m;[39m
+         [90m 113 |[39m   }[0m
+
+      at runGenerateFileStructure (src/app/actions.ts:110:11)
+      at Object.<anonymous> (src/test/actions.test.ts:215:7)
+      at Object.toThrow (node_modules/expect/build/index.js:2155:20)
+      at Object.toThrow (src/test/actions.test.ts:215:61)
+
+  ● App Actions › runResearchTask › should call researchTask with correct parameters
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    - Expected
+    + Received
+
+      {"architecture": "React with JWT", "fileStructure": "src/auth/", "specifications": "Login and registration", "title": "Implement user authentication"},
+      "test-key",
+      "test/model",
+      "https://api.test.com",
+    - 0.8,
+    + undefined,
+    + 0.8,
+
+    Number of calls: 1
+
+    [0m [90m 256 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m runResearchTask(input[33m,[39m options)[33m;[39m
+     [90m 257 |[39m
+    [31m[1m>[22m[39m[90m 258 |[39m       expect(mockResearchTask)[33m.[39mtoHaveBeenCalledWith(
+     [90m     |[39m                                [31m[1m^[22m[39m
+     [90m 259 |[39m         input[33m,[39m
+     [90m 260 |[39m         [32m'test-key'[39m[33m,[39m
+     [90m 261 |[39m         [32m'test/model'[39m[33m,[39m[0m
+
+      at Object.toHaveBeenCalledWith (src/test/actions.test.ts:258:32)
+
+  ● App Actions › runResearchTask › should handle errors from researchTask
+
+    thrown: "Exceeded timeout of 15000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 266 |[39m     })[33m;[39m
+     [90m 267 |[39m
+    [31m[1m>[22m[39m[90m 268 |[39m     it([32m'should handle errors from researchTask'[39m[33m,[39m [36masync[39m () [33m=>[39m {
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 269 |[39m       [36mconst[39m input [33m=[39m {
+     [90m 270 |[39m         title[33m:[39m [32m'Test task'[39m[33m,[39m
+     [90m 271 |[39m         architecture[33m:[39m [32m'Test architecture'[39m[33m,[39m[0m
+
+      at it (src/test/actions.test.ts:268:5)
+      at describe (src/test/actions.test.ts:235:3)
+      at Object.describe (src/test/actions.test.ts:23:1)
+
+  ● App Actions › runResearchTask › should handle undefined options
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    - Expected
+    + Received
+
+      {"architecture": "Test architecture", "fileStructure": "Test structure", "specifications": "Test specifications", "title": "Test task"},
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    + undefined,
+
+    Number of calls: 1
+
+    [0m [90m 297 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m runResearchTask(input)[33m;[39m
+     [90m 298 |[39m
+    [31m[1m>[22m[39m[90m 299 |[39m       expect(mockResearchTask)[33m.[39mtoHaveBeenCalledWith(
+     [90m     |[39m                                [31m[1m^[22m[39m
+     [90m 300 |[39m         input[33m,[39m
+     [90m 301 |[39m         undefined[33m,[39m
+     [90m 302 |[39m         undefined[33m,[39m[0m
+
+      at Object.toHaveBeenCalledWith (src/test/actions.test.ts:299:32)
+
+  ● App Actions › error handling patterns › should preserve specific error messages
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected substring: "Model is required"
+    Received message:   "Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD."
+
+        [0m [90m 46 |[39m       )[33m;[39m
+         [90m 47 |[39m     }
+        [31m[1m>[22m[39m[90m 48 |[39m     [36mthrow[39m [36mnew[39m [33mError[39m(
+         [90m    |[39m           [31m[1m^[22m[39m
+         [90m 49 |[39m       [32m'Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD.'[39m
+         [90m 50 |[39m     )[33m;[39m
+         [90m 51 |[39m   }[0m
+
+      at runGenerateArchitecture (src/app/actions.ts:48:11)
+      at Object.<anonymous> (src/test/actions.test.ts:321:9)
+      at Object.toThrow (node_modules/expect/build/index.js:2155:20)
+      at Object.toThrow (src/test/actions.test.ts:322:20)
+
+Summary of all failing tests
+FAIL src/test/research-task.test.ts (67.244 s)
+  ● researchTask AI Flow › basic functionality › should research task details and return enhanced task information
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "Implementation Steps"
+    Received string:    "Default research content"
+
+    [0m [90m 79 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m researchTask(input[33m,[39m params[33m.[39mapiKey[33m,[39m params[33m.[39mmodel[33m,[39m params[33m.[39mapiBase)[33m;[39m
+     [90m 80 |[39m
+    [31m[1m>[22m[39m[90m 81 |[39m       expect(result[33m.[39mmarkdownContent)[33m.[39mtoContain([32m'Implementation Steps'[39m)[33m;[39m
+     [90m    |[39m                                      [31m[1m^[22m[39m
+     [90m 82 |[39m       expect(result[33m.[39mmarkdownContent)[33m.[39mtoContain([32m'Required Libraries'[39m)[33m;[39m
+     [90m 83 |[39m       expect(result[33m.[39mmarkdownContent)[33m.[39mtoContain([32m'Acceptance Criteria'[39m)[33m;[39m
+     [90m 84 |[39m       expect(result[33m.[39mmarkdownContent)[33m.[39mtoContain([32m'jsonwebtoken'[39m)[33m;[39m[0m
+
+      at Object.toContain (src/test/research-task.test.ts:81:38)
+
+  ● researchTask AI Flow › error handling › should handle malformed response gracefully
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Invalid response format without proper structure"
+    Received: "Task research content"
+
+    [0m [90m 192 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m researchTask(input[33m,[39m params[33m.[39mapiKey[33m,[39m params[33m.[39mmodel[33m,[39m params[33m.[39mapiBase)[33m;[39m
+     [90m 193 |[39m
+    [31m[1m>[22m[39m[90m 194 |[39m       expect(result[33m.[39mmarkdownContent)[33m.[39mtoBe([32m'Invalid response format without proper structure'[39m)[33m;[39m
+     [90m     |[39m                                      [31m[1m^[22m[39m
+     [90m 195 |[39m     })[33m;[39m
+     [90m 196 |[39m   })[33m;[39m
+     [90m 197 |[39m[0m
+
+      at Object.toBe (src/test/research-task.test.ts:194:38)
+
+  ● researchTask AI Flow › configuration options › should pass configuration options to AI service
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: {"config": {"apiBase": "https://api.test.com", "apiKey": "test-key", "temperature": 0.8}, "model": "test/model", "prompt": StringContaining "Test task"}
+    Received
+           1
+              Object {
+                "config": Object {
+                  "apiBase": "https://api.test.com",
+                  "apiKey": "test-key",
+            -     "temperature": 0.8,
+                },
+                "model": "test/model",
+            -   "prompt": StringContaining "Test task",
+            +   "prompt": "You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format following Test-Driven Development (TDD) methodology.
+            +
+            + **CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
+            +
+            + The markdown content must follow this exact structure:
+            +
+            + # {Task Title}
+            +
+            + ## Context
+            +
+            + {Briefly explain how this task fits into the overall architecture}
+            +
+            + ## Implementation Steps (TDD Approach)
+            +
+            + {Provide a detailed, step-by-step implementation guide following Red-Green-Refactor methodology. Describe what needs to be implemented without including actual code snippets. Focus on:
+            + - Files that need to be created or modified
+            + - Functions/components that need to be implemented
+            + - Integration points with other system components
+            + - The expected behavior and functionality
+            + - Any specific considerations or edge cases
+            + - Test-Driven Development phases (Red-Green-Refactor)}
+            +
+            + ## Required Libraries
+            +
+            + {List all libraries, packages, frameworks, and tools needed for this specific task as a comma-separated list. Be comprehensive and specific. Examples:
+            + - react, typescript, @types/node, tailwindcss, react-router-dom
+            + - express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors
+            + - jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event}
+            +
+            + ## Documentation
+            +
+            + Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development.
+            +
+            + ## Acceptance Criteria
+            +
+            + {Define what it means for this task to be considered \"done\" as a bulleted list}
+            +
+            + Overall Project Architecture:
+            + Test architecture
+            +
+            + File Structure:
+            + Test structure
+            +
+            + Overall Project Specifications:
+            + Test specifications
+            +
+            + Now, provide the detailed implementation plan in markdown format for the following task:
+            +
+            + **Task Title: Test task**
+            +
+            + **IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**
+            + ",
+              },
+           2
+              Object {
+                "config": Object {
+                  "apiBase": "https://api.test.com",
+                  "apiKey": "test-key",
+            -     "temperature": 0.8,
+                },
+                "model": "test/model",
+            -   "prompt": StringContaining "Test task",
+            +   "prompt": "You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format following Test-Driven Development (TDD) methodology.
+            +
+            + **CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
+            +
+            + The markdown content must follow this exact structure:
+            +
+            + # {Task Title}
+            +
+            + ## Context
+            +
+            + {Briefly explain how this task fits into the overall architecture}
+            +
+            + ## Implementation Steps (TDD Approach)
+            +
+            + {Provide a detailed, step-by-step implementation guide following Red-Green-Refactor methodology. Describe what needs to be implemented without including actual code snippets. Focus on:
+            + - Files that need to be created or modified
+            + - Functions/components that need to be implemented
+            + - Integration points with other system components
+            + - The expected behavior and functionality
+            + - Any specific considerations or edge cases
+            + - Test-Driven Development phases (Red-Green-Refactor)}
+            +
+            + ## Required Libraries
+            +
+            + {List all libraries, packages, frameworks, and tools needed for this specific task as a comma-separated list. Be comprehensive and specific. Examples:
+            + - react, typescript, @types/node, tailwindcss, react-router-dom
+            + - express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors
+            + - jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event}
+            +
+            + ## Documentation
+            +
+            + Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development.
+            +
+            + ## Acceptance Criteria
+            +
+            + {Define what it means for this task to be considered \"done\" as a bulleted list}
+            +
+            + Overall Project Architecture:
+            + Test architecture
+            +
+            + File Structure:
+            + Test structure
+            +
+            + Overall Project Specifications:
+            + Test specifications
+            +
+            + Now, provide the detailed implementation plan in markdown format for the following task:
+            +
+            + **Task Title: Test task**
+            +
+            + **IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**
+            + ",
+              },
+           3
+              Object {
+                "config": Object {
+                  "apiBase": "https://api.test.com",
+                  "apiKey": "test-key",
+            -     "temperature": 0.8,
+                },
+                "model": "test/model",
+            -   "prompt": StringContaining "Test task",
+            +   "prompt": "You are an expert project manager and senior software engineer. Your task is to perform detailed research for a specific development task and provide a comprehensive implementation plan in markdown format following Test-Driven Development (TDD) methodology.
+            +
+            + **CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting. The content will be automatically validated and you may be asked to retry if the markdown is invalid.**
+            +
+            + The markdown content must follow this exact structure:
+            +
+            + # {Task Title}
+            +
+            + ## Context
+            +
+            + {Briefly explain how this task fits into the overall architecture}
+            +
+            + ## Implementation Steps (TDD Approach)
+            +
+            + {Provide a detailed, step-by-step implementation guide following Red-Green-Refactor methodology. Describe what needs to be implemented without including actual code snippets. Focus on:
+            + - Files that need to be created or modified
+            + - Functions/components that need to be implemented
+            + - Integration points with other system components
+            + - The expected behavior and functionality
+            + - Any specific considerations or edge cases
+            + - Test-Driven Development phases (Red-Green-Refactor)}
+            +
+            + ## Required Libraries
+            +
+            + {List all libraries, packages, frameworks, and tools needed for this specific task as a comma-separated list. Be comprehensive and specific. Examples:
+            + - react, typescript, @types/node, tailwindcss, react-router-dom
+            + - express, mongodb, mongoose, bcryptjs, jsonwebtoken, cors
+            + - jest, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event}
+            +
+            + ## Documentation
+            +
+            + Refer to the reference documentation for the required libraries listed above to understand their APIs, best practices, and implementation details before beginning development.
+            +
+            + ## Acceptance Criteria
+            +
+            + {Define what it means for this task to be considered \"done\" as a bulleted list}
+            +
+            + Overall Project Architecture:
+            + Test architecture
+            +
+            + File Structure:
+            + Test structure
+            +
+            + Overall Project Specifications:
+            + Test specifications
+            +
+            + Now, provide the detailed implementation plan in markdown format for the following task:
+            +
+            + **Task Title: Test task**
+            +
+            + **IMPORTANT: Output ONLY markdown content. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**
+            + ",
+              },
+
+    Number of calls: 3
+
+    [0m [90m 216 |[39m       [36mawait[39m researchTask(input[33m,[39m apiKey[33m,[39m model[33m,[39m apiBase[33m,[39m temperature)[33m;[39m
+     [90m 217 |[39m
+    [31m[1m>[22m[39m[90m 218 |[39m       expect(mockAI[33m.[39mgenerate)[33m.[39mtoHaveBeenCalledWith({
+     [90m     |[39m                               [31m[1m^[22m[39m
+     [90m 219 |[39m         model[33m:[39m [32m'test/model'[39m[33m,[39m
+     [90m 220 |[39m         prompt[33m:[39m expect[33m.[39mstringContaining([32m'Test task'[39m)[33m,[39m
+     [90m 221 |[39m         config[33m:[39m {[0m
+
+      at Object.toHaveBeenCalledWith (src/test/research-task.test.ts:218:31)
+
+FAIL src/test/library-validation.test.ts
+  ● Library Extraction - Core Functionality › should extract real libraries and reject garbage patterns
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "pygame"
+    Received array: []
+
+    [0m [90m 33 |[39m     
+     [90m 34 |[39m     [90m// Should extract real libraries[39m
+    [31m[1m>[22m[39m[90m 35 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'pygame'[39m)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 36 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'react'[39m)[33m;[39m
+     [90m 37 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'typescript'[39m)[33m;[39m
+     [90m 38 |[39m     [0m
+
+      at Object.toContain (src/test/library-validation.test.ts:35:26)
+
+  ● Library Extraction - Core Functionality › should handle import statements correctly
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "react"
+    Received array: []
+
+    [0m [90m 75 |[39m     [36mconst[39m libraryNames [33m=[39m libraries[33m.[39mmap(lib [33m=>[39m lib[33m.[39mname)[33m;[39m
+     [90m 76 |[39m     
+    [31m[1m>[22m[39m[90m 77 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'react'[39m)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 78 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'axios'[39m)[33m;[39m
+     [90m 79 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'express'[39m)[33m;[39m
+     [90m 80 |[39m     [0m
+
+      at Object.toContain (src/test/library-validation.test.ts:77:26)
+
+  ● Library Extraction - Core Functionality › should handle package manager commands
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "lodash"
+    Received array: []
+
+    [0m [90m 100 |[39m     [36mconst[39m libraryNames [33m=[39m libraries[33m.[39mmap(lib [33m=>[39m lib[33m.[39mname)[33m;[39m
+     [90m 101 |[39m     
+    [31m[1m>[22m[39m[90m 102 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'lodash'[39m)[33m;[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 103 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'moment'[39m)[33m;[39m
+     [90m 104 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'redux'[39m)[33m;[39m
+     [90m 105 |[39m     expect(libraryNames)[33m.[39mtoContain([32m'tensorflow'[39m)[33m;[39m[0m
+
+      at Object.toContain (src/test/library-validation.test.ts:102:26)
+
+  ● Library Extraction - Core Functionality › should categorize libraries correctly
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 0
+
+    [0m [90m 124 |[39m     console[33m.[39mlog([32m'Categories:'[39m[33m,[39m categories)[33m;[39m
+     [90m 125 |[39m     [90m// Since no hardcoded categories, all libraries should have 'library' category[39m
+    [31m[1m>[22m[39m[90m 126 |[39m     expect([33mObject[39m[33m.[39mkeys(categories)[33m.[39mlength)[33m.[39mtoBe([35m1[39m)[33m;[39m
+     [90m     |[39m                                            [31m[1m^[22m[39m
+     [90m 127 |[39m     expect(categories[[32m'library'[39m])[33m.[39mtoBeDefined()[33m;[39m
+     [90m 128 |[39m   })[33m;[39m
+     [90m 129 |[39m[0m
+
+      at Object.toBe (src/test/library-validation.test.ts:126:44)
+
+FAIL src/test/integration.test.ts
+  ● Integration Tests - Real Functionality › Library Extraction › should extract only real library names from realistic project tasks
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "react"
+    Received array: []
+
+    [0m [90m 93 |[39m       
+     [90m 94 |[39m       [90m// Should contain real libraries[39m
+    [31m[1m>[22m[39m[90m 95 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'react'[39m)[33m;[39m
+     [90m    |[39m                            [31m[1m^[22m[39m
+     [90m 96 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'express'[39m)[33m;[39m
+     [90m 97 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'typescript'[39m)[33m;[39m
+     [90m 98 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'jest'[39m)[33m;[39m[0m
+
+      at Object.toContain (src/test/integration.test.ts:95:28)
+
+  ● Integration Tests - Real Functionality › Library Extraction › should not extract invalid names from complex technical content
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "pygame"
+    Received array: ["react", "typescript"]
+
+    [0m [90m 136 |[39m       
+     [90m 137 |[39m       [90m// Should extract pygame but not the class/method names[39m
+    [31m[1m>[22m[39m[90m 138 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'pygame'[39m)[33m;[39m
+     [90m     |[39m                            [31m[1m^[22m[39m
+     [90m 139 |[39m       expect(libraryNames)[33m.[39mnot[33m.[39mtoContain([32m'pygame.sprite.sprite'[39m)[33m;[39m
+     [90m 140 |[39m       expect(libraryNames)[33m.[39mnot[33m.[39mtoContain([32m'config.font_path'[39m)[33m;[39m 
+     [90m 141 |[39m       expect(libraryNames)[33m.[39mnot[33m.[39mtoContain([32m'base.sprite.collision_handler'[39m)[33m;[39m[0m
+
+      at Object.toContain (src/test/integration.test.ts:138:28)
+
+  ● Integration Tests - Real Functionality › Library Extraction › should categorize libraries correctly
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "library"
+    Received: undefined
+
+    [0m [90m 164 |[39m       [90m// All libraries should have 'library' category since no hardcoding allowed[39m
+     [90m 165 |[39m       expect(react[33m?[39m[33m.[39mcategory)[33m.[39mtoBe([32m'library'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 166 |[39m       expect(express[33m?[39m[33m.[39mcategory)[33m.[39mtoBe([32m'library'[39m)[33m;[39m
+     [90m     |[39m                                 [31m[1m^[22m[39m
+     [90m 167 |[39m       expect(postgresql[33m?[39m[33m.[39mcategory)[33m.[39mtoBe([32m'library'[39m)[33m;[39m
+     [90m 168 |[39m       expect(jest[33m?[39m[33m.[39mcategory)[33m.[39mtoBe([32m'library'[39m)[33m;[39m
+     [90m 169 |[39m       expect(docker[33m?[39m[33m.[39mcategory)[33m.[39mtoBe([32m'library'[39m)[33m;[39m[0m
+
+      at Object.toBe (src/test/integration.test.ts:166:33)
+
+  ● Integration Tests - Real Functionality › End-to-End Documentation Flow › should extract libraries and fetch documentation for a complete project
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 3
+    Received:   2
+
+    [0m [90m 268 |[39m       [90m// Step 1: Extract libraries[39m
+     [90m 269 |[39m       [36mconst[39m libraries [33m=[39m [36mawait[39m [33mLibraryIdentifier[39m[33m.[39midentifyLibraries(projectTasks[33m,[39m [32m'test-api-key'[39m[33m,[39m [32m'test/model'[39m[33m,[39m [32m'https://api.openai.com/v1'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 270 |[39m       expect(libraries[33m.[39mlength)[33m.[39mtoBeGreaterThan([35m3[39m)[33m;[39m
+     [90m     |[39m                                [31m[1m^[22m[39m
+     [90m 271 |[39m       
+     [90m 272 |[39m       [90m// Step 2: Filter high-confidence libraries[39m
+     [90m 273 |[39m       [36mconst[39m filtered [33m=[39m [33mLibraryIdentifier[39m[33m.[39mfilterLibraries(libraries[33m,[39m {[0m
+
+      at Object.toBeGreaterThan (src/test/integration.test.ts:270:32)
+
+FAIL src/test/generate-architecture.test.ts
+  ● generateArchitecture AI Flow › error handling › should retry on markdown linting failures
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Fixed content"
+    Received: "Some spec content"
+
+    [0m [90m 207 |[39m
+     [90m 208 |[39m       expect(result[33m.[39marchitecture)[33m.[39mtoBe([32m'Fixed content'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 209 |[39m       expect(result[33m.[39mspecifications)[33m.[39mtoBe([32m'Fixed content'[39m)[33m;[39m
+     [90m     |[39m                                     [31m[1m^[22m[39m
+     [90m 210 |[39m       expect(mockAI[33m.[39mgenerate)[33m.[39mtoHaveBeenCalledTimes([35m3[39m)[33m;[39m [90m// Should retry[39m
+     [90m 211 |[39m     })[33m;[39m
+     [90m 212 |[39m   })[33m;[39m[0m
+
+      at Object.toBe (src/test/generate-architecture.test.ts:209:37)
+
+  ● generateArchitecture AI Flow › markdown parsing › should handle fallback parsing when headers are missing
+
+    expect(received).toBeTruthy()
+
+    Received: ""
+
+    [0m [90m 250 |[39m       [90m// Should still return content even with poor formatting[39m
+     [90m 251 |[39m       expect(result[33m.[39marchitecture)[33m.[39mtoBeTruthy()[33m;[39m
+    [31m[1m>[22m[39m[90m 252 |[39m       expect(result[33m.[39mspecifications)[33m.[39mtoBeTruthy()[33m;[39m
+     [90m     |[39m                                     [31m[1m^[22m[39m
+     [90m 253 |[39m     })[33m;[39m
+     [90m 254 |[39m   })[33m;[39m
+     [90m 255 |[39m[0m
+
+      at Object.toBeTruthy (src/test/generate-architecture.test.ts:252:37)
+
+FAIL src/test/enhanced-library-extraction.test.ts
+  ● Enhanced Library Extraction › REQUIRED LIBRARIES pattern extraction › should extract libraries from REQUIRED LIBRARIES sections with highest confidence
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "react"
+    Received array: []
+
+    [0m [90m 40 |[39m       [90m// Should extract all explicitly required libraries[39m
+     [90m 41 |[39m       [36mconst[39m libraryNames [33m=[39m result[33m.[39mmap(lib [33m=>[39m lib[33m.[39mname)[33m.[39msort()[33m;[39m
+    [31m[1m>[22m[39m[90m 42 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'react'[39m)[33m;[39m
+     [90m    |[39m                            [31m[1m^[22m[39m
+     [90m 43 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'react-router-dom'[39m)[33m;[39m
+     [90m 44 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'tailwindcss'[39m)[33m;[39m
+     [90m 45 |[39m       expect(libraryNames)[33m.[39mtoContain([32m'typescript'[39m)[33m;[39m[0m
+
+      at Object.toContain (src/test/enhanced-library-extraction.test.ts:42:28)
+
+  ● Enhanced Library Extraction › REQUIRED LIBRARIES pattern extraction › should handle comma-separated and space-separated library lists
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 6
+    + Received  + 1
+
+    - Array [
+    -   "angular",
+    -   "react",
+    -   "svelte",
+    -   "vue",
+    - ]
+    + Array []
+
+    [0m [90m 76 |[39m       )[33m;[39m
+     [90m 77 |[39m       [36mconst[39m names [33m=[39m result[33m.[39mmap(lib [33m=>[39m lib[33m.[39mname)[33m.[39msort()[33m;[39m
+    [31m[1m>[22m[39m[90m 78 |[39m       expect(names)[33m.[39mtoEqual([[32m'angular'[39m[33m,[39m [32m'react'[39m[33m,[39m [32m'svelte'[39m[33m,[39m [32m'vue'[39m])[33m;[39m
+     [90m    |[39m                     [31m[1m^[22m[39m
+     [90m 79 |[39m     })[33m;[39m
+     [90m 80 |[39m
+     [90m 81 |[39m     it([32m'should extract all valid library names from REQUIRED LIBRARIES'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+
+      at Object.toEqual (src/test/enhanced-library-extraction.test.ts:78:21)
+
+  ● Enhanced Library Extraction › REQUIRED LIBRARIES pattern extraction › should extract all valid library names from REQUIRED LIBRARIES
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 4
+    + Received  + 1
+
+    - Array [
+    -   "react",
+    -   "validlibrary",
+    - ]
+    + Array []
+
+    [0m [90m 91 |[39m       [36mconst[39m names [33m=[39m result[33m.[39mmap(lib [33m=>[39m lib[33m.[39mname)[33m.[39msort()[33m;[39m
+     [90m 92 |[39m       [90m// Now that we have better filtering, only valid library names should be extracted[39m
+    [31m[1m>[22m[39m[90m 93 |[39m       expect(names)[33m.[39mtoEqual([[32m'react'[39m[33m,[39m [32m'validlibrary'[39m])[33m;[39m
+     [90m    |[39m                     [31m[1m^[22m[39m
+     [90m 94 |[39m       
+     [90m 95 |[39m       [90m// Should filter out common non-library words like 'config' and 'utils'[39m
+     [90m 96 |[39m       expect(names)[33m.[39mnot[33m.[39mtoContain([32m'config'[39m)[33m;[39m[0m
+
+      at Object.toEqual (src/test/enhanced-library-extraction.test.ts:93:21)
+
+  ● Enhanced Library Extraction › Combined extraction patterns › should prioritize REQUIRED LIBRARIES over other patterns
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0.9
+    Received: undefined
+
+    [0m [90m 123 |[39m
+     [90m 124 |[39m       [90m// All libraries extracted by LLM have the same confidence score[39m
+    [31m[1m>[22m[39m[90m 125 |[39m       expect(expressLib[33m?[39m[33m.[39mconfidenceScore)[33m.[39mtoBe([35m0.9[39m)[33m;[39m [90m// LLM extracted[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 126 |[39m       expect(reactLib[33m?[39m[33m.[39mconfidenceScore)[33m.[39mtoBe([35m0.9[39m)[33m;[39m [90m// LLM extracted[39m
+     [90m 127 |[39m       expect(fastifyLib[33m?[39m[33m.[39mconfidenceScore)[33m.[39mtoBe([35m0.9[39m)[33m;[39m [90m// LLM extracted[39m
+     [90m 128 |[39m       expect(vueLib[33m?[39m[33m.[39mconfidenceScore)[33m.[39mtoBe([35m0.9[39m)[33m;[39m [90m// LLM extracted[39m[0m
+
+      at Object.toBe (src/test/enhanced-library-extraction.test.ts:125:43)
+
+  ● Enhanced Library Extraction › Real-world task scenarios › should extract comprehensive library list from realistic tasks
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 12
+    Received:    0
+
+    [0m [90m 190 |[39m       
+     [90m 191 |[39m       [90m// Should extract 12+ distinct libraries[39m
+    [31m[1m>[22m[39m[90m 192 |[39m       expect(result[33m.[39mlength)[33m.[39mtoBeGreaterThanOrEqual([35m12[39m)[33m;[39m
+     [90m     |[39m                             [31m[1m^[22m[39m
+     [90m 193 |[39m
+     [90m 194 |[39m       [90m// All libraries should have reasonable confidence[39m
+     [90m 195 |[39m       result[33m.[39mforEach(lib [33m=>[39m {[0m
+
+      at Object.toBeGreaterThanOrEqual (src/test/enhanced-library-extraction.test.ts:192:29)
+
+  ● Enhanced Library Extraction › Real-world task scenarios › should filter out invalid patterns that caused DNS errors
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: "pygame"
+    Received array: []
+
+    [0m [90m 229 |[39m       
+     [90m 230 |[39m       [90m// Should only extract valid library names[39m
+    [31m[1m>[22m[39m[90m 231 |[39m       expect(names)[33m.[39mtoContain([32m'pygame'[39m)[33m;[39m
+     [90m     |[39m                     [31m[1m^[22m[39m
+     [90m 232 |[39m       expect(names)[33m.[39mtoContain([32m'react'[39m)[33m;[39m
+     [90m 233 |[39m       
+     [90m 234 |[39m       [90m// Should NOT extract problematic patterns[39m[0m
+
+      at Object.toContain (src/test/enhanced-library-extraction.test.ts:231:21)
+
+FAIL src/test/documentation-fetcher.test.ts
+  ● DocumentationFetcher › Documentation Size Management › should respect size limits
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "github-readme"
+    Received: "official-site"
+
+    [0m [90m 61 |[39m       
+     [90m 62 |[39m       [90m// Should prioritize README first[39m
+    [31m[1m>[22m[39m[90m 63 |[39m       expect(trimmed[[35m0[39m][33m.[39mtype)[33m.[39mtoBe([32m'github-readme'[39m)[33m;[39m
+     [90m    |[39m                               [31m[1m^[22m[39m
+     [90m 64 |[39m     })[33m;[39m
+     [90m 65 |[39m   })[33m;[39m
+     [90m 66 |[39m[0m
+
+      at Object.toBe (src/test/documentation-fetcher.test.ts:63:31)
+
+  ● DocumentationFetcher › Settings Handling › should return empty result when documentation is disabled
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 0
+    Received length: 1
+    Received array:  [{"cacheExpiry": "2025-10-01T19:01:24.460Z", "category": "frontend", "fetchedAt": "2025-09-24T19:01:24.460Z", "libraryName": "react", "sizeKB": 0, "sources": [{"content": "# react·
+    React is a JavaScript library for building user interfaces.·
+    ", "sizeKB": 0, "title": "react - NPM", "type": "npm", "url": "https://www.npmjs.com/package/react"}]}]
+
+    [0m [90m 75 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m fetcher[33m.[39mfetchLibraryDocumentation([library])[33m;[39m
+     [90m 76 |[39m       
+    [31m[1m>[22m[39m[90m 77 |[39m       expect(result[33m.[39mlibraries)[33m.[39mtoHaveLength([35m0[39m)[33m;[39m
+     [90m    |[39m                                [31m[1m^[22m[39m
+     [90m 78 |[39m       expect(result[33m.[39mfetchedCount)[33m.[39mtoBe([35m0[39m)[33m;[39m
+     [90m 79 |[39m     })[33m;[39m
+     [90m 80 |[39m[0m
+
+      at Object.toHaveLength (src/test/documentation-fetcher.test.ts:77:32)
+
+FAIL src/test/documentation-fetcher-comprehensive.test.ts
+  ● DocumentationFetcher Service › fetchLibraryDocumentation › should fetch documentation for valid libraries
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 0
+    Received array:  []
+
+    [0m [90m 145 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m documentationFetcher[33m.[39mfetchLibraryDocumentation(libraries)[33m;[39m
+     [90m 146 |[39m
+    [31m[1m>[22m[39m[90m 147 |[39m       expect(result[33m.[39mlibraries)[33m.[39mtoHaveLength([35m1[39m)[33m;[39m
+     [90m     |[39m                                [31m[1m^[22m[39m
+     [90m 148 |[39m       expect(result[33m.[39mlibraries[[35m0[39m][33m.[39mname)[33m.[39mtoBe([32m'react'[39m)[33m;[39m
+     [90m 149 |[39m       expect(result[33m.[39mfetchedCount)[33m.[39mtoBe([35m1[39m)[33m;[39m
+     [90m 150 |[39m       expect(result[33m.[39mtotalSizeKB)[33m.[39mtoBe([35m50[39m)[33m;[39m[0m
+
+      at Object.toHaveLength (src/test/documentation-fetcher-comprehensive.test.ts:147:32)
+
+  ● DocumentationFetcher Service › fetchLibraryDocumentation › should trim documentation if it exceeds size limits
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 0
+    Received array:  []
+
+    [0m [90m 253 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m documentationFetcher[33m.[39mfetchLibraryDocumentation(libraries)[33m;[39m
+     [90m 254 |[39m
+    [31m[1m>[22m[39m[90m 255 |[39m       expect(result[33m.[39mlibraries)[33m.[39mtoHaveLength([35m1[39m)[33m;[39m
+     [90m     |[39m                                [31m[1m^[22m[39m
+     [90m 256 |[39m       expect(result[33m.[39mtotalSizeKB)[33m.[39mtoBeLessThan([35m2000[39m)[33m;[39m
+     [90m 257 |[39m     })[33m;[39m
+     [90m 258 |[39m   })[33m;[39m[0m
+
+      at Object.toHaveLength (src/test/documentation-fetcher-comprehensive.test.ts:255:32)
+
+  ● DocumentationFetcher Service › error handling and edge cases › should handle concurrent library fetching
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 2
+    Received length: 0
+    Received array:  []
+
+    [0m [90m 352 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m documentationFetcher[33m.[39mfetchLibraryDocumentation(libraries)[33m;[39m
+     [90m 353 |[39m
+    [31m[1m>[22m[39m[90m 354 |[39m       expect(result[33m.[39mlibraries)[33m.[39mtoHaveLength([35m2[39m)[33m;[39m
+     [90m     |[39m                                [31m[1m^[22m[39m
+     [90m 355 |[39m       expect(result[33m.[39mfetchedCount)[33m.[39mtoBe([35m2[39m)[33m;[39m
+     [90m 356 |[39m       expect(result[33m.[39mtotalSizeKB)[33m.[39mtoBe([35m30[39m)[33m;[39m
+     [90m 357 |[39m     })[33m;[39m[0m
+
+      at Object.toHaveLength (src/test/documentation-fetcher-comprehensive.test.ts:354:32)
+
+FAIL src/test/actions.test.ts (15.172 s)
+  ● App Actions › runGenerateArchitecture › should handle errors from generateArchitecture
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected substring: "Failed to generate architecture. The model may have returned an unexpected response."
+    Received message:   "Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD."
+
+        [0m [90m 46 |[39m       )[33m;[39m
+         [90m 47 |[39m     }
+        [31m[1m>[22m[39m[90m 48 |[39m     [36mthrow[39m [36mnew[39m [33mError[39m(
+         [90m    |[39m           [31m[1m^[22m[39m
+         [90m 49 |[39m       [32m'Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD.'[39m
+         [90m 50 |[39m     )[33m;[39m
+         [90m 51 |[39m   }[0m
+
+      at runGenerateArchitecture (src/app/actions.ts:48:11)
+      at Object.<anonymous> (src/test/actions.test.ts:84:7)
+      at Object.toThrow (node_modules/expect/build/index.js:2155:20)
+      at Object.toThrow (src/test/actions.test.ts:84:60)
+
+  ● App Actions › runGenerateArchitecture › should preserve original error if it contains specific messages
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected substring: "Model is required"
+    Received message:   "Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD."
+
+        [0m [90m 46 |[39m       )[33m;[39m
+         [90m 47 |[39m     }
+        [31m[1m>[22m[39m[90m 48 |[39m     [36mthrow[39m [36mnew[39m [33mError[39m(
+         [90m    |[39m           [31m[1m^[22m[39m
+         [90m 49 |[39m       [32m'Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD.'[39m
+         [90m 50 |[39m     )[33m;[39m
+         [90m 51 |[39m   }[0m
+
+      at runGenerateArchitecture (src/app/actions.ts:48:11)
+      at Object.<anonymous> (src/test/actions.test.ts:95:7)
+      at Object.toThrow (node_modules/expect/build/index.js:2155:20)
+      at Object.toThrow (src/test/actions.test.ts:95:60)
+
+  ● App Actions › runGenerateFileStructure › should handle API key errors with specific message
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected substring: "Failed to generate file structure: Your LLM API key is missing or invalid. Please check it in settings."
+    Received message:   "File structure generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD, architecture, or specifications."
+
+        [0m [90m 108 |[39m       )[33m;[39m
+         [90m 109 |[39m     }
+        [31m[1m>[22m[39m[90m 110 |[39m     [36mthrow[39m [36mnew[39m [33mError[39m(
+         [90m     |[39m           [31m[1m^[22m[39m
+         [90m 111 |[39m       [32m'File structure generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD, architecture, or specifications.'[39m
+         [90m 112 |[39m     )[33m;[39m
+         [90m 113 |[39m   }[0m
+
+      at runGenerateFileStructure (src/app/actions.ts:110:11)
+      at Object.<anonymous> (src/test/actions.test.ts:215:7)
+      at Object.toThrow (node_modules/expect/build/index.js:2155:20)
+      at Object.toThrow (src/test/actions.test.ts:215:61)
+
+  ● App Actions › runResearchTask › should call researchTask with correct parameters
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    - Expected
+    + Received
+
+      {"architecture": "React with JWT", "fileStructure": "src/auth/", "specifications": "Login and registration", "title": "Implement user authentication"},
+      "test-key",
+      "test/model",
+      "https://api.test.com",
+    - 0.8,
+    + undefined,
+    + 0.8,
+
+    Number of calls: 1
+
+    [0m [90m 256 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m runResearchTask(input[33m,[39m options)[33m;[39m
+     [90m 257 |[39m
+    [31m[1m>[22m[39m[90m 258 |[39m       expect(mockResearchTask)[33m.[39mtoHaveBeenCalledWith(
+     [90m     |[39m                                [31m[1m^[22m[39m
+     [90m 259 |[39m         input[33m,[39m
+     [90m 260 |[39m         [32m'test-key'[39m[33m,[39m
+     [90m 261 |[39m         [32m'test/model'[39m[33m,[39m[0m
+
+      at Object.toHaveBeenCalledWith (src/test/actions.test.ts:258:32)
+
+  ● App Actions › runResearchTask › should handle errors from researchTask
+
+    thrown: "Exceeded timeout of 15000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 266 |[39m     })[33m;[39m
+     [90m 267 |[39m
+    [31m[1m>[22m[39m[90m 268 |[39m     it([32m'should handle errors from researchTask'[39m[33m,[39m [36masync[39m () [33m=>[39m {
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 269 |[39m       [36mconst[39m input [33m=[39m {
+     [90m 270 |[39m         title[33m:[39m [32m'Test task'[39m[33m,[39m
+     [90m 271 |[39m         architecture[33m:[39m [32m'Test architecture'[39m[33m,[39m[0m
+
+      at it (src/test/actions.test.ts:268:5)
+      at describe (src/test/actions.test.ts:235:3)
+      at Object.describe (src/test/actions.test.ts:23:1)
+
+  ● App Actions › runResearchTask › should handle undefined options
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    - Expected
+    + Received
+
+      {"architecture": "Test architecture", "fileStructure": "Test structure", "specifications": "Test specifications", "title": "Test task"},
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    + undefined,
+
+    Number of calls: 1
+
+    [0m [90m 297 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m runResearchTask(input)[33m;[39m
+     [90m 298 |[39m
+    [31m[1m>[22m[39m[90m 299 |[39m       expect(mockResearchTask)[33m.[39mtoHaveBeenCalledWith(
+     [90m     |[39m                                [31m[1m^[22m[39m
+     [90m 300 |[39m         input[33m,[39m
+     [90m 301 |[39m         undefined[33m,[39m
+     [90m 302 |[39m         undefined[33m,[39m[0m
+
+      at Object.toHaveBeenCalledWith (src/test/actions.test.ts:299:32)
+
+  ● App Actions › error handling patterns › should preserve specific error messages
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected substring: "Model is required"
+    Received message:   "Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD."
+
+        [0m [90m 46 |[39m       )[33m;[39m
+         [90m 47 |[39m     }
+        [31m[1m>[22m[39m[90m 48 |[39m     [36mthrow[39m [36mnew[39m [33mError[39m(
+         [90m    |[39m           [31m[1m^[22m[39m
+         [90m 49 |[39m       [32m'Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD.'[39m
+         [90m 50 |[39m     )[33m;[39m
+         [90m 51 |[39m   }[0m
+
+      at runGenerateArchitecture (src/app/actions.ts:48:11)
+      at Object.<anonymous> (src/test/actions.test.ts:321:9)
+      at Object.toThrow (node_modules/expect/build/index.js:2155:20)
+      at Object.toThrow (src/test/actions.test.ts:322:20)
+
+
+Test Suites: 8 failed, 6 skipped, 14 passed, 22 of 28 total
+Tests:       31 failed, 117 skipped, 182 passed, 330 total
+Snapshots:   0 total
+Time:        85.647 s
+Ran all test suites.

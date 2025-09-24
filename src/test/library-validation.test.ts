@@ -1,28 +1,6 @@
 import { LibraryIdentifier } from '@/services/library-identifier';
-import { createSmartAIMock, getTestParams, suppressConsoleWarnings } from './test-utils';
-import { ai } from '@/ai/litellm';
-
-// Mock the ai module to avoid real API calls during tests
-jest.mock('@/ai/litellm', () => ({
-  ai: {
-    generate: jest.fn()
-  }
-}));
-
-const mockAI = ai as jest.Mocked<typeof ai>;
 
 describe('Library Extraction - Core Functionality', () => {
-  // Suppress console warnings for cleaner test output
-  suppressConsoleWarnings();
-  
-  beforeEach(() => {
-    // Reset mocks before each test
-    jest.clearAllMocks();
-    
-    // Use smart AI mock that responds based on prompt content
-    mockAI.generate.mockImplementation(createSmartAIMock());
-  });
-  
   it('should extract real libraries and reject garbage patterns', async () => {
     const problematicTasks = [
       {
@@ -47,8 +25,7 @@ describe('Library Extraction - Core Functionality', () => {
       }
     ];
 
-    const params = getTestParams();
-    const libraries = await LibraryIdentifier.identifyLibraries(problematicTasks, params.apiKey, params.model, params.apiBase);
+    const libraries = await LibraryIdentifier.identifyLibraries(problematicTasks, 'test-api-key', 'test/model', 'https://api.openai.com/v1');
     const libraryNames = libraries.map(lib => lib.name);
     
     console.log('Extracted libraries:', libraryNames);
@@ -94,8 +71,7 @@ describe('Library Extraction - Core Functionality', () => {
       }
     ];
 
-    const params = getTestParams();
-    const libraries = await LibraryIdentifier.identifyLibraries(tasks, params.apiKey, params.model, params.apiBase);
+    const libraries = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
     const libraryNames = libraries.map(lib => lib.name);
     
     expect(libraryNames).toContain('react');
@@ -120,8 +96,7 @@ describe('Library Extraction - Core Functionality', () => {
       }
     ];
 
-    const params = getTestParams();
-    const libraries = await LibraryIdentifier.identifyLibraries(tasks, params.apiKey, params.model, params.apiBase);
+    const libraries = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
     const libraryNames = libraries.map(lib => lib.name);
     
     expect(libraryNames).toContain('lodash');
@@ -139,8 +114,7 @@ describe('Library Extraction - Core Functionality', () => {
       }
     ];
 
-    const params = getTestParams();
-    const libraries = await LibraryIdentifier.identifyLibraries(tasks, params.apiKey, params.model, params.apiBase);
+    const libraries = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
     
     const categories = libraries.reduce((acc, lib) => {
       acc[lib.category] = (acc[lib.category] || 0) + 1;

@@ -2,11 +2,10 @@
  * @fileOverview Comprehensive integration test for the new unified system
  */
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { generateComprehensiveProject } from '@/app/comprehensive-actions';
 
 describe('Comprehensive System Integration Test', () => {
-  const _testPRD = `# Task Management Application
+  const testPRD = `# Task Management Application
 
 ## Overview
 Build a web-based task management application that allows users to create, manage, and track their daily tasks.

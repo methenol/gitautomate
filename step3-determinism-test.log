@@ -1,0 +1,665 @@
+
+> nextn@0.1.0 test
+> jest --runInBand --verbose
+
+FAIL src/test/research-task.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/documentation-fetcher.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/integration.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/actions.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+  console.error
+    LiteLLM generation error: LLM API error: Incorrect API key provided: test-api-key. You can find your API key at https://platform.openai.com/account/api-keys.
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/library-validation.test.ts:28:23)
+
+  console.error
+    LiteLLM generation error: LLM API error: Incorrect API key provided: test-api-key. You can find your API key at https://platform.openai.com/account/api-keys.
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/library-validation.test.ts:28:23)
+
+FAIL src/test/library-validation.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+  console.error
+    LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/enhanced-library-extraction.test.ts:33:22)
+
+  console.error
+    LiteLLM generation error: Invalid URL format
+
+    [0m [90m 255 |[39m       
+     [90m 256 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 257 |[39m       console[33m.[39merror([32m'LiteLLM generation error:'[39m[33m,[39m error [36minstanceof[39m [33mError[39m [33m?[39m error[33m.[39mmessage [33m:[39m [33mString[39m(error))[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 258 |[39m       
+     [90m 259 |[39m       [90m// Provide more specific error messages[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mError[39m) {[0m
+
+      at Object.error [as generate] (src/ai/litellm.ts:257:15)
+      at extractLibraries (src/ai/flows/extract-libraries.ts:61:20)
+      at Function.identifyLibraries (src/services/library-identifier.ts:22:34)
+      at Object.<anonymous> (src/test/enhanced-library-extraction.test.ts:33:22)
+
+FAIL src/test/enhanced-library-extraction.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/documentation-fetcher-comprehensive.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/generate-architecture.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/generate-file-structure.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/generate-tasks.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/library-identifier-integration.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/extract-libraries.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/library-identifier.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+PASS src/test/markdown-comprehensive.test.ts
+  Markdown Utilities
+    ensureMarkdownStructure
+      ✓ should add title if missing (3 ms)
+      ✓ should not add title if already present (1 ms)
+      ✓ should fix header spacing (1 ms)
+      ✓ should remove excessive blank lines
+      ✓ should end with single newline
+      ✓ should preserve code blocks (1 ms)
+      ✓ should handle empty content (4 ms)
+      ✓ should handle whitespace-only content
+    formatTaskMarkdown
+      ✓ should handle proper markdown (1 ms)
+      ✓ should convert ### headers to ## headers when missing standard sections (1 ms)
+      ✓ should preserve well-formatted structure (1 ms)
+      ✓ should handle missing structure gracefully
+      ✓ should trim whitespace (1 ms)
+    formatArchitectureMarkdown
+      ✓ should ensure Architecture title (1 ms)
+      ✓ should preserve existing Architecture title (1 ms)
+      ✓ should apply general markdown formatting (1 ms)
+    formatSpecificationsMarkdown
+      ✓ should ensure Specifications title (1 ms)
+      ✓ should preserve existing title
+    formatFileStructureMarkdown
+      ✓ should ensure File Structure title
+      ✓ should handle code-block style structure (1 ms)
+    formatPRDMarkdown
+      ✓ should ensure PRD title (1 ms)
+      ✓ should preserve existing PRD title (1 ms)
+    error handling and edge cases
+      ✓ should handle null/undefined input (1 ms)
+      ✓ should handle very long content
+      ✓ should handle special characters
+      ✓ should preserve indentation in code blocks (1 ms)
+    complex formatting scenarios
+      ✓ should handle mixed content types
+      ✓ should maintain link formatting
+
+PASS src/test/basic-validation.test.ts
+  System Validation Tests
+    ✓ Context structure validation (2 ms)
+    ✓ Task dependency validation (4 ms)
+    ✓ Validation pipeline execution (3 ms)
+    ✓ Architecture-file structure alignment (1 ms)
+    ✓ Task ordering logic (1 ms)
+    ✓ Circular dependency detection (1 ms)
+    ✓ Performance benchmarking (2 ms)
+  System Architecture Requirements
+    ✓ Addresses identified architectural flaws (2 ms)
+    ✓ Task enhancement structure (1 ms)
+
+PASS src/test/browser-markdown-linter-comprehensive.test.ts
+  BrowserMarkdownLinter
+    lintAndFix
+      ✓ should fix basic formatting issues (3 ms)
+      ✓ should return valid for well-formatted markdown (1 ms)
+      ✓ should handle code blocks correctly
+      ✓ should handle empty input (1 ms)
+      ✓ should handle whitespace-only input (1 ms)
+    validateMarkdown
+      ✓ should identify markdown issues
+    applyAllFixes
+      ✓ should apply fixes and track changes
+    edge cases
+      ✓ should handle very long content (1 ms)
+      ✓ should handle special characters in headers (1 ms)
+      ✓ should preserve inline code (1 ms)
+
+PASS src/test/research-task-format.test.ts
+  Research Task Output
+    ✓ ResearchTaskOutput should have markdownContent field (3 ms)
+    ✓ ResearchTaskOutput format should be GitHub issue ready (2 ms)
+
+PASS src/test/complete-format-fix.test.ts
+  Complete Task Format Fix Integration
+    ✓ Task export should produce clean GitHub-ready markdown (3 ms)
+    ✓ All document types should format consistently (5 ms)
+    ✓ Library extraction format should be clean and consistent (1 ms)
+    ✓ Export format should be ready for GitHub issues (2 ms)
+
+PASS src/test/comprehensive-system.test.ts
+  Comprehensive System Integration Test
+    ✓ Complete project generation workflow (2 ms)
+    ✓ Dependency graph validation
+    ✓ Validation pipeline
+    ✓ Iterative refinement (1 ms)
+    ✓ Input validation (1 ms)
+    ✓ Minimal valid input
+    ✓ Performance benchmarking (1 ms)
+  System Architecture Validation
+    ✓ Addresses original architectural flaws
+
+PASS src/test/context-validator.test.ts
+  ContextValidator
+    validateFullContext
+      ✓ should validate a complete and valid context (3 ms)
+      ✓ should detect missing architecture
+      ✓ should detect missing file structure
+      ✓ should validate task dependencies (1 ms)
+      ✓ should detect circular dependencies (1 ms)
+      ✓ should validate architecture and file structure alignment (1 ms)
+      ✓ should handle empty tasks array
+      ✓ should validate task structure completeness
+    error severity handling
+      ✓ should classify errors by severity (1 ms)
+
+PASS src/test/markdown-formatting.test.ts
+  Markdown Formatting
+    ✓ formatTaskMarkdown should handle proper markdown (2 ms)
+    ✓ ensureMarkdownStructure should add title if missing
+    ✓ ensureMarkdownStructure should fix header spacing
+    ✓ ensureMarkdownStructure should remove excessive blank lines (1 ms)
+    ✓ ensureMarkdownStructure should end with single newline (1 ms)
+
+PASS src/test/browser-markdown-linter.test.ts
+  BrowserMarkdownLinter
+    ✓ should fix basic markdown formatting issues (2 ms)
+    ✓ should validate already well-formatted markdown (1 ms)
+    ✓ should handle code blocks properly (1 ms)
+    ✓ should fix list formatting (1 ms)
+
+Summary of all failing tests
+FAIL src/test/research-task.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/documentation-fetcher.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/integration.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/actions.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/library-validation.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/enhanced-library-extraction.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/documentation-fetcher-comprehensive.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/generate-architecture.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/generate-file-structure.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/generate-tasks.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/library-identifier-integration.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/extract-libraries.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+FAIL src/test/library-identifier.test.ts
+  ● Test suite failed to run
+
+    TypeError: Math.random is not a function
+
+      at randomIntInRange (node_modules/source-map/lib/quick-sort.js:43:33)
+      at doQuickSort (node_modules/source-map/lib/quick-sort.js:75:22)
+      at exports.quickSort (node_modules/source-map/lib/quick-sort.js:113:3)
+      at BasicSourceMapConsumer.SourceMapConsumer_parseMappings [as _parseMappings] (node_modules/source-map/lib/source-map-consumer.js:564:5)
+      at BasicSourceMapConsumer.get [as _generatedMappings] (node_modules/source-map/lib/source-map-consumer.js:70:12)
+      at BasicSourceMapConsumer.SourceMapConsumer_originalPositionFor [as originalPositionFor] (node_modules/source-map/lib/source-map-consumer.js:655:12)
+      at mapSourcePosition (node_modules/source-map-support/source-map-support.js:214:42)
+      at wrapCallSite (node_modules/source-map-support/source-map-support.js:358:20)
+      at node_modules/source-map-support/source-map-support.js:399:26
+          at Array.map (<anonymous>)
+      at Function.prepareStackTrace (node_modules/source-map-support/source-map-support.js:398:30)
+          at Array.map (<anonymous>)
+
+
+Test Suites: 13 failed, 6 skipped, 9 passed, 22 of 28 total
+Tests:       117 skipped, 79 passed, 196 total
+Snapshots:   0 total
+Time:        11.881 s, estimated 74 s
+Ran all test suites.

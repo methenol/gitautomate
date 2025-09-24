@@ -1,27 +1,6 @@
 import { LibraryIdentifier } from '@/services/library-identifier';
-import { createSmartAIMock, getTestParams, suppressConsoleWarnings } from './test-utils';
-import { ai } from '@/ai/litellm';
-
-// Mock the ai module to avoid real API calls during tests
-jest.mock('@/ai/litellm', () => ({
-  ai: {
-    generate: jest.fn()
-  }
-}));
-
-const mockAI = ai as jest.Mocked<typeof ai>;
 
 describe('Enhanced Library Extraction', () => {
-  // Suppress console warnings for cleaner test output
-  suppressConsoleWarnings();
-  
-  beforeEach(() => {
-    // Reset mocks before each test
-    jest.clearAllMocks();
-    
-    // Use smart AI mock that responds based on prompt content
-    mockAI.generate.mockImplementation(createSmartAIMock());
-  });
   describe('REQUIRED LIBRARIES pattern extraction', () => {
     it('should extract libraries from REQUIRED LIBRARIES sections with highest confidence', async () => {
       const tasks = [
@@ -51,12 +30,11 @@ DOCUMENTATION: Refer to the reference documentation for the required libraries l
         }
       ];
 
-      const params = getTestParams();
       const result = await LibraryIdentifier.identifyLibraries(
         tasks,
-        params.apiKey,
-        params.model,
-        params.apiBase
+        'test-api-key',
+        'test/model',
+        'test-base'
       );
       
       // Should extract all explicitly required libraries
@@ -90,12 +68,11 @@ DOCUMENTATION: Refer to the reference documentation for the required libraries l
         }
       ];
 
-      const params = getTestParams();
       const result = await LibraryIdentifier.identifyLibraries(
         tasks,
-        params.apiKey,
-        params.model,
-        params.apiBase
+        'test-api-key',
+        'test/model',
+        'test-base'
       );
       const names = result.map(lib => lib.name).sort();
       expect(names).toEqual(['angular', 'react', 'svelte', 'vue']);
@@ -110,8 +87,7 @@ DOCUMENTATION: Refer to the reference documentation for the required libraries l
         }
       ];
 
-      const params = getTestParams();
-      const result = await LibraryIdentifier.identifyLibraries(tasks, params.apiKey, params.model, params.apiBase);
+      const result = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
       const names = result.map(lib => lib.name).sort();
       // Now that we have better filtering, only valid library names should be extracted
       expect(names).toEqual(['react', 'validlibrary']);
@@ -137,8 +113,7 @@ REQUIRED LIBRARIES: fastify, vue
         }
       ];
 
-      const params = getTestParams();
-      const result = await LibraryIdentifier.identifyLibraries(tasks, params.apiKey, params.model, params.apiBase);
+      const result = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
       
       // All libraries should be extracted with LLM confidence
       const expressLib = result.find(lib => lib.name === 'express');
@@ -211,8 +186,7 @@ DOCUMENTATION: Refer to the reference documentation for the required libraries l
         }
       ];
 
-      const params = getTestParams();
-      const result = await LibraryIdentifier.identifyLibraries(tasks, params.apiKey, params.model, params.apiBase);
+      const result = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
       
       // Should extract 12+ distinct libraries
       expect(result.length).toBeGreaterThanOrEqual(12);
@@ -250,8 +224,7 @@ Should NOT extract: pygame.sprite.sprite, config.font_path, base.collision.detec
         }
       ];
 
-      const params = getTestParams();
-      const result = await LibraryIdentifier.identifyLibraries(tasks, params.apiKey, params.model, params.apiBase);
+      const result = await LibraryIdentifier.identifyLibraries(tasks, "test-api-key", "test/model", "test-base");
       const names = result.map(lib => lib.name);
       
       // Should only extract valid library names

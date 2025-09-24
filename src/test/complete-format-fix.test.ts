@@ -150,7 +150,7 @@ Refer to the reference documentation for the required libraries listed above to 
     };
 
     // Simulate the export process
-    const _taskNumber = '001';
+    const taskNumber = '001';
     const exportContent = formatTaskMarkdown(mockTask.details);
     
     // This is what would go into task-001.md
