@@ -1,5 +1,6 @@
 import { LibraryIdentifier } from '@/services/library-identifier';
 import { DocumentationFetcher } from '@/services/documentation-fetcher';
+import { ai } from '@/ai/litellm';
 
 // Mock the ai module to avoid real API calls during tests
 jest.mock('@/ai/litellm', () => ({
@@ -8,40 +9,36 @@ jest.mock('@/ai/litellm', () => ({
   }
 }));
 
+const mockAI = ai as jest.Mocked<typeof ai>;
+
 describe('Integration Tests - Real Functionality', () => {
   beforeEach(() => {
     // Reset mocks before each test
     jest.clearAllMocks();
     
-    // Mock successful AI responses for library extraction
-    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
-      // Extract expected libraries from the test prompts
-      if (prompt.includes('react') && prompt.includes('typescript')) {
-        return Promise.resolve({
-          output: 'react\ntypescript'
-        });
-      } else if (prompt.includes('express') && prompt.includes('mongoose')) {
-        return Promise.resolve({
-          output: 'express\nmongoose'
-        });
-      } else if (prompt.includes('pygame') && prompt.includes('sprite')) {
-        return Promise.resolve({
-          output: 'pygame'
-        });
-      } else if (prompt.includes('Next.js') || prompt.includes('GraphQL')) {
-        return Promise.resolve({
-          output: 'next.js\nexpress\ngraphql'
-        });
-      } else if (prompt.includes('Database') || prompt.includes('Testing')) {
-        return Promise.resolve({
-          output: 'postgresql\nredis\njest'
-        });
-      }
+    // Create comprehensive mock for integration testing
+    mockAI.generate.mockImplementation(async ({ prompt }: { prompt: string }) => {
+      const libraries: string[] = [];
       
-      // Default response
-      return Promise.resolve({
-        output: 'react\nexpress'
-      });
+      // Extract libraries based on content in the prompt
+      if (prompt.includes('react')) libraries.push('react');
+      if (prompt.includes('express')) libraries.push('express');  
+      if (prompt.includes('typescript')) libraries.push('typescript');
+      if (prompt.includes('jest')) libraries.push('jest');
+      if (prompt.includes('postgresql')) libraries.push('postgresql');
+      if (prompt.includes('docker') || prompt.includes('Docker')) libraries.push('docker');
+      if (prompt.includes('pygame')) libraries.push('pygame');
+      if (prompt.includes('next.js') || prompt.includes('nextjs')) libraries.push('next');
+      if (prompt.includes('tailwindcss') || prompt.includes('tailwind')) libraries.push('tailwindcss');
+      if (prompt.includes('axios')) libraries.push('axios');
+      if (prompt.includes('prisma')) libraries.push('prisma');
+      if (prompt.includes('cypress')) libraries.push('cypress');
+      if (prompt.includes('sequelize')) libraries.push('sequelize');
+      if (prompt.includes('jsonwebtoken')) libraries.push('jsonwebtoken');
+      
+      // Remove duplicates and return
+      const uniqueLibraries = [...new Set(libraries)];
+      return { output: uniqueLibraries.join('\n') };
     });
   });
   describe('Library Extraction', () => {
@@ -85,7 +82,7 @@ describe('Integration Tests - Real Functionality', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(realProjectTasks);
+      const libraries = await LibraryIdentifier.identifyLibraries(realProjectTasks, 'test-api-key', 'test/model', 'https://api.openai.com/v1');
       
       // Should extract real libraries, not garbage
       const libraryNames = libraries.map(lib => lib.name);
