@@ -287,14 +287,23 @@ describe('DocumentationFetcher Service', () => {
       jest.spyOn(documentationFetcher as any, 'cleanDocumentationWithAI')
         .mockResolvedValueOnce(largeDoc.sources);
       jest.spyOn(documentationFetcher as any, 'trimDocumentationSources')
-        .mockReturnValueOnce(trimmedDoc.sources);
+        .mockReturnValueOnce([
+          {
+            type: 'official-site',
+            url: 'https://lib.com/docs',
+            title: 'Large lib docs (trimmed)',
+            content: 'Trimmed documentation content',
+            sizeKB: 500, // This is the trimmed size 
+            lastUpdated: new Date().toISOString()
+          }
+        ]);
       jest.spyOn(documentationFetcher as any, 'cacheDocumentation')
         .mockResolvedValueOnce(undefined);
 
       const result = await documentationFetcher.fetchLibraryDocumentation(libraries);
 
       expect(result.libraries).toHaveLength(1);
-      expect(result.totalSizeKB).toBeLessThan(2000);
+      expect(result.totalSizeKB).toBe(500); // Should be trimmed size
     });
   });
 

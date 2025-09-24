@@ -9,6 +9,9 @@ import * as generateTasksFlow from '@/ai/flows/generate-tasks';
 import * as generateFileStructureFlow from '@/ai/flows/generate-file-structure';
 import * as researchTaskFlow from '@/ai/flows/research-task';
 
+// Mock setTimeout to speed up retry logic
+global.setTimeout = jest.fn((cb) => cb()) as any;
+
 // Mock all AI flows
 jest.mock('@/ai/flows/generate-architecture');
 jest.mock('@/ai/flows/generate-tasks');
@@ -212,7 +215,7 @@ describe('App Actions', () => {
         specifications: 'Specifications'
       };
 
-      mockGenerateFileStructure.mockRejectedValueOnce(new Error('Invalid API key'));
+      mockGenerateFileStructure.mockRejectedValueOnce(new Error('API key not found'));
 
       await expect(runGenerateFileStructure(input)).rejects.toThrow(
         'Failed to generate file structure: Your LLM API key is missing or invalid. Please check it in settings.'
@@ -345,7 +348,6 @@ describe('App Actions', () => {
           .rejects.toThrow('Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD.');
       }
     });
-    });
 
     it('should provide generic error messages for unexpected errors', async () => {
       const unexpectedError = new Error('Weird internal error');
@@ -391,6 +393,7 @@ describe('App Actions', () => {
 
     it('should handle boolean and number options correctly', async () => {
       const input = {
+        prd: 'Build an app',
         architecture: 'Architecture',
         specifications: 'Specifications',
         fileStructure: 'File structure'
