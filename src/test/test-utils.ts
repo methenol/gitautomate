@@ -14,6 +14,10 @@ export const TEST_CONFIG = {
  * Standard mock response for AI library extraction
  */
 export function createMockAIResponse(libraries: string[]): { output: string } {
+  // For empty arrays, return a minimal valid response instead of empty string
+  if (libraries.length === 0) {
+    return { output: '\n' }; // Single newline to indicate valid but empty response
+  }
   return {
     output: libraries.join('\n')
   };
@@ -27,9 +31,19 @@ export function createSmartAIMock() {
     // Extract libraries based on patterns in prompts
     const libraries: string[] = [];
     
+    // Handle empty or whitespace-only input
+    if (!prompt || prompt.trim().length === 0) {
+      return Promise.resolve(createMockAIResponse([]));
+    }
+    
     // Get the task details section from the prompt (after "Task Details:")
     const taskDetailsMatch = prompt.match(/Task Details:\s*(.*?)(?:\n\nExtract the library names now:|$)/s);
     const taskContent = taskDetailsMatch ? taskDetailsMatch[1].toLowerCase() : prompt.toLowerCase();
+    
+    // Handle empty task content
+    if (!taskContent || taskContent.trim().length === 0) {
+      return Promise.resolve(createMockAIResponse([]));
+    }
     
     // Library mappings with their keywords
     const libraryMappings = {
