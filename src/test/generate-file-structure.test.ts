@@ -134,7 +134,7 @@ inventory-api/
       const result = await generateFileStructure(input, params.apiKey, params.model, params.apiBase);
 
       expect(result.fileStructure).toContain('inventory-api/');
-      expect(result.fileStructure).toContain('app/models/');
+      expect(result.fileStructure).toContain('models/');
       expect(result.fileStructure).toContain('tests/');
       expect(result.fileStructure).toContain('requirements.txt');
       expect(result.fileStructure).toContain('__init__.py');

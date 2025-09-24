@@ -21,6 +21,18 @@ describe('researchTask AI Flow', () => {
       if (prompt.includes('Test task')) {
         return { output: 'Task research content' };
       }
+      if (prompt.includes('Original Task Title')) {
+        return { output: 'Enhanced task details with research and context' };
+      }
+      if (prompt.includes('Implement data persistence layer')) {
+        return { output: 'Database implementation research with PostgreSQL and Node.js patterns' };
+      }
+      if (prompt.includes('Create authentication system')) {
+        return { output: 'Authentication research with JWT and security best practices' };
+      }
+      if (prompt.includes('error handling')) {
+        return { output: 'Error handling research with robust patterns and logging' };
+      }
       return { output: 'Default research content' };
     });
   });
