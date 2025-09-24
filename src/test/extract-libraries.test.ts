@@ -1,5 +1,6 @@
 import { extractLibraries } from '@/ai/flows/extract-libraries';
 import { createSmartAIMock, getTestParams, suppressConsoleWarnings } from './test-utils';
+import { ai } from '@/ai/litellm';
 
 // Mock the ai module to avoid real API calls during tests
 jest.mock('@/ai/litellm', () => ({
@@ -8,12 +9,14 @@ jest.mock('@/ai/litellm', () => ({
   }
 }));
 
+const mockAI = ai as jest.Mocked<typeof ai>;
+
 describe('extractLibraries AI Flow', () => {
   suppressConsoleWarnings();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(createSmartAIMock());
+    mockAI.generate.mockImplementation(createSmartAIMock());
   });
 
   describe('basic extraction', () => {
@@ -87,7 +90,7 @@ describe('extractLibraries AI Flow', () => {
       };
 
       // Mock API error
-      (require('@/ai/litellm').ai.generate as jest.Mock).mockRejectedValueOnce(
+      mockAI.generate.mockRejectedValueOnce(
         new Error('API Error')
       );
 
@@ -102,7 +105,7 @@ describe('extractLibraries AI Flow', () => {
       };
 
       // Mock unexpected response
-      (require('@/ai/litellm').ai.generate as jest.Mock).mockResolvedValueOnce({
+      mockAI.generate.mockResolvedValueOnce({
         output: null
       });
 
@@ -115,7 +118,7 @@ describe('extractLibraries AI Flow', () => {
   describe('library name validation', () => {
     beforeEach(() => {
       // Mock raw response with mixed valid/invalid names
-      (require('@/ai/litellm').ai.generate as jest.Mock).mockResolvedValue({
+      mockAI.generate.mockResolvedValue({
         output: 'react\nvalid-library\ninvalid..name\n123invalid\n\nvalid_name\nconfig.font.path'
       });
     });
@@ -139,7 +142,7 @@ describe('extractLibraries AI Flow', () => {
 
     it('should handle normalized library names', async () => {
       // Mock response with variations
-      (require('@/ai/litellm').ai.generate as jest.Mock).mockResolvedValue({
+      mockAI.generate.mockResolvedValue({
         output: 'next.js\nNext.js\nnext\nNextJS\nreact-router\nReact Router'
       });
 
@@ -162,7 +165,7 @@ describe('extractLibraries AI Flow', () => {
 
   describe('output parsing', () => {
     it('should parse newline-separated output', async () => {
-      (require('@/ai/litellm').ai.generate as jest.Mock).mockResolvedValue({
+      mockAI.generate.mockResolvedValue({
         output: 'react\ntypescript\naxios\n\n# comment line\njest'
       });
 
@@ -177,7 +180,7 @@ describe('extractLibraries AI Flow', () => {
     });
 
     it('should remove duplicates from output', async () => {
-      (require('@/ai/litellm').ai.generate as jest.Mock).mockResolvedValue({
+      mockAI.generate.mockResolvedValue({
         output: 'react\nreact\ntypescript\nreact\naxios'
       });
 
@@ -192,7 +195,7 @@ describe('extractLibraries AI Flow', () => {
     });
 
     it('should filter out comments and empty lines', async () => {
-      (require('@/ai/litellm').ai.generate as jest.Mock).mockResolvedValue({
+      mockAI.generate.mockResolvedValue({
         output: 'react\n# This is a comment\n\ntypescript\n// Another comment\naxios\n'
       });
 

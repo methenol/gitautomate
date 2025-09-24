@@ -1,5 +1,6 @@
 import { LibraryIdentifier } from '@/services/library-identifier';
 import { createSmartAIMock, getTestParams, suppressConsoleWarnings } from './test-utils';
+import { ai } from '@/ai/litellm';
 
 // Mock the ai module to avoid real API calls during tests
 jest.mock('@/ai/litellm', () => ({
@@ -7,6 +8,8 @@ jest.mock('@/ai/litellm', () => ({
     generate: jest.fn()
   }
 }));
+
+const mockAI = ai as jest.Mocked<typeof ai>;
 
 describe('Enhanced Library Extraction', () => {
   // Suppress console warnings for cleaner test output
@@ -17,7 +20,7 @@ describe('Enhanced Library Extraction', () => {
     jest.clearAllMocks();
     
     // Use smart AI mock that responds based on prompt content
-    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(createSmartAIMock());
+    mockAI.generate.mockImplementation(createSmartAIMock());
   });
   describe('REQUIRED LIBRARIES pattern extraction', () => {
     it('should extract libraries from REQUIRED LIBRARIES sections with highest confidence', async () => {

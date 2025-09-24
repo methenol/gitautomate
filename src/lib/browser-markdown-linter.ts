@@ -13,7 +13,7 @@ export class BrowserMarkdownLinter {
   /**
    * Validate and fix markdown content in the browser
    */
-  static lintAndFix(content: string, filename = 'document.md'): BrowserMarkdownLintResult {
+  static lintAndFix(content: string, _filename = 'document.md'): BrowserMarkdownLintResult {
     const errors: string[] = [];
     let fixed = content;
 

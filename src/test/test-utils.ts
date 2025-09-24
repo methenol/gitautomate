@@ -109,7 +109,7 @@ export function createSmartAIMock() {
         installMatches.forEach(match => {
           const packages = match.replace(/npm install/i, '').trim().split(/\s+/);
           packages.forEach(pkg => {
-            const cleanPkg = pkg.replace(/[@\d\.\^~<>=]/g, '').trim();
+            const cleanPkg = pkg.replace(/[@\d.^~<>=]/g, '').trim();
             if (cleanPkg && cleanPkg.length > 1 && /^[a-zA-Z][\w-]*$/.test(cleanPkg)) {
               libraries.push(cleanPkg);
             }
