@@ -37,7 +37,7 @@ export function createSmartAIMock() {
     }
     
     // Get the task details section from the prompt (after "Task Details:")
-    const taskDetailsMatch = prompt.match(/Task Details:\s*(.*?)(?:\n\nExtract the library names now:|$)/s);
+    const taskDetailsMatch = prompt.match(/Task Details:\s*(.*?)(?:\n\nExtract the library names now:|$)/);
     const taskContent = taskDetailsMatch ? taskDetailsMatch[1].toLowerCase() : prompt.toLowerCase();
     
     // Handle empty task content
