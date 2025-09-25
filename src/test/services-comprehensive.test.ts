@@ -3,7 +3,7 @@
  */
 
 import { DocumentationFetcher } from '@/services/documentation-fetcher';
-import { LibraryIdentifier } from '@/services/library-identifier';
+// import { LibraryIdentifier } from '@/services/library-identifier';
 import { MarkdownLinter } from '@/services/markdown-linter';
 import { suppressConsoleWarnings } from './test-utils';
 
@@ -173,8 +173,10 @@ describe.skip('Services Comprehensive Coverage', () => {
 
     it('should handle cache errors gracefully', async () => {
       // Mock filesystem errors
-      const fsPromises = require('fs/promises');
-      fsPromises.writeFile.mockRejectedValueOnce(new Error('Disk full'));
+      jest.doMock('fs/promises', () => ({
+        writeFile: jest.fn().mockRejectedValueOnce(new Error('Disk full'))
+      }));
+      const fsPromises = await import('fs/promises');
 
       const mockDoc = {
         name: 'error-lib',
@@ -188,8 +190,10 @@ describe.skip('Services Comprehensive Coverage', () => {
     });
 
     it('should ensure cache directory exists', async () => {
-      const fsPromises = require('fs/promises');
-      fsPromises.mkdir.mockResolvedValueOnce(undefined);
+      jest.doMock('fs/promises', () => ({
+        mkdir: jest.fn().mockResolvedValueOnce(undefined)
+      }));
+      const fsPromises = await import('fs/promises');
 
       await fetcher.ensureCacheDir();
 

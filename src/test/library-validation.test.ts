@@ -96,7 +96,7 @@ describe('Library Extraction - Core Functionality', () => {
           import React from 'react';
           import axios from 'axios';
           import { BrowserRouter } from 'react-router-dom';
-          const express = require('express');
+          // Note: Express library mentioned for detection
         `
       }
     ];

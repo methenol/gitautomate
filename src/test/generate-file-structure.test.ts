@@ -211,11 +211,15 @@ inventory-api/
       };
 
       // Mock MarkdownLinter to fail initially
-      const { MarkdownLinter } = require('@/services/markdown-linter');
-      MarkdownLinter.lintAndFix
-        .mockResolvedValueOnce({ isValid: false, fixedContent: null, errors: ['Invalid markdown'] })
-        .mockResolvedValueOnce({ isValid: false, fixedContent: null, errors: ['Invalid markdown'] })
-        .mockResolvedValueOnce({ isValid: true, fixedContent: 'Fixed content', errors: [] });
+      jest.doMock('@/services/markdown-linter', () => ({
+        MarkdownLinter: {
+          lintAndFix: jest.fn()
+            .mockResolvedValueOnce({ isValid: false, fixedContent: null, errors: ['Invalid markdown'] })
+            .mockResolvedValueOnce({ isValid: false, fixedContent: null, errors: ['Invalid markdown'] })
+            .mockResolvedValueOnce({ isValid: true, fixedContent: 'Fixed content', errors: [] })
+        }
+      }));
+      const { MarkdownLinter } = await import('@/services/markdown-linter');
 
       mockAI.generate.mockResolvedValue({
         output: '```\ntest-structure/\n```'
@@ -236,12 +240,16 @@ inventory-api/
       };
 
       // Mock MarkdownLinter to always fail
-      const { MarkdownLinter } = require('@/services/markdown-linter');
-      MarkdownLinter.lintAndFix.mockResolvedValue({
-        isValid: false,
-        fixedContent: 'Partially fixed content',
-        errors: ['Some markdown errors']
-      });
+      jest.doMock('@/services/markdown-linter', () => ({
+        MarkdownLinter: {
+          lintAndFix: jest.fn().mockResolvedValue({
+            isValid: false,
+            fixedContent: 'Partially fixed content',
+            errors: ['Some markdown errors']
+          })
+        }
+      }));
+      const { MarkdownLinter } = await import('@/services/markdown-linter');
 
       mockAI.generate.mockResolvedValue({
         output: '```\ntest-structure/\n```'
@@ -365,7 +373,7 @@ inventory-api/
         output: mockOutput
       });
 
-      const { MarkdownLinter } = require('@/services/markdown-linter');
+      const { MarkdownLinter } = await import('@/services/markdown-linter');
       const params = getTestParams();
       
       await generateFileStructure(input, params.apiKey, params.model, params.apiBase);
@@ -384,7 +392,16 @@ inventory-api/
         output: 'Original content'
       });
 
-      const { MarkdownLinter } = require('@/services/markdown-linter');
+      jest.doMock('@/services/markdown-linter', () => ({
+        MarkdownLinter: {
+          lintAndFix: jest.fn().mockResolvedValueOnce({
+            isValid: true,
+            fixedContent: 'Linted and fixed content',
+            errors: []
+          })
+        }
+      }));
+      const { MarkdownLinter } = await import('@/services/markdown-linter');
       MarkdownLinter.lintAndFix.mockResolvedValueOnce({
         isValid: true,
         fixedContent: 'Linted and fixed content',

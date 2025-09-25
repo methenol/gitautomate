@@ -192,7 +192,11 @@ The task management application will be built using a modern web architecture wi
       };
 
       // Mock MarkdownLinter to fail initially
-      const { MarkdownLinter } = require('@/services/markdown-linter');
+      // Mock MarkdownLinter processing
+      const mockLinter = {
+        processContent: jest.fn().mockReturnValue('## Architecture\n\nProcessed architecture content'),
+        validateStructure: jest.fn().mockReturnValue({ isValid: true, errors: [] })
+      };
       MarkdownLinter.lintAndFix
         .mockResolvedValueOnce({ isValid: false, fixedContent: null, errors: ['Invalid markdown'] })
         .mockResolvedValueOnce({ isValid: false, fixedContent: null, errors: ['Invalid markdown'] })

@@ -35,7 +35,6 @@ jest.mock('@octokit/rest', () => ({
 }));
 
 const mockAI = ai as jest.Mocked<typeof ai>;
-const mockFs = require('fs/promises');
 
 describe('Services - Enhanced Coverage', () => {
   beforeEach(() => {

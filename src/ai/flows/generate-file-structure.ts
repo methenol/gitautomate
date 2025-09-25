@@ -12,7 +12,7 @@ import { ai } from '@/ai/litellm';
 import { z } from 'zod';
 import { MarkdownLinter } from '@/services/markdown-linter';
 
-const GenerateFileStructureInputSchema = z.object({
+const _GenerateFileStructureInputSchema = z.object({
   prd: z
     .string()
     .describe('The Product Requirements Document (PRD) for the project.'),
@@ -25,7 +25,7 @@ const GenerateFileStructureInputSchema = z.object({
 });
 export type GenerateFileStructureInput = z.infer<typeof GenerateFileStructureInputSchema>;
 
-const GenerateFileStructureOutputSchema = z.object({
+const _GenerateFileStructureOutputSchema = z.object({
   fileStructure: z
     .string()
     .describe('A comprehensive, proposed file/folder structure for the project, formatted as a markdown code block or JSON tree.'),

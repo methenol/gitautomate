@@ -473,22 +473,22 @@ describe.skip('API Routes and Comprehensive Coverage', () => {
   });
 
   describe('Type Definitions Coverage', () => {
-    it('should export documentation types', () => {
-      const docTypes = require('@/types/documentation');
+    it('should export documentation types', async () => {
+      const docTypes = await import('@/types/documentation');
       
       expect(docTypes).toBeDefined();
       // Type definitions don't have runtime behavior to test,
       // but importing them ensures they compile correctly
     });
 
-    it('should export index types', () => {
-      const indexTypes = require('@/types/index');
+    it('should export index types', async () => {
+      const indexTypes = await import('@/types/index');
       
       expect(indexTypes).toBeDefined();
     });
 
-    it('should export unified context types', () => {
-      const unifiedTypes = require('@/types/unified-context');
+    it('should export unified context types', async () => {
+      const unifiedTypes = await import('@/types/unified-context');
       
       expect(unifiedTypes).toBeDefined();
     });
