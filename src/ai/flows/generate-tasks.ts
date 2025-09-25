@@ -22,7 +22,7 @@ const _GenerateTasksInputSchema = z.object({
 export type GenerateTasksInput = z.infer<typeof _GenerateTasksInputSchema>;
 
 
-const GenerateTasksOutputSchema = z.object({
+const _GenerateTasksOutputSchema = z.object({
   tasks: z.array(TaskSchema).describe('A list of actionable task titles.'),
 });
 export type GenerateTasksOutput = z.infer<typeof GenerateTasksOutputSchema>;

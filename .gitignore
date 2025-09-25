@@ -49,3 +49,5 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+# stryker temp files
+.stryker-tmp

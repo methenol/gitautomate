@@ -11,12 +11,12 @@
 import {ai} from '@/ai/litellm';
 import {z} from 'zod';
 
-const ExtractLibrariesInputSchema = z.object({
+const _ExtractLibrariesInputSchema = z.object({
   taskDetails: z.string().describe('The task details text containing library information.'),
 });
 export type ExtractLibrariesInput = z.infer<typeof ExtractLibrariesInputSchema>;
 
-const ExtractLibrariesOutputSchema = z.object({
+const _ExtractLibrariesOutputSchema = z.object({
   libraries: z.array(z.string()).describe('A list of extracted library names.'),
 });
 export type ExtractLibrariesOutput = z.infer<typeof ExtractLibrariesOutputSchema>;

@@ -220,7 +220,7 @@ export default function Home() {
             maxDocumentationSizeKB: settings.documentation?.maxDocumentationSizeKB || 512,
           });
         }
-      } catch (error) {
+      } catch (_error) {
         console.error('Failed to load settings:', error);
         // Continue with empty settings if load fails
       }
@@ -237,7 +237,7 @@ export default function Home() {
         try {
           const repos = await getRepositories(githubToken);
           setRepositories([LOCAL_MODE_REPO, ...repos]);
-        } catch (error) {
+        } catch (_error) {
           toast({
             variant: 'destructive',
             title: 'Error',
@@ -290,7 +290,7 @@ export default function Home() {
       
       setIsSettingsOpen(false);
       toast({ title: 'Success', description: 'Settings saved securely.' });
-    } catch (error) {
+    } catch (_error) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -317,7 +317,7 @@ export default function Home() {
         { apiKey: apiKey, model: llmModel, apiBase: apiBase, temperature }
       );
       setFileStructure(fileStructResult.fileStructure || '');
-    } catch (error) {
+    } catch (_error) {
       toast({
         variant: 'destructive',
         title: 'Architecture/File Structure Generation Failed',
@@ -390,7 +390,7 @@ export default function Home() {
       
       toast({ title: 'Task research complete!', description: 'All tasks have been detailed.' });
 
-    } catch (error) {
+    } catch (_error) {
       toast({
         variant: 'destructive',
         title: 'Task Generation Failed',
@@ -437,7 +437,7 @@ export default function Home() {
           </a>
         ),
       });
-    } catch (error) {
+    } catch (_error) {
       toast({
         variant: 'destructive',
         title: 'Issue Creation Failed',
@@ -622,7 +622,7 @@ const handleExportData = async () => {
         title: 'Export Successful',
         description: exportMessage,
       });
-    } catch (error) {
+    } catch (_error) {
       toast({
         variant: 'destructive',
         title: 'Export Failed', 
