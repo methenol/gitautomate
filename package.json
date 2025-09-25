@@ -12,7 +12,17 @@
     "lint:md:fix": "markdownlint-cli2 \"**/*.md\" \"!node_modules\" --fix",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --runInBand --verbose --coverage",
+    "coverage:html": "jest --coverage --coverageReporters=html",
+    "coverage:text": "jest --coverage --coverageReporters=text",
+    "coverage:json": "jest --coverage --coverageReporters=json",
+    "coverage:check": "jest --coverage --passWithNoTests",
+    "mutation": "stryker run",
+    "mutation:lib": "stryker run --mutate 'src/lib/**/*.ts'",
+    "mutation:services": "stryker run --mutate 'src/services/**/*.ts'",
+    "pre-commit": "./scripts/pre-commit.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",
