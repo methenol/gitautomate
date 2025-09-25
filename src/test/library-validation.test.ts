@@ -1,5 +1,52 @@
 import { LibraryIdentifier } from '@/services/library-identifier';
 
+// Import at top for mocking
+jest.mock('@/ai/litellm', () => ({
+  ai: {
+    generate: jest.fn()
+  }
+}));
+
+// Setup common mocks before all tests
+beforeEach(() => {
+  // Mock LLM responses with comprehensive test data that includes categories
+  const llmMock = require('@/ai/litellm').ai.generate as jest.Mock;
+  
+  llmMock.mockImplementation(({ prompt }) => {
+    if (prompt.includes('Game Development with Pygame')) {
+      // For the first test - needs to extract pygame specifically from that task
+      return Promise.resolve({
+        output: 'pygame\nreact\ntypescript'
+      });
+    } else if (prompt.includes('Install Dependencies')) {
+      // For package manager test specifically - matches the task title exactly
+      return Promise.resolve({
+        output: 'lodash\nmoment\nredux\ntensorflow'
+      });
+    } else if (prompt.includes('import') || prompt.includes('require')) {
+      // For import statements tests
+      return Promise.resolve({
+        output: 'react\naxios\nexpress'
+      });
+    } else if (prompt.includes('npm install') || prompt.includes('yarn add')) {
+      // For package manager tests  
+      return Promise.resolve({
+        output: 'lodash\nmoment\nredux\ntensorflow'
+      });
+    } else if (prompt.includes('React frontend') || prompt.includes('Express backend')) {
+      // For categorization tests with proper categories  
+      return Promise.resolve({
+        output: 'react\nexpress\npostgresql\njest\ndocker'
+      });
+    } else {
+      // Default fallback for any other test case
+      return Promise.resolve({
+        output: 'react\nexpress\nmongodb\njest'
+      });
+    }
+  });
+});
+
 describe('Library Extraction - Core Functionality', () => {
   it('should extract real libraries and reject garbage patterns', async () => {
     const problematicTasks = [
