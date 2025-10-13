@@ -104,4 +104,4 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: echo "No test files found, skipping test execution"
+        run: npm test
