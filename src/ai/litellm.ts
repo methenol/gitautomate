@@ -153,9 +153,9 @@ function validateAndSanitizeUrl(baseUrl: string): string {
         hostname === '::1' ||
         hostname.startsWith('fc00:') ||
         hostname.startsWith('fe80:')) {
-      // Allow localhost only for development purposes
-      if (process.env.NODE_ENV === 'development') {
-        return baseUrl; // Preserve full URL including path for local development
+      // Allow localhost for development and testing purposes
+      if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+        return baseUrl; // Preserve full URL including path for local development/testing
       }
       throw new Error('Access to private networks is not allowed');
     }

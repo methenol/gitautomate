@@ -44,6 +44,18 @@ export class DocumentationFetcher {
    * Fetch documentation for multiple libraries
    */
   async fetchLibraryDocumentation(libraries: IdentifiedLibrary[]): Promise<DocumentationFetchResult> {
+    // If documentation is disabled, return empty result immediately
+    if (!this.settings.enabled) {
+      return {
+        libraries: [],
+        totalSizeKB: 0,
+        fetchedCount: 0,
+        skippedCount: 0,
+        errorCount: 0,
+        errors: [],
+      };
+    }
+
     const results: LibraryDocumentation[] = [];
     const errors: string[] = [];
     let totalSizeKB = 0;
@@ -547,9 +559,13 @@ export class DocumentationFetcher {
     let currentSizeKB = 0;
 
     // Sort by importance (README first, then official, then others)
-    const sortedSources = sources.sort((a, b) => {
+    const sortedSources = [...sources].sort((a, b) => {
+      // Always prioritize github-readme above all else
+      if (a.type === 'github-readme' && b.type !== 'github-readme') return -1;
+      if (b.type === 'github-readme' && a.type !== 'github-readme') return 1;
+      
+      // Then sort by other priorities
       const priority: Record<string, number> = { 
-        'github-readme': 0, 
         'official-site': 1, 
         'github-docs': 2, 
         'npm': 3, 
