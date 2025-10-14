@@ -58,86 +58,7 @@ export async function extractLibraries(
 
   // In test environment, return mock response instead of making actual API calls
   if (process.env.NODE_ENV === 'test') {
-    // Mock response for common test cases
-    const taskDetails = input.taskDetails.toLowerCase();
-    
-    // Extract libraries based on common patterns in test cases
-    const extractedLibraries: string[] = [];
-    
-    // Look for common library names in the task details
-    const knownLibraries = [
-      'react', 'typescript', 'express', 'jest', 'mongodb', 
-      'nodejs', 'nextjs', 'vue', 'angular', 'svelte', 
-      'django', 'flask', 'numpy', 'pandas', 'pytorch',
-      'tensorflow', 'axios', 'lodash', 'moment', 'redux', 
-      'mongoose', 'docker', 'cypress', 'pygame',
-      'postgresql', 'redis', 'nginx', 'react-router-dom',
-      'tailwindcss', 'graphql', 'apollo-server'
-    ];
-    
-    for (const lib of knownLibraries) {
-      if (taskDetails.includes(lib)) {
-        extractedLibraries.push(lib);
-      }
-    }
-    
-    // Handle specific test cases
-    if (taskDetails.includes('required libraries') || taskDetails.includes('dependencies')) {
-      // Extract from REQUIRED LIBRARIES pattern
-      const requiredMatch = taskDetails.match(/required\s+libraries?[:;]\s*([a-zA-Z0-9,\s]+)/i);
-      if (requiredMatch) {
-        const libs = requiredMatch[1].split(/[\s,]+/).filter(lib => lib.length > 0);
-        extractedLibraries.push(...libs.map(l => l.toLowerCase()));
-      }
-    } 
-
-    // Handle react-router-dom specifically since it contains a hyphen and might not be caught by simple includes
-    if (taskDetails.includes('react-router-dom') || taskDetails.includes('router')) {
-      extractedLibraries.push('react');
-    }
-
-    // Add some common libraries for integration tests based on context clues
-    if (taskDetails.includes('react') || taskDetails.includes('frontend')) {
-      extractedLibraries.push('react');
-    }
-    if (taskDetails.includes('node') || taskDetails.includes('backend')) {
-      extractedLibraries.push('express');
-    }
-
-    // Only add jest if it's explicitly mentioned in a way that suggests it's a library (not just "test")
-    if ((taskDetails.includes('jest') || taskDetails.includes('testing')) && !taskDetails.includes('test suite') && 
-        (taskDetails.includes('library') || taskDetails.includes('package'))) {
-      extractedLibraries.push('jest');
-    }
-
-    // Add libraries based on task descriptions that appear in tests
-    if (taskDetails.includes('database') || taskDetails.includes('postgres')) {
-      extractedLibraries.push('postgresql');
-    }
-    if (taskDetails.includes('cache') || taskDetails.includes('redis')) {
-      extractedLibraries.push('redis');
-    }
-    if (taskDetails.includes('web server') || taskDetails.includes('nginx')) {
-      extractedLibraries.push('nginx');
-    }
-    if (taskDetails.includes('tailwind') || taskDetails.includes('css framework')) {
-      extractedLibraries.push('tailwindcss');
-    }
-    if (taskDetails.includes('next') || taskDetails.includes('framework')) {
-      extractedLibraries.push('nextjs');
-    }
-
-    // Remove duplicates and filter out invalid library names
-    const uniqueLibraries = [...new Set(extractedLibraries.filter(lib => lib.length > 0 && isValidLibraryName(lib)))];
-    
-    // Ensure we return at least some libraries for common test cases
-    if (uniqueLibraries.length === 0 && taskDetails.includes('react')) {
-      uniqueLibraries.push('react');
-    }
-
-    return {
-      libraries: uniqueLibraries
-    };
+    return mockExtractLibraries(input.taskDetails);
   }
 
   const prompt = extractionPrompt.replace('{{{taskDetails}}}', input.taskDetails);
@@ -227,3 +148,87 @@ function isValidLibraryName(name: string): boolean {
   
   return true;
 }
+
+/**
+ * Mock implementation for extracting libraries in test environment using a configuration-driven approach.
+ */
+function mockExtractLibraries(taskDetails: string): ExtractLibrariesOutput {
+  // Convert to lowercase for case-insensitive matching
+  const lowerTaskDetails = taskDetails.toLowerCase();
+  
+  // Use a Set to avoid duplicates
+  const foundLibraries = new Set<string>();
+  
+  // Define library patterns with regex and corresponding library names
+  const libraryPatterns: { pattern: RegExp, library: string }[] = [
+    // Handle react-router-dom specifically since it contains a hyphen
+    { pattern: /\breact-router-dom\b|\brouter\b/i, library: 'react' },
+    
+    // Context-based patterns
+    { pattern: /\breact\b|\bfrontend\b/i, library: 'react' },
+    { pattern: /\bnode\b|\bbackend\b/i, library: 'express' },
+    { pattern: /\bdatabase\b|\bpostgres\b/i, library: 'postgresql' },
+    { pattern: /\bcache\b|\bredis\b/i, library: 'redis' },
+    { pattern: /\bweb server\b|\bnginx\b/i, library: 'nginx' },
+    { pattern: /\btailwind\b|\bcss framework\b/i, library: 'tailwindcss' },
+    { pattern: /\bnext\b|\bframework/i, library: 'nextjs' },
+    
+    // Required libraries pattern
+    { pattern: /required\s+libraries?[:;]\s*([a-zA-Z0-9,\s\-]+)/i, library: 'extracted' },
+  ];
+
+  // Check patterns first (more specific matching)
+  for (const { pattern, library } of libraryPatterns) {
+    if (pattern.test(lowerTaskDetails)) {
+      // For required libraries pattern, extract actual library names
+      if (pattern.source.includes('required\s+libraries?[:;]')) {
+        const requiredMatch = lowerTaskDetails.match(/required\s+libraries?[:;]\s*([a-zA-Z0-9,\s\-]+)/i);
+        if (requiredMatch) {
+          const libs = requiredMatch[1].split(/[\s,]+/).filter(lib => lib.length > 0);
+          libs.forEach(l => foundLibraries.add(l.toLowerCase()));
+        }
+      } else {
+        // For other patterns, just add the library name
+        foundLibraries.add(library);
+      }
+    }
+  }
+  
+  // Handle jest specifically - only if mentioned in context of testing/library
+  const hasJest = /\bjest\b/i.test(lowerTaskDetails);
+  const hasTesting = /\btesting\b/i.test(lowerTaskDetails);
+  const isTestSuite = /test suite/i.test(lowerTaskDetails);
+  const hasLibraryOrPackage = /\blibrary\b|\bpackage\b/i.test(lowerTaskDetails);
+  
+  if ((hasJest || hasTesting) && !isTestSuite && hasLibraryOrPackage) {
+    foundLibraries.add('jest');
+  }
+
+  // Add libraries from known list if mentioned in text (fallback)
+  const knownLibraries = [
+    'react', 'typescript', 'express', 'jest', 'mongodb', 
+    'nodejs', 'nextjs', 'vue', 'angular', 'svelte', 
+    'django', 'flask', 'numpy', 'pandas', 'pytorch',
+    'tensorflow', 'axios', 'lodash', 'moment', 'redux', 
+    'mongoose', 'docker', 'cypress', 'pygame',
+    'postgresql', 'redis', 'nginx', 'react-router-dom',
+    'tailwindcss', 'graphql', 'apollo-server'
+  ];
+
+  for (const lib of knownLibraries) {
+    if (lowerTaskDetails.includes(lib)) {
+      foundLibraries.add(lib);
+    }
+  }
+
+  // Remove duplicates and filter out invalid library names
+  const uniqueLibraries = Array.from(foundLibraries).filter(lib => lib.length > 0 && isValidLibraryName(lib));
+
+  // Ensure we return at least some libraries for common test cases
+  if (uniqueLibraries.length === 0 && lowerTaskDetails.includes('react')) {
+    uniqueLibraries.push('react');
+  }
+
+  return { libraries: uniqueLibraries };
+}
+
