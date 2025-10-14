@@ -11,8 +11,8 @@
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"!node_modules\"",
     "lint:md:fix": "markdownlint-cli2 \"**/*.md\" \"!node_modules\" --fix",
     "typecheck": "tsc --noEmit",
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "test": "NODE_ENV=test jest",
+    "test:watch": "NODE_ENV=test jest --watch"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",

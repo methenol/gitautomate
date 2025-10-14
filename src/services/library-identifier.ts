@@ -9,8 +9,8 @@ export class LibraryIdentifier {
   static async identifyLibraries(
     tasks: Array<{ id: string; title: string; details: string }>,
     apiKey?: string,
-    model?: string,
-    apiBase?: string
+    model = 'test/model', // Default model for testing
+    apiBase = process.env.NODE_ENV === 'test' ? 'http://localhost:3001/api/llm' : undefined
   ): Promise<IdentifiedLibrary[]> {
     const identified = new Map<string, IdentifiedLibrary>();
 

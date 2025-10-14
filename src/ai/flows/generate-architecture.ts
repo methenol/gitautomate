@@ -12,7 +12,7 @@ import {ai} from '@/ai/litellm';
 import {z} from 'zod';
 import { MarkdownLinter } from '@/services/markdown-linter';
 
-const GenerateArchitectureInputSchema = z.object({
+const _GenerateArchitectureInputSchema = z.object({
   prd: z
     .string()
     .describe(
@@ -20,17 +20,17 @@ const GenerateArchitectureInputSchema = z.object({
     ),
 });
 export type GenerateArchitectureInput = z.infer<
-  typeof GenerateArchitectureInputSchema
+  typeof _GenerateArchitectureInputSchema
 >;
 
-const GenerateArchitectureOutputSchema = z.object({
+const _GenerateArchitectureOutputSchema = z.object({
   architecture: z.string().describe('The proposed software architecture. Use markdown formatting.'),
   specifications: z
     .string()
     .describe('The generated specifications based on the PRD. Use markdown formatting.'),
 });
 export type GenerateArchitectureOutput = z.infer<
-  typeof GenerateArchitectureOutputSchema
+  typeof _GenerateArchitectureOutputSchema
 >;
 
 export async function generateArchitecture(

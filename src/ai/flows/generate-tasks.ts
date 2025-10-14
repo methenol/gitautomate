@@ -22,10 +22,10 @@ const _GenerateTasksInputSchema = z.object({
 export type GenerateTasksInput = z.infer<typeof _GenerateTasksInputSchema>;
 
 
-const GenerateTasksOutputSchema = z.object({
+const _GenerateTasksOutputSchema = z.object({
   tasks: z.array(TaskSchema).describe('A list of actionable task titles.'),
 });
-export type GenerateTasksOutput = z.infer<typeof GenerateTasksOutputSchema>;
+export type GenerateTasksOutput = z.infer<typeof _GenerateTasksOutputSchema>;
 
 const standardPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable, granular development task *titles*.
 

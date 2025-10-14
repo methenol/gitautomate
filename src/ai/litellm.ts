@@ -24,9 +24,12 @@ interface GenerateOptions {
 }
 
 // Convert response to JSON format expected by the schema
-function parseResponse(response: string, schema?: z.ZodSchema): any {
+function parseResponse<T>(response: string, schema?: z.ZodSchema): T {
   if (!schema) {
-    return response;
+    // If no schema is provided, we need to return a value that matches type T
+    // Since the response is always string and T could be anything, we need to handle this differently
+    // We'll use a type assertion with Record<string, any> as the fallback when no schema is provided
+    return response as unknown as T;
   }
 
   try {
@@ -46,7 +49,7 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
     }
     
     // Detect what type of schema we're dealing with by testing required fields
-    const result: any = {};
+    const result: Record<string, any> = {};
     let detectedFields: string[] = [];
     
     // Try to detect schema fields using safeParse with empty object
@@ -54,13 +57,13 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
       const testResult = schema.safeParse({});
       if (!testResult.success) {
         detectedFields = testResult.error.issues
-          .filter((issue: any) => issue.code === 'invalid_type' && issue.path.length === 1)
-          .map((issue: any) => issue.path[0] as string);
+          .filter((issue: { code: string; path: any[] }) => issue.code === 'invalid_type' && issue.path.length === 1)
+          .map((issue: { path: any[] }) => issue.path[0] as string);
       }
     } catch {
       // Fallback: try the old method
-      if ((schema as any)._def?.shape) {
-        detectedFields = Object.keys((schema as any)._def.shape);
+      if ((schema as z.ZodObject<any>).shape) {
+        detectedFields = Object.keys((schema as z.ZodObject<any>).shape);
       }
     }
     
@@ -153,9 +156,9 @@ function validateAndSanitizeUrl(baseUrl: string): string {
         hostname === '::1' ||
         hostname.startsWith('fc00:') ||
         hostname.startsWith('fe80:')) {
-      // Allow localhost only for development purposes
-      if (process.env.NODE_ENV === 'development') {
-        return baseUrl; // Preserve full URL including path for local development
+      // Allow localhost for development and testing purposes
+      if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+        return baseUrl; // Preserve full URL including path for local development/testing
       }
       throw new Error('Access to private networks is not allowed');
     }

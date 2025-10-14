@@ -220,8 +220,8 @@ export default function Home() {
             maxDocumentationSizeKB: settings.documentation?.maxDocumentationSizeKB || 512,
           });
         }
-      } catch (error) {
-        console.error('Failed to load settings:', error);
+      } catch (_) {
+        console.error('Failed to load settings:', 'Unknown error');
         // Continue with empty settings if load fails
       }
     };

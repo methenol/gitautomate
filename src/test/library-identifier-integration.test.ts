@@ -1,4 +1,5 @@
 // Mock the ai module to avoid real API calls during tests
+import {ai} from '@/ai/litellm';
 jest.mock('@/ai/litellm', () => ({
   ai: {
     generate: jest.fn()
@@ -13,7 +14,7 @@ describe('LibraryIdentifier Real-World Integration', () => {
     jest.clearAllMocks();
     
     // Mock successful AI responses for library extraction
-    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
+    (ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
       console.log('DEBUG: Integration test - received prompt:', prompt.substring(0, 100));
       
       // Extract expected libraries from the test prompts

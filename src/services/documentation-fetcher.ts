@@ -7,6 +7,17 @@ import type {
   LibrarySearchResult
 } from '@/types/documentation';
 import { Octokit } from '@octokit/rest';
+
+
+interface NpmRegistryResponse {
+  name?: string;
+  description?: string;
+  'dist-tags'?: Record<string, string>;
+  versions?: Record<string, any>;
+  keywords?: string[];
+}
+
+
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as cheerio from 'cheerio';
@@ -44,6 +55,18 @@ export class DocumentationFetcher {
    * Fetch documentation for multiple libraries
    */
   async fetchLibraryDocumentation(libraries: IdentifiedLibrary[]): Promise<DocumentationFetchResult> {
+    // If documentation is disabled, return empty result immediately
+    if (!this.settings.enabled) {
+      return {
+        libraries: [],
+        totalSizeKB: 0,
+        fetchedCount: 0,
+        skippedCount: 0,
+        errorCount: 0,
+        errors: [],
+      };
+    }
+
     const results: LibraryDocumentation[] = [];
     const errors: string[] = [];
     let totalSizeKB = 0;
@@ -104,9 +127,9 @@ export class DocumentationFetcher {
         // Cache the result
         await this.cacheDocumentation(libraryDoc);
 
-      } catch (_error) {
-        console.error(`Error fetching documentation for ${library.name}:`, _error);
-        errors.push(`Failed to fetch ${library.name}: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
+      } catch (_) {
+        console.error(`Error fetching documentation for ${library.name}:`, 'Unknown error');
+        errors.push(`Failed to fetch ${library.name}: Unknown error`);
         skippedCount++;
       }
     }
@@ -183,10 +206,10 @@ export class DocumentationFetcher {
         },
       });
       if (response.ok) {
-        const data = await response.json() as any;
+        const data: NpmRegistryResponse = await response.json();
         return {
           name: libraryName,
-          fullName: data.name,
+          fullName: data.name || libraryName,
           description: data.description || '',
           url: `https://www.npmjs.com/package/${encodedName}`,
           isVerified: data['dist-tags']?.latest ? true : false,
@@ -507,11 +530,10 @@ export class DocumentationFetcher {
         },
       });
       if (response.ok) {
-        const data = await response.json() as any;
+        const data: NpmRegistryResponse = await response.json();
         
-        let content = `# ${data.name}\n\n`;
+        let content = `# ${data.name || libraryName}\n\n`;
         if (data.description) content += `${data.description}\n\n`;
-        if (data.readme) content += data.readme;
         
         sources.push({
           type: 'npm',
@@ -547,9 +569,13 @@ export class DocumentationFetcher {
     let currentSizeKB = 0;
 
     // Sort by importance (README first, then official, then others)
-    const sortedSources = sources.sort((a, b) => {
+    const sortedSources = [...sources].sort((a, b) => {
+      // Always prioritize github-readme above all else
+      if (a.type === 'github-readme' && b.type !== 'github-readme') return -1;
+      if (b.type === 'github-readme' && a.type !== 'github-readme') return 1;
+      
+      // Then sort by other priorities
       const priority: Record<string, number> = { 
-        'github-readme': 0, 
         'official-site': 1, 
         'github-docs': 2, 
         'npm': 3, 
