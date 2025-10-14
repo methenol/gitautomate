@@ -9,7 +9,7 @@
 import {ai} from '@/ai/litellm';
 import {z} from 'zod';
 
-const GenerateAgentsMdInputSchema = z.object({
+const _GenerateAgentsMdInputSchema = z.object({
   prd: z
     .string()
     .describe(
@@ -37,14 +37,14 @@ const GenerateAgentsMdInputSchema = z.object({
     ),
 });
 export type GenerateAgentsMdInput = z.infer<
-  typeof GenerateAgentsMdInputSchema
+  typeof _GenerateAgentsMdInputSchema
 >;
 
-const GenerateAgentsMdOutputSchema = z.object({
+const _GenerateAgentsMdOutputSchema = z.object({
   agentsMdContent: z.string().describe('The generated AGENTS.md content with project-specific instructions for AI agents.'),
 });
 export type GenerateAgentsMdOutput = z.infer<
-  typeof GenerateAgentsMdOutputSchema
+  typeof _GenerateAgentsMdOutputSchema
 >;
 
 export async function generateAgentsMd(

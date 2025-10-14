@@ -116,9 +116,9 @@ export class DocumentationFetcher {
         // Cache the result
         await this.cacheDocumentation(libraryDoc);
 
-      } catch (_error) {
-        console.error(`Error fetching documentation for ${library.name}:`, _error);
-        errors.push(`Failed to fetch ${library.name}: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
+      } catch (_) {
+        console.error(`Error fetching documentation for ${library.name}:`, 'Unknown error');
+        errors.push(`Failed to fetch ${library.name}: Unknown error`);
         skippedCount++;
       }
     }
@@ -195,10 +195,10 @@ export class DocumentationFetcher {
         },
       });
       if (response.ok) {
-        const data = await response.json() as any;
+        const data: NpmRegistryResponse = await response.json();
         return {
           name: libraryName,
-          fullName: data.name,
+          fullName: data.name || libraryName,
           description: data.description || '',
           url: `https://www.npmjs.com/package/${encodedName}`,
           isVerified: data['dist-tags']?.latest ? true : false,
@@ -519,9 +519,9 @@ export class DocumentationFetcher {
         },
       });
       if (response.ok) {
-        const data = await response.json() as any;
+        const data: NpmRegistryResponse = await response.json();
         
-        let content = `# ${data.name}\n\n`;
+        let content = `# ${data.name || libraryName}\n\n`;
         if (data.description) content += `${data.description}\n\n`;
         if (data.readme) content += data.readme;
         

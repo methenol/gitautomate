@@ -2,6 +2,7 @@ import { LibraryIdentifier } from '@/services/library-identifier';
 import { DocumentationFetcher } from '@/services/documentation-fetcher';
 
 // Mock the ai module to avoid real API calls during tests
+import {ai} from '@/ai/litellm';
 jest.mock('@/ai/litellm', () => ({
   ai: {
     generate: jest.fn()
@@ -14,7 +15,7 @@ describe('Integration Tests - Real Functionality', () => {
     jest.clearAllMocks();
     
     // Mock successful AI responses for library extraction
-    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
+    (ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
       // Extract expected libraries from the test prompts
       if (prompt.includes('react') && prompt.includes('typescript')) {
         return Promise.resolve({

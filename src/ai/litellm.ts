@@ -24,7 +24,7 @@ interface GenerateOptions {
 }
 
 // Convert response to JSON format expected by the schema
-function parseResponse(response: string, schema?: z.ZodSchema): any {
+function parseResponse<T>(response: string, schema?: z.ZodSchema): T {
   if (!schema) {
     return response;
   }
@@ -46,7 +46,7 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
     }
     
     // Detect what type of schema we're dealing with by testing required fields
-    const result: any = {};
+    const result: Record<string, any> = {};
     let detectedFields: string[] = [];
     
     // Try to detect schema fields using safeParse with empty object
@@ -54,13 +54,13 @@ function parseResponse(response: string, schema?: z.ZodSchema): any {
       const testResult = schema.safeParse({});
       if (!testResult.success) {
         detectedFields = testResult.error.issues
-          .filter((issue: any) => issue.code === 'invalid_type' && issue.path.length === 1)
-          .map((issue: any) => issue.path[0] as string);
+          .filter((issue: { code: string; path: any[] }) => issue.code === 'invalid_type' && issue.path.length === 1)
+          .map((issue: { path: any[] }) => issue.path[0] as string);
       }
     } catch {
       // Fallback: try the old method
-      if ((schema as any)._def?.shape) {
-        detectedFields = Object.keys((schema as any)._def.shape);
+      if ((schema as z.ZodObject<any>).shape) {
+        detectedFields = Object.keys((schema as z.ZodObject<any>).shape);
       }
     }
     

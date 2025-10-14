@@ -55,3 +55,11 @@ export interface LibrarySearchResult {
   language?: string;
   isVerified: boolean;
 }
+
+export interface NpmRegistryResponse {
+  name?: string;
+  description?: string;
+  'dist-tags'?: Record<string, string>;
+  versions?: Record<string, any>;
+  keywords?: string[];
+}

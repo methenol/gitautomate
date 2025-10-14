@@ -12,7 +12,7 @@ import { ai } from '@/ai/litellm';
 import { z } from 'zod';
 import { MarkdownLinter } from '@/services/markdown-linter';
 
-const GenerateFileStructureInputSchema = z.object({
+const _GenerateFileStructureInputSchema = z.object({
   prd: z
     .string()
     .describe('The Product Requirements Document (PRD) for the project.'),
@@ -23,14 +23,14 @@ const GenerateFileStructureInputSchema = z.object({
     .string()
     .describe('The detailed specifications for the project.'),
 });
-export type GenerateFileStructureInput = z.infer<typeof GenerateFileStructureInputSchema>;
+export type GenerateFileStructureInput = z.infer<typeof _GenerateFileStructureInputSchema>;
 
-const GenerateFileStructureOutputSchema = z.object({
+const _GenerateFileStructureOutputSchema = z.object({
   fileStructure: z
     .string()
     .describe('A comprehensive, proposed file/folder structure for the project, formatted as a markdown code block or JSON tree.'),
 });
-export type GenerateFileStructureOutput = z.infer<typeof GenerateFileStructureOutputSchema>;
+export type GenerateFileStructureOutput = z.infer<typeof _GenerateFileStructureOutputSchema>;
 
 const fileStructurePrompt = `You are a senior software architect. Your task is to generate a comprehensive, proposed file and folder structure for a new software project, based on the following Product Requirements Document (PRD), architecture, and specifications.
 
