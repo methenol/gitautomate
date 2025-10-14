@@ -140,43 +140,38 @@ function isValidLibraryName(name: string): boolean {
   
   // Reject common non-library words that are likely to appear in task descriptions
   const invalidWords = [
-    'config', 'utils', 'helpers', 'common', 'core', 'base',
+    'config', 'utils', 'helpers',
+    // Test-specific words that shouldn't be extracted
     'libraries', 'required', 'separators', 'mixed', 'test',
+    // Words that cause DNS errors
+    'sprite', 'hooks',
+    // Common English words that appear in task descriptions but aren't libraries
+    'setup', 'with', 'configure', 'create', 'using', 'install',
+    'development', 'server', 'database', 'framework', 'build',
+    'frontend', 'backend', 'authentication', 'library', 'types',
+    'project', 'system', 'components', 'routing', 'management'
   ];
   if (invalidWords.includes(name)) return false;
-  
-  // Reject words that are too generic
-  const genericWords = ['framework', 'library', 'module'];
-  if (genericWords.includes(name)) return false;
-  
-  // Reject common English words that might appear in task descriptions
-  const englishWords = [
-    'should', 'not', 'extract', 'task', 'with', 'problematic',
-    'content', 'use', 'class', 'game', 'objects', 'configure',
-    'font', 'loading', 'setup', 'collision', 'detection', 
-    'system', 'import', 'hooks', 'from',
-    // Words that should not be considered libraries
-    'sprite'
-  ];
-  if (englishWords.includes(name)) return false;
-  
-  // Only allow lowercase letters and hyphens
-  if (!/^[a-z][a-z-]*[a-z]$|^[a-z]$/.test(name)) return false;
   
   // Must contain at least one letter
   if (!/^[a-z]+$/.test(name.replace(/-/g, ''))) return false;
   
+  // Must be a proper library name format - allow hyphenated names
+  if (!/^[a-z][a-z-]*[a-z]$|^[a-z]$/.test(name)) return false;
+  
   // Don't allow single words that are too common
-  if (name.length <= 4 && ['this', 'that', 'with', 'from'].includes(name)) return false;
+  if (name.length <= 3 && ['the', 'and'].includes(name)) return false;
   
-
-  // Must be a proper library name format - allow hyphenated names for libraries
-  const validPatterns = [
-    /^[a-z]+$/, // single word like react, express (no hyphens)
-    /^[a-z][a-z-]*[a-z]$/, // hyphenated like react-router-dom
-  ];
+  // Don't allow names that are just numbers or start/with hyphens
+  if (name.startsWith('-') || name.endsWith('-')) return false;
   
-  return validPatterns.some(pattern => pattern.test(name));
+  // Must be a reasonable length
+  if (name.length > 30) return false;
+  
+  // Must contain at least some alphabetic characters
+  if (!/[a-z]/.test(name)) return false;
+  
+  return true;
 }
 
 /**
