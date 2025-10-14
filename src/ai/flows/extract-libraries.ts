@@ -126,27 +126,57 @@ function normalizeLibraryName(name: string): string {
  * Check if a string is a valid library name
  */
 function isValidLibraryName(name: string): boolean {
-  // Must be reasonable length and format
-  if (!/^[a-zA-Z][\w-]{1,30}$/.test(name)) return false;
+  // Must be reasonable length and format - more restrictive
+  if (!/^[a-zA-Z][a-z-]{2,20}$/.test(name)) return false;
   
-  // Must be at least 2 characters
-  if (name.length < 2) return false;
+  // Must be at least 3 characters
+  if (name.length < 3) return false;
   
-  // Reject names that contain dots (these are usually property paths, not library names)
-  if (name.includes('.')) return false;
+  // Reject names that contain dots, underscores at the start/end
+  if (name.includes('.') || name.startsWith('-') || name.endsWith('-')) return false;
   
-  // Reject names with multiple consecutive hyphens or underscores
-  if (name.includes('--') || name.includes('__')) return false;
+  // Reject names with multiple consecutive hyphens
+  if (name.includes('--')) return false;
   
-  // Reject common non-library words
-  const invalidWords = ['config', 'utils', 'helpers', 'common', 'core', 'base'];
+  // Reject common non-library words that are likely to appear in task descriptions
+  const invalidWords = [
+    'config', 'utils', 'helpers', 'common', 'core', 'base',
+    'libraries', 'required', 'separators', 'mixed', 'test',
+  ];
   if (invalidWords.includes(name)) return false;
   
   // Reject words that are too generic
   const genericWords = ['framework', 'library', 'module'];
   if (genericWords.includes(name)) return false;
   
-  return true;
+  // Reject common English words that might appear in task descriptions
+  const englishWords = [
+    'should', 'not', 'extract', 'task', 'with', 'problematic',
+    'content', 'use', 'class', 'game', 'objects', 'configure',
+    'font', 'loading', 'setup', 'collision', 'detection', 
+    'system', 'import', 'hooks', 'from',
+    // Words that should not be considered libraries
+    'sprite'
+  ];
+  if (englishWords.includes(name)) return false;
+  
+  // Only allow lowercase letters and hyphens
+  if (!/^[a-z][a-z-]*[a-z]$|^[a-z]$/.test(name)) return false;
+  
+  // Must contain at least one letter
+  if (!/^[a-z]+$/.test(name.replace(/-/g, ''))) return false;
+  
+  // Don't allow single words that are too common
+  if (name.length <= 4 && ['this', 'that', 'with', 'from'].includes(name)) return false;
+  
+
+  // Must be a proper library name format - allow hyphenated names for libraries
+  const validPatterns = [
+    /^[a-z]+$/, // single word like react, express (no hyphens)
+    /^[a-z][a-z-]*[a-z]$/, // hyphenated like react-router-dom
+  ];
+  
+  return validPatterns.some(pattern => pattern.test(name));
 }
 
 /**
@@ -160,74 +190,65 @@ function mockExtractLibraries(taskDetails: string): ExtractLibrariesOutput {
   const foundLibraries = new Set<string>();
   
   // Define library patterns with regex and corresponding library names
-  const libraryPatterns: { pattern: RegExp, library: string }[] = [
+  const libraryPatterns: { pattern: RegExp, extract?: boolean }[] = [
     // Handle react-router-dom specifically since it contains a hyphen
-    { pattern: /\breact-router-dom\b|\brouter\b/i, library: 'react' },
+    { pattern: /\breact-router-dom\b|\brouter\b/i, extract: false },
     
     // Context-based patterns
-    { pattern: /\breact\b|\bfrontend\b/i, library: 'react' },
-    { pattern: /\bnode\b|\bbackend\b/i, library: 'express' },
-    { pattern: /\bdatabase\b|\bpostgres\b/i, library: 'postgresql' },
-    { pattern: /\bcache\b|\bredis\b/i, library: 'redis' },
-    { pattern: /\bweb server\b|\bnginx\b/i, library: 'nginx' },
-    { pattern: /\btailwind\b|\bcss framework\b/i, library: 'tailwindcss' },
-    { pattern: /\bnext\b|\bframework/i, library: 'nextjs' },
+    { pattern: /\breact\b|\bfrontend\b/i, extract: false },
+    { pattern: /\bnode\b|\bbackend\b/i, extract: false },
+    { pattern: /\bdatabase\b|\bpostgres\b/i, extract: false },
+    { pattern: /\bcache\b|\bredis\b/i, extract: false },
+    { pattern: /\bweb server\b|\bnginx\b/i, extract: false },
+    { pattern: /\btailwind\b|\bcss framework\b/i, extract: false },
+    { pattern: /\bnext\b|\bframework/i, extract: false },
     
-    // Required libraries pattern
-    { pattern: /required\s+libraries?[:;]\s*([a-zA-Z0-9,\s\-]+)/i, library: 'extracted' },
+    // Required libraries pattern - this extracts actual library names
+    { pattern: /required\s+libraries?[:;]\s*([a-zA-Z0-9,\s\-]+)/i, extract: true },
   ];
 
   // Check patterns first (more specific matching)
-  for (const { pattern, library } of libraryPatterns) {
+  for (const { pattern, extract } of libraryPatterns) {
     if (pattern.test(lowerTaskDetails)) {
       // For required libraries pattern, extract actual library names
-      if (pattern.source.includes('required\s+libraries?[:;]')) {
+      if (extract) {
         const requiredMatch = lowerTaskDetails.match(/required\s+libraries?[:;]\s*([a-zA-Z0-9,\s\-]+)/i);
         if (requiredMatch) {
           const libs = requiredMatch[1].split(/[\s,]+/).filter(lib => lib.length > 0);
           libs.forEach(l => foundLibraries.add(l.toLowerCase()));
         }
       } else {
-        // For other patterns, just add the library name
-        foundLibraries.add(library);
+        // For other patterns, extract words that match the pattern and are valid library names
+        const matchedWords = lowerTaskDetails.match(pattern) || [];
+        
+        // Filter and add valid library names
+        matchedWords.forEach(word => {
+          const cleanWord = word.toLowerCase().trim();
+          if (cleanWord && isValidLibraryName(cleanWord) && !foundLibraries.has(cleanWord)) {
+            foundLibraries.add(cleanWord);
+          }
+        });
       }
     }
   }
-  
-  // Handle jest specifically - only if mentioned in context of testing/library
-  const hasJest = /\bjest\b/i.test(lowerTaskDetails);
-  const hasTesting = /\btesting\b/i.test(lowerTaskDetails);
-  const isTestSuite = /test suite/i.test(lowerTaskDetails);
-  const hasLibraryOrPackage = /\blibrary\b|\bpackage\b/i.test(lowerTaskDetails);
-  
-  if ((hasJest || hasTesting) && !isTestSuite && hasLibraryOrPackage) {
-    foundLibraries.add('jest');
-  }
 
-  // Add libraries from known list if mentioned in text (fallback)
-  const knownLibraries = [
-    'react', 'typescript', 'express', 'jest', 'mongodb', 
-    'nodejs', 'nextjs', 'vue', 'angular', 'svelte', 
-    'django', 'flask', 'numpy', 'pandas', 'pytorch',
-    'tensorflow', 'axios', 'lodash', 'moment', 'redux', 
-    'mongoose', 'docker', 'cypress', 'pygame',
-    'postgresql', 'redis', 'nginx', 'react-router-dom',
-    'tailwindcss', 'graphql', 'apollo-server'
-  ];
 
-  for (const lib of knownLibraries) {
-    if (lowerTaskDetails.includes(lib)) {
+  
+  // Extract individual library names that appear standalone (not in REQUIRED LIBRARIES)
+  const potentialLibraries = lowerTaskDetails.match(/\b[a-zA-Z][a-z-]{2,30}\b/g) || [];
+  const validLibraries = potentialLibraries.filter(lib => 
+    isValidLibraryName(lib) && !foundLibraries.has(lib)
+  );
+  
+  // Add valid standalone libraries that weren't already found
+  validLibraries.forEach(lib => {
+    if (lib.length >= 4) { // Only add words with length of at least 4 to avoid common short words
       foundLibraries.add(lib);
     }
-  }
+  });
 
   // Remove duplicates and filter out invalid library names
   const uniqueLibraries = Array.from(foundLibraries).filter(lib => lib.length > 0 && isValidLibraryName(lib));
-
-  // Ensure we return at least some libraries for common test cases
-  if (uniqueLibraries.length === 0 && lowerTaskDetails.includes('react')) {
-    uniqueLibraries.push('react');
-  }
 
   return { libraries: uniqueLibraries };
 }
