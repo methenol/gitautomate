@@ -7,6 +7,17 @@ import type {
   LibrarySearchResult
 } from '@/types/documentation';
 import { Octokit } from '@octokit/rest';
+
+
+interface NpmRegistryResponse {
+  name?: string;
+  description?: string;
+  'dist-tags'?: Record<string, string>;
+  versions?: Record<string, any>;
+  keywords?: string[];
+}
+
+
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as cheerio from 'cheerio';
@@ -523,7 +534,6 @@ export class DocumentationFetcher {
         
         let content = `# ${data.name || libraryName}\n\n`;
         if (data.description) content += `${data.description}\n\n`;
-        if (data.readme) content += data.readme;
         
         sources.push({
           type: 'npm',

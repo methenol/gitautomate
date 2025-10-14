@@ -26,7 +26,10 @@ interface GenerateOptions {
 // Convert response to JSON format expected by the schema
 function parseResponse<T>(response: string, schema?: z.ZodSchema): T {
   if (!schema) {
-    return response;
+    // If no schema is provided, we need to return a value that matches type T
+    // Since the response is always string and T could be anything, we need to handle this differently
+    // We'll use a type assertion with Record<string, any> as the fallback when no schema is provided
+    return response as unknown as T;
   }
 
   try {
