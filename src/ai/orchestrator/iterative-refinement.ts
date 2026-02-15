@@ -188,7 +188,8 @@ Provide your analysis as a JSON object conforming to the schema.`;
     context: UnifiedProjectContext,
     analysis: RefinementAnalysis,
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     let refinedContext = { ...context };
