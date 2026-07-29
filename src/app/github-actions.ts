@@ -1,6 +1,7 @@
 'use server';
 
 import type { Task } from '@/types';
+import { parseFrontmatter } from '@/lib/frontmatter';
 
 // A type for repository data
 export interface Repository {
@@ -36,6 +37,40 @@ export async function getRepositories(token: string): Promise<Repository[]> {
   }
 }
 
+/**
+ * Render a task as an issue body.
+ *
+ * The generated brief already carries frontmatter, which GitHub renders as a stray
+ * horizontal rule, so the metadata is promoted into a readable header instead and the
+ * brief follows verbatim — an agent picking up the issue gets the same contract as one
+ * reading `tasks/task-NNN.md`.
+ */
+function buildTaskIssueBody(task: Task): string {
+  const { frontmatter, body } = parseFrontmatter(task.details ?? '');
+  const hasMetadata = task.id || task.dependsOn?.length || task.files?.length;
+
+  if (!hasMetadata && Object.keys(frontmatter).length === 0) {
+    return task.details ?? '';
+  }
+
+  const dependsOn = task.dependsOn?.length ? task.dependsOn.join(', ') : 'nothing';
+  const files = task.files?.length ? task.files.map((file) => `\`${file}\``).join(', ') : '—';
+
+  const header = [
+    task.id ? `**Task:** ${task.id}` : null,
+    `**Depends on:** ${dependsOn}`,
+    `**Files:** ${files}`,
+    task.outcome ? `**Done when:** ${task.outcome}` : null,
+    '',
+    '> This issue is a complete brief. Implement only what its Scope allows, satisfy every',
+    '> acceptance criterion, and make every quality gate pass before closing it.',
+  ]
+    .filter((line) => line !== null)
+    .join('\n');
+
+  return `${header}\n\n---\n\n${body.trim()}`;
+}
+
 // Action to create a GitHub implementation plan with sub-issues for tasks
 export async function createImplementationPlanIssues(
   token: string,
@@ -44,7 +79,8 @@ export async function createImplementationPlanIssues(
   architecture: string,
   specifications: string,
   fileStructure: string,
-  tasks: Task[]
+  tasks: Task[],
+  standards?: string
 ): Promise<{ html_url: string }> {
   const { Octokit } = await import('@octokit/rest');
   if (!token || !repoFullName) {
@@ -60,8 +96,8 @@ export async function createImplementationPlanIssues(
       const childIssue = await octokit.issues.create({
         owner,
         repo,
-        title: task.title,
-        body: task.details,
+        title: task.id ? `${task.id} — ${task.title}` : task.title,
+        body: buildTaskIssueBody(task),
       });
       createdTaskIssues.push({
         title: task.title,
@@ -79,35 +115,55 @@ export async function createImplementationPlanIssues(
     }
   }
 
-  // 2. Construct the body for the main implementation issue (parent issue)
+  // 2. Construct the body for the main implementation issue (parent issue).
+  // Ordering and dependencies come first: this issue is the thing an agent (or a
+  // human dispatching agents) reads to decide what to pick up next.
   const taskList = createdTaskIssues
-    .map((issue) => `- [ ] [${issue.title}](${issue.url})`)
+    .map((issue, index) => {
+      const task = tasks[index];
+      const deps = task?.dependsOn?.length ? ` — after ${task.dependsOn.join(', ')}` : '';
+      return `- [ ] [${issue.title}](${issue.url})${deps}`;
+    })
     .join('\n');
 
-  const parentIssueBody = `
-  ### Product Requirements Document
-  ${prd}
-
-  ---
-
-  ### Proposed Architecture
-  ${architecture}
-
-  ---
-
-  ### File Structure
-  ${fileStructure}
-
-  ---
-
-  ### Specifications
-  ${specifications}
-
-  ---
-
-  ### Actionable Tasks
-  ${taskList || 'No tasks were created.'}
-  `.trim();
+  const parentIssueBody = [
+    '## How to work this plan',
+    '',
+    'Work the tasks below in order. Do not start a task until every task it depends on is',
+    'closed. Each task issue is a complete brief: implement only what its Scope allows,',
+    'satisfy every acceptance criterion, and make every quality gate pass before closing it.',
+    '',
+    '## Tasks',
+    '',
+    taskList || 'No tasks were created.',
+    '',
+    '---',
+    '',
+    '## Product Requirements Document',
+    '',
+    prd,
+    '',
+    '---',
+    '',
+    '## Architecture',
+    '',
+    architecture,
+    '',
+    '---',
+    '',
+    '## Specifications',
+    '',
+    specifications,
+    '',
+    '---',
+    '',
+    '## File Structure',
+    '',
+    fileStructure,
+    ...(standards
+      ? ['', '---', '', '## Engineering Standards And Quality Gates', '', standards]
+      : []),
+  ].join('\n');
 
   // 3. Create the main implementation issue with the full task list.
   try {

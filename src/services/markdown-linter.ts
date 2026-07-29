@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import sanitize from 'sanitize-filename';
+import { parseFrontmatter } from '@/lib/frontmatter';
 
 export interface MarkdownLintResult {
   isValid: boolean;
@@ -132,8 +133,23 @@ export class MarkdownLinter {
    * Lint markdown content and attempt to fix common issues
    */
   static async lintAndFix(content: string, filename = 'document.md'): Promise<MarkdownLintResult> {
+    // Lint the body only. markdownlint reads `---` as a horizontal rule and its
+    // fixer inserts blank lines that corrupt a frontmatter block, so the block is
+    // detached here and re-attached verbatim afterwards.
+    const parsed = parseFrontmatter(content ?? '');
+    if (parsed.hasFrontmatter) {
+      const block = content.slice(0, content.length - parsed.body.length).replace(/\n*$/, '\n\n');
+      const result = await MarkdownLinter.lintAndFix(parsed.body, filename);
+      return {
+        ...result,
+        fixedContent: result.fixedContent
+          ? `${block}${result.fixedContent.replace(/^\n+/, '')}`
+          : undefined,
+      };
+    }
+
     let tempDir: string | null = null;
-    
+
     try {
       // Input validation
       if (!content || typeof content !== 'string') {

@@ -1,6 +1,16 @@
 import { LibraryIdentifier } from '@/services/library-identifier';
+import { ai } from '@/ai/litellm';
+import { installFakeExtractionLLM } from './helpers/fake-llm';
+
+// See src/test/helpers/fake-llm.ts: the stub deliberately returns junk alongside the
+// real packages so the pipeline's filtering is what is being asserted.
+jest.mock('@/ai/litellm', () => ({ ai: { generate: jest.fn() } }));
 
 describe('Enhanced Library Extraction', () => {
+  beforeEach(() => {
+    installFakeExtractionLLM(ai.generate as unknown as jest.Mock);
+  });
+
   describe('REQUIRED LIBRARIES pattern extraction', () => {
     it('should extract libraries from REQUIRED LIBRARIES sections with highest confidence', async () => {
       const tasks = [

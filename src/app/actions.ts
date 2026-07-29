@@ -8,6 +8,7 @@ import { generateTasks, GenerateTasksInput } from '@/ai/flows/generate-tasks';
 import { researchTask, ResearchTaskInput, ResearchTaskOutput } from '@/ai/flows/research-task';
 import { generateFileStructure, GenerateFileStructureInput } from '@/ai/flows/generate-file-structure';
 import { generateAgentsMd, GenerateAgentsMdInput } from '@/ai/flows/generate-agents-md';
+import { generateStandards, GenerateStandardsInput } from '@/ai/flows/generate-standards';
 
 type ActionOptions = {
   apiKey?: string;
@@ -16,6 +17,27 @@ type ActionOptions = {
   useTDD?: boolean;
   temperature?: number; // Temperature for LLM calls (0.0 - 2.0)
 };
+
+/**
+ * Surface the underlying failure instead of replacing it.
+ *
+ * These handlers used to collapse every fault into "the model may have returned an
+ * unexpected response", which sent people hunting for prompt bugs when the real cause was
+ * a refused connection or a transport timeout.
+ */
+function describeFailure(step: string, error: unknown, hint?: string): Error {
+  const detail = error instanceof Error ? error.message : String(error);
+
+  if (
+    detail.includes('API key not found') ||
+    detail.includes('API key is invalid') ||
+    detail.includes('Please check your LLM API key')
+  ) {
+    return new Error(`${step} failed: your LLM API key is missing or invalid. Please check it in settings.`);
+  }
+
+  return new Error(`${step} failed: ${detail}${hint ? ` ${hint}` : ''}`);
+}
 
 export async function runGenerateArchitecture(
   input: GenerateArchitectureInput,
@@ -35,19 +57,36 @@ export async function runGenerateArchitecture(
     return result;
   } catch (error) {
     console.error('Error generating architecture:', error);
-    if (
-      error instanceof Error &&
-      (error.message.includes('API key not found') ||
-        error.message.includes('API key is invalid') ||
-        error.message.includes('Please check your LLM API key'))
-    ) {
-      throw new Error(
-        'Failed to generate architecture: Your LLM API key is missing or invalid. Please check it in settings.'
-      );
-    }
-    throw new Error(
-      'Architecture generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD.'
+    throw describeFailure('Architecture generation', error);
+  }
+}
+
+/**
+ * Generates the engineering standards and quality gates for the project.
+ *
+ * Runs once per project, between the architecture and the task plan: its gate
+ * commands are injected into every task file so the whole plan verifies itself the
+ * same way.
+ */
+export async function runGenerateStandards(
+  input: GenerateStandardsInput,
+  options?: ActionOptions
+) {
+  if (!input.architecture || !input.specifications) {
+    throw new Error('Architecture and specifications are required to generate standards.');
+  }
+  try {
+    return await generateStandards(
+      input,
+      options?.apiKey,
+      options?.model,
+      options?.apiBase,
+      options?.useTDD,
+      options?.temperature
     );
+  } catch (error) {
+    console.error('Error generating standards:', error);
+    throw describeFailure('Standards generation', error);
   }
 }
 
@@ -65,9 +104,7 @@ export async function runGenerateTasks(
     return result;
   } catch (error) {
     console.error('Error generating tasks:', error);
-    throw new Error(
-      'Failed to generate tasks. The model may have returned an unexpected response.'
-    );
+    throw describeFailure('Task planning', error);
   }
 }
 
@@ -97,19 +134,7 @@ export async function runGenerateFileStructure(
     return result;
   } catch (error) {
     console.error('Error generating file structure:', error);
-    if (
-      error instanceof Error &&
-      (error.message.includes('API key not found') ||
-        error.message.includes('API key is invalid') ||
-        error.message.includes('Please check your LLM API key'))
-    ) {
-      throw new Error(
-        'Failed to generate file structure: Your LLM API key is missing or invalid. Please check it in settings.'
-      );
-    }
-    throw new Error(
-      'File structure generation failed. The model may have returned an unexpected response. Try a different model or adjust the PRD, architecture, or specifications.'
-    );
+    throw describeFailure('File structure generation', error);
   }
 }
 
@@ -134,8 +159,10 @@ export async function runResearchTask(
         error
       );
       if (i === MAX_RETRIES - 1) {
-        throw new Error(
-          `Failed to research task "${input.title}" after ${MAX_RETRIES} attempts. The AI may have refused to answer or returned an invalid format. Please try a different model if the issue persists.`
+        throw describeFailure(
+          `Research for task "${input.title}" (after ${MAX_RETRIES} attempts)`,
+          error,
+          'Try a different model if this persists.'
         );
       }
       // Optional: wait a bit before retrying
@@ -167,19 +194,7 @@ export async function runGenerateAgentsMd(
     return result;
   } catch (error) {
     console.error('Error generating AGENTS.md content:', error);
-    if (
-      error instanceof Error &&
-      (error.message.includes('API key not found') ||
-        error.message.includes('API key is invalid') ||
-        error.message.includes('Please check your LLM API key'))
-    ) {
-      throw new Error(
-        'Failed to generate AGENTS.md content: Your LLM API key is missing or invalid. Please check it in settings.'
-      );
-    }
-    throw new Error(
-      'AGENTS.md generation failed. The model may have returned an unexpected response.'
-    );
+    throw describeFailure('AGENTS.md generation', error);
   }
 }
 

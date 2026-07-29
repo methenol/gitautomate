@@ -45,6 +45,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Library identification needs a model; say so rather than returning an empty
+    // documentation set that looks like "this project uses no libraries".
+    if (!llmModel) {
+      return NextResponse.json(
+        { error: 'An LLM model is required to identify libraries. Configure one in settings.' },
+        { status: 400 }
+      );
+    }
+
     // Identify libraries mentioned in tasks using LLM extraction
     const identifiedLibraries = await LibraryIdentifier.identifyLibraries(
       tasks,

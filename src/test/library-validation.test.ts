@@ -1,6 +1,16 @@
 import { LibraryIdentifier } from '@/services/library-identifier';
+import { ai } from '@/ai/litellm';
+import { installFakeExtractionLLM } from './helpers/fake-llm';
+
+// Extraction runs through a model. The stub answers like a plausible-but-sloppy one, so
+// what these tests actually exercise is our own filtering and merging.
+jest.mock('@/ai/litellm', () => ({ ai: { generate: jest.fn() } }));
 
 describe('Library Extraction - Core Functionality', () => {
+  beforeEach(() => {
+    installFakeExtractionLLM(ai.generate as unknown as jest.Mock);
+  });
+
   it('should extract real libraries and reject garbage patterns', async () => {
     const problematicTasks = [
       {

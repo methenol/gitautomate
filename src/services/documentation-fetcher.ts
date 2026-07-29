@@ -49,6 +49,19 @@ export class DocumentationFetcher {
     let totalSizeKB = 0;
     let skippedCount = 0;
 
+    // Honour the setting here rather than only at the call site: a disabled fetcher
+    // must not read the cache, hit the network, or spend tokens on cleanup.
+    if (!this.settings.enabled) {
+      return {
+        libraries: [],
+        totalSizeKB: 0,
+        fetchedCount: 0,
+        skippedCount: libraries.length,
+        errorCount: 0,
+        errors: [],
+      };
+    }
+
     // Ensure cache directory exists
     await this.ensureCacheDir();
 
@@ -557,7 +570,9 @@ export class DocumentationFetcher {
         'github-wiki': 5,
         'stackoverflow': 6 
       };
-      return (priority[a.type] || 99) - (priority[b.type] || 99);
+      // `??`, not `||`: the highest-priority type is 0, which `||` treats as missing
+      // and demotes to 99 — that sent the README to the back of the queue.
+      return (priority[a.type] ?? 99) - (priority[b.type] ?? 99);
     });
 
     for (const source of sortedSources) {
