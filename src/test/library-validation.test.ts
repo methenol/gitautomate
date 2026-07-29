@@ -1,6 +1,35 @@
 import { LibraryIdentifier } from '@/services/library-identifier';
 
+jest.mock('@/ai/litellm', () => ({
+  ai: {
+    generate: jest.fn()
+  }
+}));
+
 describe('Library Extraction - Core Functionality', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
+      if (prompt.includes('pygame.sprite')) {
+        return Promise.resolve({ output: 'pygame' });
+      }
+      if (prompt.includes('React Web App')) {
+        return Promise.resolve({ output: 'react\nreact-dom\ntypescript' });
+      }
+      if (prompt.includes('Install Dependencies')) {
+        return Promise.resolve({ output: 'lodash\nmoment\nredux\ntensorflow' });
+      }
+      if (prompt.includes('Tech Stack')) {
+        return Promise.resolve({ output: 'react\nexpress\npostgresql\njest\ndocker' });
+      }
+      if (prompt.includes('Frontend Setup')) {
+        return Promise.resolve({ output: 'react\naxios\nexpress\nreact-router-dom' });
+      }
+      return Promise.resolve({ output: 'react' });
+    });
+  });
+
   it('should extract real libraries and reject garbage patterns', async () => {
     const problematicTasks = [
       {

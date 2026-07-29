@@ -13,6 +13,7 @@ describe('LibraryIdentifier Real-World Integration', () => {
     jest.clearAllMocks();
     
     // Mock successful AI responses for library extraction
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
       console.log('DEBUG: Integration test - received prompt:', prompt.substring(0, 100));
       

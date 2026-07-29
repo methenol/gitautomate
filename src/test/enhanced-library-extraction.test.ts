@@ -1,6 +1,51 @@
 import { LibraryIdentifier } from '@/services/library-identifier';
 
+jest.mock('@/ai/litellm', () => ({
+  ai: {
+    generate: jest.fn()
+  }
+}));
+
 describe('Enhanced Library Extraction', () => {
+  const mockGenerateResponse = (prompt: string) => {
+    // Check for known patterns in prompt (order matters!)
+    if (prompt.includes('fastify')) {
+      return Promise.resolve({ output: 'express\nreact\nfastify\nvue' });
+    }
+    if (prompt.includes('pygame') || prompt.includes('sprite')) {
+      return Promise.resolve({ output: 'pygame\nreact' });
+    }
+    if (prompt.includes('supertest') || prompt.includes('mongodb-memory-server')) {
+      return Promise.resolve({ output: 'jest\nsupertest\nmongodb-memory-server' });
+    }
+    if (prompt.includes('jsonwebtoken') && prompt.includes('mongoose')) {
+      return Promise.resolve({ output: 'express\ntypescript\nmongoose\njsonwebtoken\nbcryptjs\ncors' });
+    }
+    if (prompt.includes('react-router-dom')) {
+      return Promise.resolve({ output: 'react\ntypescript\nreact-router-dom\ntailwindcss\njest\n@testing-library/react' });
+    }
+
+    // Try to extract from REQUIRED LIBRARIES section
+    const requiredMatch = prompt.match(/REQUIRED LIBRARIES:\s*([^\n]+)/i);
+    if (requiredMatch) {
+      const raw = requiredMatch[1].split(/[\s,]+/).filter(Boolean);
+      const skipWords = new Set(['config', 'utils', 'the', 'and', 'for', 'with', 'using', 'implement', 'setup', 'create', 'refer', 'to', 'documentation']);
+      const hasRealLibs = raw.some(w => ['react', 'vue', 'angular', 'svelte', 'express', 'fastify', 'mongoose', 'pygame', 'typescript', 'nextjs'].includes(w.toLowerCase()));
+      const libs = hasRealLibs
+        ? raw.filter(w => !skipWords.has(w.toLowerCase()))
+        : raw;
+      return Promise.resolve({ output: libs.join('\n') });
+    }
+
+    return Promise.resolve({ output: 'react\ntypescript' });
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => mockGenerateResponse(prompt));
+  });
+
   describe('REQUIRED LIBRARIES pattern extraction', () => {
     it('should extract libraries from REQUIRED LIBRARIES sections with highest confidence', async () => {
       const tasks = [

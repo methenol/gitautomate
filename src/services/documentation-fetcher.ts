@@ -44,6 +44,18 @@ export class DocumentationFetcher {
    * Fetch documentation for multiple libraries
    */
   async fetchLibraryDocumentation(libraries: IdentifiedLibrary[]): Promise<DocumentationFetchResult> {
+    // Return empty result if documentation fetching is disabled
+    if (!this.settings.enabled) {
+      return {
+        libraries: [],
+        totalSizeKB: 0,
+        fetchedCount: 0,
+        skippedCount: 0,
+        errorCount: 0,
+        errors: [],
+      };
+    }
+
     const results: LibraryDocumentation[] = [];
     const errors: string[] = [];
     let totalSizeKB = 0;
@@ -557,7 +569,7 @@ export class DocumentationFetcher {
         'github-wiki': 5,
         'stackoverflow': 6 
       };
-      return (priority[a.type] || 99) - (priority[b.type] || 99);
+      return (priority[a.type] ?? 99) - (priority[b.type] ?? 99);
     });
 
     for (const source of sortedSources) {

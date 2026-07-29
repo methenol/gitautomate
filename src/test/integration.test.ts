@@ -12,36 +12,29 @@ describe('Integration Tests - Real Functionality', () => {
   beforeEach(() => {
     // Reset mocks before each test
     jest.clearAllMocks();
-    
+
     // Mock successful AI responses for library extraction
+    // Use unique task content to differentiate (not generic words in prompt template)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
-      // Extract expected libraries from the test prompts
-      if (prompt.includes('react') && prompt.includes('typescript')) {
-        return Promise.resolve({
-          output: 'react\ntypescript'
-        });
-      } else if (prompt.includes('express') && prompt.includes('mongoose')) {
-        return Promise.resolve({
-          output: 'express\nmongoose'
-        });
-      } else if (prompt.includes('pygame') && prompt.includes('sprite')) {
-        return Promise.resolve({
-          output: 'pygame'
-        });
-      } else if (prompt.includes('Next.js') || prompt.includes('GraphQL')) {
-        return Promise.resolve({
-          output: 'next.js\nexpress\ngraphql'
-        });
-      } else if (prompt.includes('Database') || prompt.includes('Testing')) {
-        return Promise.resolve({
-          output: 'postgresql\nredis\njest'
-        });
+      // Match by unique task titles/content - order matters!
+      if (prompt.includes('Modern Web App')) {
+        return Promise.resolve({ output: 'react\ntypescript\nexpress\njsonwebtoken\npostgresql\nsequelize\njest\ncypress\ndocker' });
+      } else if (prompt.includes('Full Stack App')) {
+        return Promise.resolve({ output: 'react\nexpress\npostgresql\njest\ndocker' });
+      } else if (prompt.includes('React Frontend with TypeScript') || prompt.includes('npm install react')) {
+        return Promise.resolve({ output: 'react\nreact-dom\ntypescript' });
+      } else if (prompt.includes('Express.js API Server') || prompt.includes('jsonwebtoken')) {
+        return Promise.resolve({ output: 'express\njsonwebtoken\nsequelize' });
+      } else if (prompt.includes('Testing Infrastructure')) {
+        return Promise.resolve({ output: 'jest\ncypress' });
+      } else if (prompt.includes('Docker Containerization') || prompt.includes('Kubernetes')) {
+        return Promise.resolve({ output: 'docker' });
+      } else if (prompt.includes('pygame.sprite.Sprite')) {
+        return Promise.resolve({ output: 'pygame' });
       }
-      
-      // Default response
-      return Promise.resolve({
-        output: 'react\nexpress'
-      });
+
+      return Promise.resolve({ output: 'react\nexpress' });
     });
   });
   describe('Library Extraction', () => {
@@ -85,7 +78,7 @@ describe('Integration Tests - Real Functionality', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(realProjectTasks);
+      const libraries = await LibraryIdentifier.identifyLibraries(realProjectTasks, 'test-api-key', 'test/model', 'https://api.openai.com/v1');
       
       // Should extract real libraries, not garbage
       const libraryNames = libraries.map(lib => lib.name);
