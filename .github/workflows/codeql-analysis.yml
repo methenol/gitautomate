@@ -18,6 +18,7 @@ on:
 jobs:
   analyze:
     name: Analyze
+    if: github.server_url == 'https://github.com'
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
