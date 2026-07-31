@@ -1,7 +1,11 @@
 import { LibraryIdentifier } from '@/services/library-identifier';
 import { DocumentationFetcher } from '@/services/documentation-fetcher';
+import { ai } from '@/ai/litellm';
+import { installFakeExtractionLLM } from './helpers/fake-llm';
 
-// Mock the ai module to avoid real API calls during tests
+// Mock the ai module to avoid real API calls during tests. The stub emulates a model
+// that finds the obvious signals and also leaks junk, which is what makes the
+// "should not extract invalid names" assertions below meaningful.
 jest.mock('@/ai/litellm', () => ({
   ai: {
     generate: jest.fn()
@@ -10,39 +14,7 @@ jest.mock('@/ai/litellm', () => ({
 
 describe('Integration Tests - Real Functionality', () => {
   beforeEach(() => {
-    // Reset mocks before each test
-    jest.clearAllMocks();
-    
-    // Mock successful AI responses for library extraction
-    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
-      // Extract expected libraries from the test prompts
-      if (prompt.includes('react') && prompt.includes('typescript')) {
-        return Promise.resolve({
-          output: 'react\ntypescript'
-        });
-      } else if (prompt.includes('express') && prompt.includes('mongoose')) {
-        return Promise.resolve({
-          output: 'express\nmongoose'
-        });
-      } else if (prompt.includes('pygame') && prompt.includes('sprite')) {
-        return Promise.resolve({
-          output: 'pygame'
-        });
-      } else if (prompt.includes('Next.js') || prompt.includes('GraphQL')) {
-        return Promise.resolve({
-          output: 'next.js\nexpress\ngraphql'
-        });
-      } else if (prompt.includes('Database') || prompt.includes('Testing')) {
-        return Promise.resolve({
-          output: 'postgresql\nredis\njest'
-        });
-      }
-      
-      // Default response
-      return Promise.resolve({
-        output: 'react\nexpress'
-      });
-    });
+    installFakeExtractionLLM(ai.generate as unknown as jest.Mock);
   });
   describe('Library Extraction', () => {
     it('should extract only real library names from realistic project tasks', async () => {
@@ -85,7 +57,12 @@ describe('Integration Tests - Real Functionality', () => {
         }
       ];
 
-      const libraries = await LibraryIdentifier.identifyLibraries(realProjectTasks);
+      const libraries = await LibraryIdentifier.identifyLibraries(
+        realProjectTasks,
+        'test-api-key',
+        'test/model',
+        'https://api.openai.com/v1'
+      );
       
       // Should extract real libraries, not garbage
       const libraryNames = libraries.map(lib => lib.name);

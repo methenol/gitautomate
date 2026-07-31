@@ -1,142 +1,217 @@
 'use server';
 
 /**
- * @fileOverview Transforms the architecture and specifications into actionable task titles.
+ * @fileOverview Turns the architecture, specifications and file structure into a
+ * dependency-ordered implementation plan.
  *
- * - generateTasks - A function that transforms architecture and specifications into task titles.
- * - GenerateTasksInput - The input type for the generateTasks function.
- * - GenerateTasksOutput - The return type for the generateTasks function.
- * - Task - The type for an individual task. Details are populated in a separate step.
+ * The planner does not write task details — it decides *what the units of work are*,
+ * *what order they go in*, and *which files each one owns*. Getting that skeleton
+ * right is what makes the per-task documents implementable, so the output is a
+ * structured record per task rather than a bare list of titles.
+ *
+ * - generateTasks - Produces the ordered task list.
+ * - GenerateTasksInput / GenerateTasksOutput - IO types.
  */
 
-import {ai} from '@/ai/litellm';
+import { ai } from '@/ai/litellm';
 import { TaskSchema } from '@/types';
-import {z} from 'zod';
-
+import { z } from 'zod';
+import {
+  MARKDOWN_ONLY_CONTRACT,
+  buildContextBlock,
+  buildRepairPrompt,
+  composePrompt,
+} from '@/ai/prompts/shared';
+import {
+  orderTasks,
+  parseTaskPlan,
+  validatePlan,
+  type PlanIssue,
+  type PlannedTask,
+} from '@/lib/task-plan';
 
 const _GenerateTasksInputSchema = z.object({
   architecture: z.string().describe('The architecture of the project.'),
   specifications: z.string().describe('The specifications of the project.'),
   fileStructure: z.string().describe('The file structure of the project.'),
+  standards: z.string().describe('The engineering standards and quality gates.').optional(),
 });
 export type GenerateTasksInput = z.infer<typeof _GenerateTasksInputSchema>;
 
-
 const GenerateTasksOutputSchema = z.object({
-  tasks: z.array(TaskSchema).describe('A list of actionable task titles.'),
+  tasks: z.array(TaskSchema).describe('The dependency-ordered task list.'),
 });
-export type GenerateTasksOutput = z.infer<typeof GenerateTasksOutputSchema>;
+export type GenerateTasksOutput = z.infer<typeof GenerateTasksOutputSchema> & {
+  /** Non-fatal problems found while parsing and ordering the plan. */
+  planIssues?: PlanIssue[];
+};
 
-const standardPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable, granular development task *titles*.
+const SYSTEM_PROMPT = `You are a lead engineer decomposing a project into a build order for autonomous coding agents. You think in vertical slices that each leave the repository green, and you are ruthless about declaring dependencies.`;
 
-**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting.**
+const RECORD_FORMAT = `## Output format
 
-CRITICAL: Each item in your response MUST be an actionable development task. DO NOT include section headings, organizational markers, or grouping labels like "--BACKEND FOUNDATION--" or "## Frontend Tasks". Every single task title must represent a concrete, implementable unit of work that an AI programmer can execute.
+Output a markdown bullet list and nothing else. One line per task, in build order,
+using exactly this record format:
 
-You MUST generate a COMPREHENSIVE set of tasks that covers ALL aspects of the PRD, architecture, and specifications. Generate at least 10-15 tasks for a typical project, more for complex projects. Do not generate just 1-2 tasks - break down the work into meaningful, actionable chunks.
+- <id> | <title> | depends: <ids or none> | files: <paths> | outcome: <observable result>
 
-The tasks must be generated in a strict, sequential order that a developer would follow. Start with foundational tasks like project setup (which must include configuring pre-commit git hooks to enforce code styles, run tests, and check for syntax errors), creating the component library, and configuring CI/CD. Then, build out the features in a logical sequence, ensuring that any dependencies are addressed in prior tasks. For example, user authentication should be built before features that require a logged-in user.
+Rules for each field:
 
-These tasks are for an AI programmer, so they must be clear, unambiguous, and represent a single, contained unit of work. The tasks should represent meaningful chunks of work. Avoid creating tasks that are too small or trivial. For example, "Implement user login page" is a good task, but "Add password input to login form" is too granular.
+- **id** — \`T-001\`, \`T-002\`, … numbered sequentially in build order, no gaps.
+- **title** — imperative, specific, under 90 characters, naming the thing being built.
+  Good: "Implement JWT session issuance in the auth service".
+  Bad: "Backend work", "Setup", "Various improvements", "Implement the app".
+- **depends** — comma-separated ids that must be finished first, or \`none\`. Declare
+  a dependency whenever this task reads, imports, extends or tests something an
+  earlier task creates. Do not list transitive dependencies, only direct ones.
+- **files** — comma-separated repository-relative paths this task creates or modifies,
+  taken from the file structure. 1-8 paths. Include the test files.
+- **outcome** — the observable result that proves the task landed: a command that now
+  passes, an endpoint that now responds, a screen that now renders. Not "code is written".
 
-Architecture:
-{{{architecture}}}
+Example of the expected shape (do not copy the content):
 
-File Structure:
-{{{fileStructure}}}
+- T-001 | Initialise the repository, toolchain and pre-commit hooks | depends: none | files: package.json, tsconfig.json, .pre-commit-config.yaml, .github/workflows/ci.yml | outcome: lint, typecheck and an empty test run all pass in CI
+- T-002 | Configure the test harness with a smoke test | depends: T-001 | files: jest.config.js, tests/smoke.test.ts | outcome: \`npm test\` runs and reports one passing test
 
-Specifications:
-{{{specifications}}}
+No headings, no grouping labels ("-- BACKEND --", "## Phase 1"), no blank-line
+separators, no prose before or after the list.`;
 
-Output format: List each task as a markdown bullet point. Do not include task details - just the task titles.
+function buildPlanPrompt(input: GenerateTasksInput, useTDD?: boolean): string {
+  const foundation = useTDD
+    ? `- T-001 sets up the repository, toolchain, formatter, linter, type checker and pre-commit hooks.
+- T-002 configures the test harness and coverage reporting, and proves it with one real test.
+  No task after T-002 may exist without tests, and every one of them is written test-first.`
+    : `- T-001 sets up the repository, toolchain, formatter, linter, type checker and pre-commit hooks.
+- T-002 configures the test harness and CI so that later tasks have somewhere to add tests.`;
 
-**IMPORTANT: Output ONLY markdown content with a bulleted list of task titles. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`;
+  return composePrompt(
+    `# Task
 
-const tddPrompt = `You are a lead software engineer creating a detailed project plan for an AI programmer. Your task is to break down a project's architecture, file structure, and specifications into a series of actionable, granular development task *titles*.
+Decompose the project below into an ordered implementation plan for autonomous coding
+agents. Each entry becomes a standalone task document that one agent will implement,
+verify and commit before the next entry starts.`,
 
-**CRITICAL: You MUST output ONLY valid markdown format. DO NOT output JSON format. Use proper headers, lists, code blocks, and formatting.**
+    MARKDOWN_ONLY_CONTRACT,
 
-CRITICAL: Each item in your response MUST be an actionable development task. DO NOT include section headings, organizational markers, or grouping labels like "--BACKEND FOUNDATION--" or "## Frontend Tasks". Every single task title must represent a concrete, implementable unit of work that an AI programmer can execute.
+    `## How to size a task
 
-You MUST generate a COMPREHENSIVE set of tasks that covers ALL aspects of the PRD, architecture, and specifications. Generate at least 10-15 tasks for a typical project, more for complex projects. Do not generate just 1-2 tasks - break down the work into meaningful, actionable chunks.
+- A task is one coherent, shippable slice: roughly a half-day of focused work for a
+  competent engineer, ending with the repository green and committable.
+- A task must be implementable **without touching files another task owns**, apart from
+  files it explicitly declares.
+- Too big: "Build the backend", "Implement the UI". Too small: "Add a password field",
+  "Rename a variable".
+- Prefer vertical slices (one feature end to end, with its tests) over horizontal
+  layers (all models, then all controllers), except for the foundation tasks.
+- Every functional requirement (\`FR-n\`) in the specifications must be covered by at
+  least one task, and no task may exist that serves no requirement.
 
-The tasks must be generated in a strict, sequential order that a developer would follow. Start with foundational tasks like project setup (which must include configuring pre-commit git hooks to enforce code styles, run tests, and check for syntax errors), creating the component library, and configuring CI/CD. The very next task must be to "Configure the testing environment". Then, build out the features in a logical sequence, ensuring that any dependencies are addressed in prior tasks. For example, user authentication should be built before features that require a logged-in user.
+## Required ordering
 
-These tasks are for an AI programmer, so they must be clear, unambiguous, and represent a single, contained unit of work. The tasks should represent meaningful chunks of work. Avoid creating tasks that are too small or trivial. For example, "Implement user login page" is a good task, but "Add password input to login form" is too granular.
+${foundation}
+- Then shared foundations that many features need: data layer, configuration, error
+  handling, authentication, the component or module primitives.
+- Then features in dependency order, each with its tests.
+- Then the cross-cutting finishers that genuinely need everything else in place:
+  end-to-end coverage, packaging, deployment, documentation.
+- Nothing may depend on a task that comes after it. If you catch yourself wanting a
+  forward dependency, the split is wrong — resize the tasks.
 
-For each task, the implementation must strictly follow all phases of Test-Driven Development (Red-Green-Refactor).
+## Coverage checklist
 
-Architecture:
-{{{architecture}}}
+Before you answer, confirm the plan includes tasks for every one of these that the
+project needs: project setup and tooling; test harness and CI; configuration and
+secrets loading; data model and migrations; core domain logic; each API surface; each
+UI screen or CLI command; error handling and validation; observability; packaging or
+containerisation; deployment; developer documentation. Aim for 10-25 tasks; go higher
+for a large system rather than merging unrelated work into one entry.`,
 
-File Structure:
-{{{fileStructure}}}
+    RECORD_FORMAT,
 
-Specifications:
-{{{specifications}}}
+    buildContextBlock([
+      { label: 'Architecture', content: input.architecture },
+      { label: 'Specifications', content: input.specifications },
+      { label: 'File structure', content: input.fileStructure, fenced: false },
+      { label: 'Engineering standards and quality gates', content: input.standards, limit: 8_000 },
+    ]),
 
-Output format: List each task as a markdown bullet point. Do not include task details - just the task titles.
+    `Output the plan now, one record per line.`
+  );
+}
 
-**IMPORTANT: Output ONLY markdown content with a bulleted list of task titles. DO NOT output JSON format. Do not wrap your response in JSON objects or use any JSON structure.**`;
+function toTasks(planned: PlannedTask[]): GenerateTasksOutput['tasks'] {
+  return planned.map((task) => ({
+    id: task.id,
+    title: task.title,
+    details: '',
+    dependsOn: task.dependsOn,
+    files: task.files,
+    ...(task.outcome ? { outcome: task.outcome } : {}),
+  }));
+}
 
-export async function generateTasks(input: GenerateTasksInput, apiKey?: string, model?: string, apiBase?: string, useTDD?: boolean, temperature?: number): Promise<GenerateTasksOutput> {
+export async function generateTasks(
+  input: GenerateTasksInput,
+  apiKey?: string,
+  model?: string,
+  apiBase?: string,
+  useTDD?: boolean,
+  temperature?: number
+): Promise<GenerateTasksOutput> {
   if (!model) {
     throw new Error('Model is required. Please provide a model in "provider/model" format in settings.');
   }
-  const modelName = model;
 
-  const promptTemplate = useTDD ? tddPrompt : standardPrompt;
-
-  const prompt = promptTemplate
-    .replace('{{{architecture}}}', input.architecture)
-    .replace('{{{fileStructure}}}', input.fileStructure)
-    .replace('{{{specifications}}}', input.specifications);
-
-  const {output} = await ai.generate({
-    model: modelName,
-    prompt: prompt,
-    config: (apiKey || apiBase || temperature !== undefined) ? {
-      ...(apiKey && {apiKey}),
-      ...(apiBase && {apiBase}),
-      ...(temperature !== undefined && {temperature})
-    } : undefined,
-  });
-  
-  // Parse markdown output to extract task titles
-  const markdownContent = output as string;
-  const tasks: Array<{ title: string; details: string }> = [];
-  
-  // Extract bullet points from markdown
-  const lines = markdownContent.split('\n');
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      const title = trimmed.substring(2).trim();
-      if (title) {
-        tasks.push({ title, details: '' });
-      }
-    }
-  }
-  
-  // If no bullet points found, try alternative parsing
-  if (tasks.length === 0) {
-    // Try to extract lines that look like task titles
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('**')) {
-        // Check if it looks like a task title (contains action words)
-        const actionWords = ['implement', 'create', 'build', 'setup', 'configure', 'add', 'develop', 'design', 'integrate', 'test'];
-        if (actionWords.some(word => trimmed.toLowerCase().includes(word))) {
-          tasks.push({ title: trimmed, details: '' });
+  const basePrompt = buildPlanPrompt(input, useTDD);
+  const config =
+    apiKey || apiBase || temperature !== undefined
+      ? {
+          ...(apiKey && { apiKey }),
+          ...(apiBase && { apiBase }),
+          ...(temperature !== undefined && { temperature }),
         }
-      }
+      : undefined;
+
+  let prompt = basePrompt;
+  let best: { tasks: PlannedTask[]; issues: PlanIssue[] } = { tasks: [], issues: [] };
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { output } = await ai.generate({ model, prompt, system: SYSTEM_PROMPT, config });
+    const markdownContent = ((output as string) ?? '').trim();
+    if (!markdownContent) {
+      throw new Error('An unexpected empty response was received from the model.');
     }
+
+    const parsed = parseTaskPlan(markdownContent);
+    const planIssues = validatePlan(parsed.tasks);
+    const blocking = planIssues.filter((issue) => issue.severity === 'error');
+
+    if (parsed.tasks.length > best.tasks.length) {
+      best = { tasks: parsed.tasks, issues: [...parsed.issues, ...planIssues] };
+    }
+
+    if (parsed.tasks.length > 0 && blocking.length === 0) {
+      best = { tasks: parsed.tasks, issues: [...parsed.issues, ...planIssues] };
+      break;
+    }
+
+    const issues =
+      parsed.tasks.length === 0
+        ? ['No task records could be parsed. Follow the record format exactly, one task per bullet line.']
+        : blocking.map((issue) => issue.message);
+
+    prompt = buildRepairPrompt({ originalPrompt: basePrompt, previousOutput: markdownContent, issues });
   }
-  
-  // Ensure we have at least some tasks
-  if (tasks.length === 0) {
-    throw new Error('Failed to extract task titles from generated content');
+
+  if (best.tasks.length === 0) {
+    throw new Error('Failed to extract an implementation plan from the generated content.');
   }
-  
-  return { tasks };
+
+  const ordered = orderTasks(best.tasks);
+
+  return {
+    tasks: toTasks(ordered.tasks),
+    planIssues: [...best.issues, ...ordered.issues],
+  };
 }

@@ -3,6 +3,8 @@
  * Uses manual fixes since markdownlint-cli2 requires Node.js
  */
 
+import { parseFrontmatter, preserveFrontmatter } from '@/lib/frontmatter';
+
 export interface BrowserMarkdownLintResult {
   isValid: boolean;
   errors: string[];
@@ -15,13 +17,13 @@ export class BrowserMarkdownLinter {
    */
   static lintAndFix(content: string, filename = 'document.md'): BrowserMarkdownLintResult {
     const errors: string[] = [];
-    let fixed = content;
 
-    // Apply comprehensive manual fixes
-    fixed = this.applyAllFixes(fixed, errors);
+    // Frontmatter must survive byte-identical: the horizontal-rule and
+    // blank-line fixes below would otherwise split `---` blocks apart.
+    const fixed = preserveFrontmatter(content, (body) => this.applyAllFixes(body, errors));
 
     // Validate the fixed content
-    const validationErrors = this.validateMarkdown(fixed);
+    const validationErrors = this.validateMarkdown(parseFrontmatter(fixed).body);
     errors.push(...validationErrors);
 
     return {

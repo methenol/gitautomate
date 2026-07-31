@@ -2,6 +2,8 @@
  * Browser-compatible utility functions for markdown formatting
  */
 
+import { preserveFrontmatter } from '@/lib/frontmatter';
+
 /**
  * Ensure proper markdown headers and structure
  * @param content - Markdown content
@@ -48,23 +50,34 @@ export function ensureMarkdownStructure(content: string, title?: string): string
  * @returns Clean, properly formatted task content
  */
 export function formatTaskMarkdown(content: string): string {
-  let formatted = content.trim();
-  
-  // Ensure proper task structure if missing
-  if (!formatted.includes('## Context') && 
-      !formatted.includes('## Implementation') && 
-      !formatted.includes('## Acceptance')) {
-    
-    // This might be old format, try to detect and convert
-    if (formatted.includes('### Context')) {
-      formatted = formatted.replace(/### /g, '## ');
+  // Task files carry YAML frontmatter (id, depends_on, status) that the structural
+  // fixes below would corrupt, so it is detached and restored verbatim.
+  return preserveFrontmatter(content, (body) => {
+    let formatted = body.trim();
+
+    // Ensure proper task structure if missing
+    if (!formatted.includes('## Context') &&
+        !formatted.includes('## Implementation') &&
+        !formatted.includes('## Acceptance')) {
+
+      // This might be old format, try to detect and convert
+      if (formatted.includes('### Context')) {
+        formatted = formatted.replace(/### /g, '## ');
+      }
     }
-  }
-  
-  // Format with general structure rules
-  formatted = ensureMarkdownStructure(formatted);
-  
-  return formatted;
+
+    // Format with general structure rules
+    return ensureMarkdownStructure(formatted);
+  });
+}
+
+/**
+ * Format the engineering standards document.
+ * @param content - Standards markdown content
+ * @returns Properly formatted standards content
+ */
+export function formatStandardsMarkdown(content: string): string {
+  return ensureMarkdownStructure(content, 'Engineering Standards');
 }
 
 /**

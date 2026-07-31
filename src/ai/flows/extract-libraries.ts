@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/litellm';
 import {z} from 'zod';
+import { parseLibraryList } from '@/lib/library-names';
 
 const ExtractLibrariesInputSchema = z.object({
   taskDetails: z.string().describe('The task details text containing library information.'),
@@ -71,67 +72,5 @@ export async function extractLibraries(
     throw new Error('An unexpected response was received from the server.');
   }
 
-  // Parse the output as a simple list of library names
-  const outputText = output as string;
-  const rawLibraries = outputText
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0 && !line.startsWith('#') && !line.startsWith('//')); // Filter out comments and empty lines
-
-  // Clean and normalize library names
-  const libraries = rawLibraries
-    .map(lib => normalizeLibraryName(lib))
-    .filter(lib => lib && isValidLibraryName(lib));
-
-  return {
-    libraries: [...new Set(libraries)] // Remove duplicates
-  };
-}
-
-/**
- * Normalize library names to standard format
- */
-function normalizeLibraryName(name: string): string {
-  const normalized = name.toLowerCase()
-    .replace(/^@.*?\//, '') // Remove npm scope (@babel/core -> core)
-    .replace(/['"]/g, '') // Remove quotes
-    .replace(/\.js$/, '') // Remove .js extension  
-    .replace(/\.ts$/, '') // Remove .ts extension
-    .replace(/[-_\s]+/g, '-') // Normalize separators to hyphens
-    .trim();
-  
-  // Handle common variations
-  const variations: Record<string, string> = {
-    'nextjs': 'nextjs',
-    'next.js': 'nextjs',
-    'next': 'nextjs',
-    'nuxtjs': 'nuxtjs', 
-    'nuxt.js': 'nuxtjs',
-    'nodejs': 'nodejs',
-    'node.js': 'nodejs',
-    'expressjs': 'express',
-    'express.js': 'express',
-    'tensorflow.js': 'tensorflow'
-  };
-  
-  return variations[normalized] || normalized;
-}
-
-/**
- * Check if a string is a valid library name
- */
-function isValidLibraryName(name: string): boolean {
-  // Must be reasonable length and format
-  if (!/^[a-zA-Z][\w-]{1,30}$/.test(name)) return false;
-  
-  // Must be at least 2 characters
-  if (name.length < 2) return false;
-  
-  // Reject names that contain dots (these are usually property paths, not library names)
-  if (name.includes('.')) return false;
-  
-  // Reject names with multiple consecutive hyphens or underscores
-  if (name.includes('--') || name.includes('__')) return false;
-  
-  return true;
+  return { libraries: parseLibraryList(output as string) };
 }

@@ -13,13 +13,19 @@ import {
   formatSpecificationsMarkdown,
   formatFileStructureMarkdown,
   formatPRDMarkdown,
+  formatStandardsMarkdown,
 } from '@/lib/markdown';
 import { BrowserMarkdownLinter } from '@/lib/browser-markdown-linter';
+import { renderPlanMarkdown } from '@/lib/task-plan';
+import { renderTasksReadme } from '@/lib/export-docs';
+import { resolveQualityGates } from '@/lib/quality-gates';
+import { validateTaskDocument } from '@/lib/task-document';
 import {
   runGenerateArchitecture,
   runGenerateTasks,
   runResearchTask,
   runGenerateFileStructure,
+  runGenerateStandards,
 } from './actions';
 import { runGenerateAgentsMd } from '@/app/actions';
 import type { Task } from '@/types';
@@ -150,7 +156,9 @@ export default function Home() {
   const [architecture, setArchitecture] = useState<string>('');
   const [specifications, setSpecifications] = useState<string>('');
   const [fileStructure, setFileStructure] = useState<string>('');
+  const [standards, setStandards] = useState<string>('');
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [planIssues, setPlanIssues] = useState<string[]>([]);
   const [finalIssueURL, setFinalIssueURL] = useState('');
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -304,19 +312,37 @@ export default function Home() {
     setArchitecture('');
     setSpecifications('');
     setFileStructure('');
+    setStandards('');
     setTasks([]);
+    setPlanIssues([]);
     setFinalIssueURL('');
     try {
       const result = await runGenerateArchitecture({ prd }, { apiKey: apiKey, model: llmModel, apiBase: apiBase, temperature });
       setArchitecture(result.architecture);
       setSpecifications(result.specifications);
 
-      // Automatically generate file structure after architecture/specs
-      const fileStructResult = await runGenerateFileStructure(
-        { prd, architecture: result.architecture, specifications: result.specifications },
-        { apiKey: apiKey, model: llmModel, apiBase: apiBase, temperature }
-      );
+      // File structure and standards only depend on the architecture and specs, so
+      // they can be produced concurrently.
+      const [fileStructResult, standardsResult] = await Promise.all([
+        runGenerateFileStructure(
+          { prd, architecture: result.architecture, specifications: result.specifications },
+          { apiKey: apiKey, model: llmModel, apiBase: apiBase, temperature }
+        ),
+        runGenerateStandards(
+          { prd, architecture: result.architecture, specifications: result.specifications },
+          { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD, temperature }
+        ),
+      ]);
       setFileStructure(fileStructResult.fileStructure || '');
+      setStandards(standardsResult.standards || '');
+
+      if (standardsResult.gates.length === 0) {
+        toast({
+          title: 'No quality gates detected',
+          description:
+            'The standards document has no machine-readable gate list. Add a ```gates block, or task files will fall back to placeholder commands.',
+        });
+      }
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -330,13 +356,38 @@ export default function Home() {
 
   // REMOVED: handleGenerateFileStructure and all fileStruct loading logic, as file structure is now generated automatically after architecture/specs.
 
-  const researchSingleTask = useCallback(async (task: Task) => {
+  const researchSingleTask = useCallback(async (task: Task, allTasks?: Task[]) => {
     setTaskLoading(prev => ({ ...prev, [task.title]: true }));
     try {
+      // The brief must describe the repository as it will be when this task starts,
+      // so the model is told which tasks have already landed.
+      const plan = allTasks ?? tasks;
+      const position = plan.findIndex(t => t.title === task.title);
+      const precedingTasks = (position > 0 ? plan.slice(0, position) : [])
+        .filter(t => t.id)
+        .map(t => ({ id: t.id as string, title: t.title }));
+
       const result = await runResearchTask(
-        { title: task.title, architecture, fileStructure, specifications },
+        {
+          title: task.title,
+          architecture,
+          fileStructure,
+          specifications,
+          standards,
+          taskId: task.id,
+          dependsOn: task.dependsOn,
+          files: task.files,
+          outcome: task.outcome,
+          precedingTasks,
+        },
         { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD, temperature }
       );
+
+      const warnings = (result.issues ?? []).filter(issue => issue.severity === 'warning');
+      if (warnings.length > 0) {
+        console.warn(`Task "${task.title}" has ${warnings.length} contract warning(s):`, warnings);
+      }
+
       setTasks(currentTasks =>
         currentTasks.map(t => t.title === task.title ? { ...t, details: result.markdownContent } : t)
       );
@@ -354,21 +405,24 @@ export default function Home() {
     } finally {
       setTaskLoading(prev => ({ ...prev, [task.title]: false }));
     }
-  }, [architecture, fileStructure, specifications, apiKey, llmModel, useTDD, temperature, selectedTask?.title]);
+  }, [architecture, fileStructure, specifications, standards, tasks, apiKey, llmModel, apiBase, useTDD, temperature, selectedTask?.title]);
 
 
   const handleGenerateTasks = async () => {
     setLoading((prev) => ({ ...prev, tasks: true, researching: false }));
     setTasks([]);
+    setPlanIssues([]);
     setFinalIssueURL('');
     setResearchProgress(0);
 
     try {
       const result = await runGenerateTasks(
-        { architecture, specifications, fileStructure },
+        { architecture, specifications, fileStructure, standards },
         { apiKey: apiKey, model: llmModel, apiBase: apiBase, useTDD, temperature }
       );
       const initialTasks = result.tasks;
+      const issues = (result.planIssues ?? []).map(issue => `${issue.severity}: ${issue.message}`);
+      setPlanIssues(issues);
 
       if (!initialTasks || initialTasks.length === 0) {
         toast({
@@ -384,7 +438,7 @@ export default function Home() {
       setLoading((prev) => ({ ...prev, tasks: false, researching: true }));
       
       for (let i = 0; i < initialTasks.length; i++) {
-        await researchSingleTask(initialTasks[i]);
+        await researchSingleTask(initialTasks[i], initialTasks);
         setResearchProgress(((i + 1) / initialTasks.length) * 100);
       }
       
@@ -424,7 +478,8 @@ export default function Home() {
         architecture,
         specifications,
         fileStructure,
-        tasks
+        tasks,
+        standards
       );
 
       setFinalIssueURL(result.html_url);
@@ -476,6 +531,7 @@ const handleExportData = async () => {
       const zip = new JSZip();
       const docsFolder = zip.folder('docs');
       const tasksFolder = zip.folder('tasks');
+      const gates = resolveQualityGates(standards);
 
       if (!docsFolder || !tasksFolder) {
         throw new Error('Could not create folders in zip file.');
@@ -491,6 +547,27 @@ const handleExportData = async () => {
       docsFolder.file('ARCHITECTURE.md', architectureFixed);
       docsFolder.file('SPECIFICATION.md', specificationsFixed);
       docsFolder.file('FILE_STRUCTURE.md', fileStructureFixed);
+
+      if (standards.trim()) {
+        docsFolder.file(
+          'STANDARDS.md',
+          BrowserMarkdownLinter.getFixedContent(formatStandardsMarkdown(standards), 'STANDARDS.md')
+        );
+      }
+
+      // The dependency-ordered plan is the agent's entry point: it says what to do
+      // next and records what is already done.
+      const plannedTasks = tasks.map((task, index) => ({
+        id: task.id ?? `T-${(index + 1).toString().padStart(3, '0')}`,
+        title: task.title,
+        dependsOn: task.dependsOn ?? [],
+        files: task.files ?? [],
+        outcome: task.outcome,
+      }));
+      docsFolder.file(
+        'PLAN.md',
+        BrowserMarkdownLinter.getFixedContent(renderPlanMarkdown(plannedTasks), 'PLAN.md')
+      );
 
       // Fetch documentation if enabled
       let documentationResult = null;
@@ -579,9 +656,23 @@ const handleExportData = async () => {
       }
 
       // Create main tasks file with linting
-      const mainTasksContent = tasks.map((task, index) => `- [ ] task-${(index + 1).toString().padStart(3, '0')}: ${task.title}`).join('\n');
-      const mainTasksFixed = BrowserMarkdownLinter.getFixedContent(`# Task List\n\n${mainTasksContent}`, 'tasks.md');
+      const mainTasksContent = tasks
+        .map((task, index) => {
+          const taskNumber = (index + 1).toString().padStart(3, '0');
+          const id = task.id ?? `T-${taskNumber}`;
+          const deps = task.dependsOn && task.dependsOn.length > 0 ? ` (after ${task.dependsOn.join(', ')})` : '';
+          return `- [ ] ${id} — [${task.title}](task-${taskNumber}.md)${deps}`;
+        })
+        .join('\n');
+      const mainTasksFixed = BrowserMarkdownLinter.getFixedContent(
+        `# Task List\n\nWork these in order. The authoritative plan, with dependencies, is \`docs/PLAN.md\`.\n\n${mainTasksContent}`,
+        'tasks.md'
+      );
       tasksFolder.file('tasks.md', mainTasksFixed);
+      tasksFolder.file(
+        'README.md',
+        BrowserMarkdownLinter.getFixedContent(renderTasksReadme(gates, useTDD), 'tasks-README.md')
+      );
 
       // Create individual task files with proper markdown formatting and linting
       tasks.forEach((task, index) => {
@@ -595,12 +686,13 @@ const handleExportData = async () => {
       const agentsMdResult = await runGenerateAgentsMd(
         {
           prd,
-          architecture, 
+          architecture,
           specifications,
           fileStructure,
+          standards,
           taskNames: tasks.map(task => task.title)
         },
-        { apiKey: apiKey, model: llmModel, apiBase: apiBase }
+        { apiKey: apiKey, model: llmModel, apiBase: apiBase, temperature }
       );
       
       // Add AGENTS.md at the root level (not inside any subfolder) with linting
@@ -1063,6 +1155,30 @@ const handleExportData = async () => {
                         className="mt-2 font-mono text-sm"
                       />
                     </div>
+                    <div>
+                      <Label htmlFor="standards" className="text-lg font-semibold">
+                        Standards &amp; Quality Gates
+                      </Label>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        The commands in the <code>```gates</code> block are copied into every task file as
+                        its quality gates. Fix them here once and every task inherits the correction.
+                      </p>
+                      <Textarea
+                        id="standards"
+                        value={standards}
+                        onChange={(e) => setStandards(e.target.value)}
+                        rows={14}
+                        className="mt-2 font-mono text-sm"
+                      />
+                      {standards.trim() && (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          Detected gates:{' '}
+                          {resolveQualityGates(standards)
+                            .map((gate) => `${gate.id} (${gate.command})`)
+                            .join(', ')}
+                        </p>
+                      )}
+                    </div>
                   </CardContent>
                   <CardFooter className="flex justify-end gap-2">
                     <Button
@@ -1119,6 +1235,19 @@ const handleExportData = async () => {
                         </p>
                       </div>
                     )}
+                    {planIssues.length > 0 && !loading.researching && (
+                      <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+                        <p className="flex items-center gap-2 text-sm font-medium">
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                          Plan warnings ({planIssues.length})
+                        </p>
+                        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                          {planIssues.map((issue, index) => (
+                            <li key={index}>{issue}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       {tasks.map((task, index) => (
                         <button
@@ -1133,7 +1262,33 @@ const handleExportData = async () => {
                             <Bot className="h-5 w-5 flex-shrink-0 text-primary" />
                           )}
                           <div className="flex-1 overflow-hidden">
-                            <p className='font-medium truncate'>{task.title}</p>
+                            <p className='font-medium truncate'>
+                              {task.id && <span className="mr-2 font-mono text-xs text-muted-foreground">{task.id}</span>}
+                              {task.title}
+                            </p>
+                            {task.dependsOn && task.dependsOn.length > 0 && (
+                              <p className="truncate text-xs text-muted-foreground">
+                                after {task.dependsOn.join(', ')}
+                                {task.files && task.files.length > 0 ? ` · ${task.files.length} file(s)` : ''}
+                              </p>
+                            )}
+                            {(() => {
+                              // Same contract used during generation, so an edited task is
+                              // held to the same standard as a generated one.
+                              if (!task.details || task.details === 'Researching...' || isResearchFailed(task.details)) return null;
+                              const unmet = validateTaskDocument(task.details, {
+                                taskId: task.id,
+                                title: task.title,
+                                requireAppendedSections: true,
+                              });
+                              if (unmet.length === 0) return null;
+                              const errors = unmet.filter((issue) => issue.severity === 'error').length;
+                              return (
+                                <p className="text-xs text-amber-600 dark:text-amber-500">
+                                  {errors > 0 ? `${errors} contract issue(s)` : `${unmet.length} suggestion(s)`}
+                                </p>
+                              );
+                            })()}
                             {taskLoading[task.title] && (
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                   <LoaderCircle className="h-3 w-3 animate-spin" />
@@ -1226,7 +1381,10 @@ const handleExportData = async () => {
                            setPrd('');
                            setArchitecture('');
                            setSpecifications('');
+                           setFileStructure('');
+                           setStandards('');
                            setTasks([]);
+                           setPlanIssues([]);
                            setFinalIssueURL('');
                            setSelectedTask(null);
                         }}>Start Over</Button>
@@ -1264,6 +1422,36 @@ const handleExportData = async () => {
                 rows={20}
                 className="text-sm"
               />
+              {!isResearchFailed(editedTaskDetails) && (() => {
+                const issues = validateTaskDocument(editedTaskDetails, {
+                  taskId: selectedTask?.id,
+                  title: selectedTask?.title,
+                  requireAppendedSections: true,
+                });
+                if (issues.length === 0) {
+                  return (
+                    <p className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      This task meets the agent-ready contract.
+                    </p>
+                  );
+                }
+                return (
+                  <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
+                    <p className="text-xs font-medium">Contract check ({issues.length})</p>
+                    <ul className="mt-1.5 space-y-1 text-xs text-muted-foreground">
+                      {issues.map((issue, index) => (
+                        <li key={index}>
+                          <span className={issue.severity === 'error' ? 'text-destructive' : ''}>
+                            {issue.severity}
+                          </span>
+                          {`: ${issue.message}`}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
             </div>
             <div className="space-y-2">
                 <Label className="font-semibold">GitHub Issue Preview</Label>

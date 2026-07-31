@@ -6,6 +6,7 @@ jest.mock('@/ai/litellm', () => ({
 }));
 
 import { LibraryIdentifier } from '@/services/library-identifier';
+import { ai } from '@/ai/litellm';
 
 describe('LibraryIdentifier Real-World Integration', () => {
   beforeEach(() => {
@@ -13,7 +14,7 @@ describe('LibraryIdentifier Real-World Integration', () => {
     jest.clearAllMocks();
     
     // Mock successful AI responses for library extraction
-    (require('@/ai/litellm').ai.generate as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
+    (ai.generate as unknown as jest.Mock).mockImplementation(({ prompt }: { prompt: string }) => {
       console.log('DEBUG: Integration test - received prompt:', prompt.substring(0, 100));
       
       // Extract expected libraries from the test prompts

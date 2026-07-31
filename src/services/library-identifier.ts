@@ -14,6 +14,15 @@ export class LibraryIdentifier {
   ): Promise<IdentifiedLibrary[]> {
     const identified = new Map<string, IdentifiedLibrary>();
 
+    // A missing model is a configuration error, not a per-task failure. Without this
+    // check every task fails identically and the caller gets a silent empty list —
+    // which looked like "no libraries in this project" rather than "not configured".
+    if (!model) {
+      throw new Error(
+        'Model is required to identify libraries. Provide a model in "provider/model" format in settings.'
+      );
+    }
+
     for (const task of tasks) {
       const text = `${task.title} ${task.details}`;
       
