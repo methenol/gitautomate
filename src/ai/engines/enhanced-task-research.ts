@@ -28,7 +28,8 @@ export class EnhancedTaskResearchEngine {
     context: UnifiedProjectContext,
     completedTasks: string[],
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<EnhancedResearchOutput> {
     
     // Build comprehensive context including completed tasks
@@ -124,7 +125,10 @@ Generate your research results as a JSON object conforming to the output schema.
       model: modelName,
       prompt: prompt,
       output: { schema: EnhancedResearchOutputSchema },
-      config: apiKey ? { apiKey } : undefined,
+      config: (apiKey || apiBase) ? {
+        ...(apiKey && {apiKey}),
+        ...(apiBase && {apiBase})
+      } : undefined,
     });
 
     if (!output) {

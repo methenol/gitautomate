@@ -145,7 +145,8 @@ Details: ${this.truncateText(t.details, 200)}...`
   async analyzeProjectConsistency(
     context: UnifiedProjectContext,
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<RefinementAnalysis> {
     
     // First run structural validation
@@ -170,7 +171,10 @@ Provide your analysis as a JSON object conforming to the schema.`;
       model: modelName,
       prompt: prompt,
       output: { schema: RefinementAnalysisSchema },
-      config: apiKey ? { apiKey } : undefined,
+      config: (apiKey || apiBase) ? {
+        ...(apiKey && {apiKey}),
+        ...(apiBase && {apiBase})
+      } : undefined,
     });
 
     if (!output) {
@@ -184,7 +188,8 @@ Provide your analysis as a JSON object conforming to the schema.`;
     context: UnifiedProjectContext,
     analysis: RefinementAnalysis,
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     let refinedContext = { ...context };
@@ -192,19 +197,19 @@ Provide your analysis as a JSON object conforming to the schema.`;
     // Apply refinements based on recommended action
     switch (analysis.recommendedAction) {
       case 'refine_architecture':
-        refinedContext = await this.refineArchitecture(refinedContext, analysis.suggestions, apiKey, model);
+        refinedContext = await this.refineArchitecture(refinedContext, analysis.suggestions, apiKey, model, apiBase);
         break;
         
       case 'refine_tasks':
-        refinedContext = await this.refineTasks(refinedContext, analysis.suggestions, apiKey, model);
+        refinedContext = await this.refineTasks(refinedContext, analysis.suggestions, apiKey, model, apiBase);
         break;
         
       case 'refine_specifications':
-        refinedContext = await this.refineSpecifications(refinedContext, analysis.suggestions, apiKey, model);
+        refinedContext = await this.refineSpecifications(refinedContext, analysis.suggestions, apiKey, model, apiBase);
         break;
         
       case 'major_revision':
-        refinedContext = await this.performMajorRevision(refinedContext, analysis, apiKey, model);
+        refinedContext = await this.performMajorRevision(refinedContext, analysis, apiKey, model, apiBase);
         break;
         
       case 'accept':
@@ -231,7 +236,8 @@ Provide your analysis as a JSON object conforming to the schema.`;
     context: UnifiedProjectContext,
     suggestions: RefinementSuggestion[],
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     const archSuggestions = suggestions.filter(s => s.component === 'architecture');
@@ -258,7 +264,10 @@ Provide a refined architecture that addresses these specific issues while mainta
     const { output } = await ai.generate({
       model: modelName,
       prompt: refinementPrompt,
-      config: apiKey ? { apiKey } : undefined,
+      config: (apiKey || apiBase) ? {
+        ...(apiKey && {apiKey}),
+        ...(apiBase && {apiBase})
+      } : undefined,
     });
 
     return {
@@ -271,7 +280,8 @@ Provide a refined architecture that addresses these specific issues while mainta
     context: UnifiedProjectContext,
     suggestions: RefinementSuggestion[],
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     const taskSuggestions = suggestions.filter(s => s.component === 'tasks' || s.component === 'dependencies');
@@ -285,7 +295,8 @@ Provide a refined architecture that addresses these specific issues while mainta
         fileStructure: context.fileStructure,
       },
       apiKey,
-      model
+      model,
+      apiBase
     );
     
     // Transform to unified format with better dependency inference
@@ -307,7 +318,8 @@ Provide a refined architecture that addresses these specific issues while mainta
     context: UnifiedProjectContext,
     suggestions: RefinementSuggestion[],
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     const specSuggestions = suggestions.filter(s => s.component === 'specifications');
@@ -334,7 +346,10 @@ Provide refined specifications that address these issues.`;
     const { output } = await ai.generate({
       model: modelName,
       prompt: refinementPrompt,
-      config: apiKey ? { apiKey } : undefined,
+      config: (apiKey || apiBase) ? {
+        ...(apiKey && {apiKey}),
+        ...(apiBase && {apiBase})
+      } : undefined,
     });
 
     return {
@@ -347,14 +362,16 @@ Provide refined specifications that address these issues.`;
     context: UnifiedProjectContext,
     analysis: RefinementAnalysis,
     apiKey?: string,
-    model?: string
+    model?: string,
+    apiBase?: string
   ): Promise<UnifiedProjectContext> {
     
     // Major revision: regenerate architecture and cascade changes
     const archResult = await generateArchitecture(
       { prd: context.prd },
       apiKey,
-      model
+      model,
+      apiBase
     );
     
     // This would trigger a complete regeneration workflow
